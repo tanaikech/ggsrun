@@ -71,7 +71,7 @@ You can see the release page [here](https://github.com/tanaikech/ggsrun/releases
 # Demo
 This demonstration retrieves data from spreadsheet as shown in an image as an array. You can see the cell data retrieved by giving the range data.
 
-![](readme_sheet.png)
+![](images/readme_sheet.png)
 
 The sample script is as follows.
 
@@ -89,7 +89,7 @@ function main(range) {
 }
 ~~~
 
-![](readme_terminaldemo.gif)
+![](images/readme_terminaldemo.gif)
 
 [Also you can see a demo for Sublime Text using ggsrun.](#demosublime)
 
@@ -132,7 +132,7 @@ Here, I explain the flow difference of ``exe1`` and ``exe2`` using flow of each 
 
 <a name="fileupdate"></a>
 ### Flow of ``exe1``
-![](readme_Flow_exe1.png)
+![](images/readme_Flow_exe1.png)
 
 1. Prepare sample script of GAS. For example, it's ``sample.gs``.
 1. Execute ggsrun using command ``exe1``.
@@ -146,7 +146,7 @@ In this case, there are 3 times URL requests.
 When I executed above flow for the first time, I felt the low speed and high API cost. So in order to compare them, I made ``exe2`` and ``webapps``.
 
 ### Flow of ``exe2`` and ``webapps``
-![](readme_Flow_exe2.png)
+![](images/readme_Flow_exe2.png)
 
 The flow of ``exe2`` and ``webapps`` is the same.
 
@@ -170,7 +170,7 @@ When you use ``exe1`` and ``exe2``, please don't public the client ID, client se
 ## Installation Flow
 This is an installation flow for Execution API which is used for command ``exe1`` and ``exe2``, and Web Apps which is used command ``webapps``. Don't worry. These installations are not difficult. The details are [How to install Execution API](#installexecutionapi) and [How to install Web Apps](#installwebapps).
 
-![](readme_flow.png)
+![](images/readme_flow.png)
 
 If you want to trial test using very simple installation, please check [Trial Usage](#Trial_Usage).
 
@@ -985,7 +985,7 @@ Result includes file name, file id, modified time and URL.
 ## 1. For Sublime Text
 ggsrun can be also used as a builder for Sublime Text. Recently I had wished if GAS written by CoffeeScript could be built on Sublime Text. This is my large motivation for creating ggsrun. Now this was achieved. :)
 
-![](readme_sublimedemo.gif)
+![](images/readme_sublimedemo.gif)
 
 Sample script is CoffeeScript as follows. The spreadsheet is the same to that of [terminal demo](#demoterminal). The terminal demo is not CoffeeScript.
 
