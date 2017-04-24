@@ -1,0 +1,5 @@
+language: go
+install:
+    - go get github.com/tanaikech/ggsrun
+script:
+ - go test -v
