@@ -1,6 +1,9 @@
 ggsrun
 =====
 
+[![Build Status](https://travis-ci.org/tanaikech/ggsrun.svg?branch=master)](https://travis-ci.org/tanaikech/ggsrun)
+[![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENCE)
+
 <a name="TOP"></a>
 # Table of Contents
 - [Overview](#Overview)
