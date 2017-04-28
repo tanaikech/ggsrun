@@ -37,7 +37,9 @@ ggsrun
     - Scopes
     - Format of Data to GAS
     - Access Log
-    - Experiment
+    - Show Folder Tree
+    - Experiment 1
+    - [Trial Usage](#Trial_Usage)
 - [Q&A](#Q&A)
 - [Licence](#Licence)
 - [Author](#Author)
