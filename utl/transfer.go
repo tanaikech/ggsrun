@@ -557,6 +557,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. ", p.SearchByName)
 			os.Exit(1)
 		}
+		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
 	if len(c.String("searchbyid")) > 0 {
@@ -567,6 +568,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			os.Exit(1)
 		}
 		json.Unmarshal(body, &p)
+		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
 	var fm fileListSt
@@ -614,6 +616,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		btok, _ := json.MarshalIndent(fm, "", "\t")
 		ioutil.WriteFile(filename, btok, 0777)
 	}
+	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
 

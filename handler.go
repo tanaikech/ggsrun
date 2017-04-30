@@ -58,7 +58,7 @@ func downloadFiles(c *cli.Context) error {
 	return nil
 }
 
-// uploadFiles :
+// uploadFiles : Uploads files
 func uploadFiles(c *cli.Context) error {
 	res := defAuthContainer(c).
 		ggsrunIni(c).
@@ -69,7 +69,18 @@ func uploadFiles(c *cli.Context) error {
 	return nil
 }
 
-// showFileList :
+// updateProject : Updates projects and scripts
+func updateProject(c *cli.Context) error {
+	res := defAuthContainer(c).
+		ggsrunIni(c).
+		goauth().
+		defExecutionContainer().
+		projectUpdateControl(c)
+	dispTransferResult(c, res)
+	return nil
+}
+
+// showFileList : Shows file list on Google Drive
 func showFileList(c *cli.Context) error {
 	res := defAuthContainer(c).
 		ggsrunIni(c).

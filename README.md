@@ -28,6 +28,7 @@ ggsrun
     - Upload Files
     - Show File List
     - Search Files
+    - Update Project
 - [Applications](#Applications)
     - For Sublime Text
     - For CoffeeScript
@@ -980,6 +981,18 @@ $ ggsrun ls -si [file id] -j
 
 Result includes file name, file id, modified time and URL.
 
+<a name="Update_Project"></a>
+## 10. Update Project
+It updates exisiting project on Google Drive.
+
+**Run :**
+
+~~~bash
+$ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
+~~~
+
+If it is not used ``-p``, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
+
 ---
 <a name="Applications"></a>
 # Applications
@@ -1449,6 +1462,13 @@ If you have any questions and commissions for me, feel free to tell me using e-m
 * v1.0.0 (April 24, 2017)
 
     Initial release.
+
+* v1.1.0 (April 28, 2017)
+
+    1. Added a command for updating exisiting project on Google Drive. The detail infomration is [here](#Update_Project).
+    2. Added "TotalElapsedTime" for Show File List and Search Files.
+    3. Some modifications.
+
 
 ## Server
 * v1.0.0 (April 24, 2017)

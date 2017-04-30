@@ -3,6 +3,7 @@
 package main
 
 import (
+	"math"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -180,6 +181,10 @@ type ProjectUpdaterMeta struct {
 	MimeType string `json:"mimeType"`
 }
 
+type updateProjectFiles struct {
+	UpFiles []string
+}
+
 // ByteSliceFile : File with byte slice
 type ByteSliceFile struct {
 	FileData []int  `json:"result"`
@@ -215,13 +220,14 @@ type AuthContainer struct {
 // 1. Upload script using Execution API
 // 2. Update project using Drive API and execute script using Execution API
 type ExecutionContainer struct {
-	*InitVal        // Initial values
-	*ResMsg         // Response message
-	*GgsrunCfg      // Config for ggsrun
-	*Param          // Payload for Execution API
-	*FeedBackData   // Feedbacked data from function using Execution API
-	*Project        // Project for uploading using Drive API
-	*DlFileByScript // Information of download file by script
+	*InitVal            // Initial values
+	*ResMsg             // Response message
+	*GgsrunCfg          // Config for ggsrun
+	*Param              // Payload for Execution API
+	*FeedBackData       // Feedbacked data from function using Execution API
+	*Project            // Project for uploading using Drive API
+	*DlFileByScript     // Information of download file by script
+	*updateProjectFiles // Files for updating Project
 }
 
 // DefAuthContainer : Struct container for authorization
@@ -273,6 +279,7 @@ func (a *AuthContainer) defExecutionContainer() *ExecutionContainer {
 		&FeedBackData{},
 		&Project{},
 		&DlFileByScript{},
+		&updateProjectFiles{},
 	}
 	e.GgsrunCfg = a.GgsrunCfg
 	e.InitVal = a.InitVal
@@ -292,6 +299,7 @@ func defExecutionContainerWebApps() *ExecutionContainer {
 		&FeedBackData{},
 		&Project{},
 		&DlFileByScript{},
+		&updateProjectFiles{},
 	}
 	e.InitVal.pstart = time.Now()
 	e.InitVal.workdir, err = filepath.Abs(".")
@@ -336,6 +344,21 @@ func (e *ExecutionContainer) defDownloadByScriptContainer() *utl.FileInf {
 		PstartTime:  e.InitVal.pstart,
 		FileID:      e.DlFileByScript.Fileid,
 		WantExt:     e.DlFileByScript.Extension,
+	}
+	return p
+}
+
+// defUpdateProjectContainer : Struct container for downloading files by GAS
+func (e *ExecutionContainer) defUpdateProjectContainer(c *cli.Context) *ExecutionContainer {
+	e.UpFiles = regexp.MustCompile(`\s*,\s*`).Split(c.String("filename"), -1)
+	return e
+}
+
+// dispUpdateProjectContainer : Struct container for downloading files by GAS
+func (e *ExecutionContainer) dispUpdateProjectContainer() *utl.FileInf {
+	p := &utl.FileInf{
+		Msgar:   e.Msg,
+		TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
 	}
 	return p
 }

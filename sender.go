@@ -26,7 +26,7 @@ import (
 // Exe1Function :
 func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 	if len(c.String("scriptfile")) > 0 || c.Bool("backup") {
-		return e.projectBackup(c).projectUpdate(utl.ConvGasToPut(c))
+		return e.projectBackup(c).projectUpdateIni(utl.ConvGasToPut(c)).projectUpdate()
 	}
 	return e
 }
@@ -234,8 +234,7 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 	return e
 }
 
-// ProjectUpdate :
-func (e *ExecutionContainer) projectUpdate(sendscript string) *ExecutionContainer {
+func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionContainer {
 	var overwrite bool
 	for i := range e.Project.Files {
 		if e.Project.Files[i].Name == defprojectname {
@@ -251,6 +250,11 @@ func (e *ExecutionContainer) projectUpdate(sendscript string) *ExecutionContaine
 		}
 		e.Project.Files = append(e.Project.Files, *filedata)
 	}
+	return e
+}
+
+// ProjectUpdate :
+func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
 	script, _ := json.Marshal(e.Project)
 	metadata, _ := json.Marshal(&ProjectUpdaterMeta{MimeType: "application/vnd.google-apps.script"})
 	tokenparams := url.Values{}
@@ -308,7 +312,7 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. Please check script ID or access token. ", err)
+		fmt.Fprintf(os.Stderr, "Error: %v. Please check project ID. Inputted project ID is '%s'.\n", err, e.Scriptid)
 		os.Exit(1)
 	}
 	json.Unmarshal(res, &e.Project)

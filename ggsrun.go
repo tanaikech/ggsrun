@@ -15,7 +15,7 @@ func main() {
 	app.Author = "tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.0.0"
+	app.Version = "1.1.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -191,6 +191,31 @@ func main() {
 				cli.BoolFlag{
 					Name:  "noconvert, nc",
 					Usage: "If you don't want to convert file to Google Apps format.",
+				},
+				cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Display results by JSON parser",
+				},
+			},
+		},
+		{
+			Name:        "updateproject",
+			Aliases:     []string{"ud"},
+			Usage:       "Updates project on Google Drive.",
+			Description: "In this mode, an access token is required.",
+			Action:      updateProject,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "filename, f",
+					Usage: "File name. It's source files for updating.",
+				},
+				cli.StringFlag{
+					Name:  "projectid, p",
+					Usage: "ID of existing project. It's a destination project for updating.",
+				},
+				cli.BoolFlag{
+					Name:  "backup, b",
+					Usage: "Backup project with project ID you set as a file.",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",
