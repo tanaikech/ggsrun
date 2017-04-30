@@ -983,7 +983,7 @@ Result includes file name, file id, modified time and URL.
 
 <a name="Update_Project"></a>
 ## 10. Update Project
-It updates exisiting project on Google Drive.
+It updates existing project on Google Drive.
 
 **Run :**
 
@@ -1465,7 +1465,7 @@ If you have any questions and commissions for me, feel free to tell me using e-m
 
 * v1.1.0 (April 28, 2017)
 
-    1. Added a command for updating exisiting project on Google Drive. The detail infomration is [here](#Update_Project).
+    1. Added a command for updating existing project on Google Drive. The detail information is [here](#Update_Project).
     2. Added "TotalElapsedTime" for Show File List and Search Files.
     3. Some modifications.
 
