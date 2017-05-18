@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/urfave/cli"
@@ -42,6 +43,7 @@ type FileInf struct {
 	SearchByName string         `json:"-"`
 	SearchByID   string         `json:"-"`
 	FileID       string         `json:"id,omitempty"`
+	RevisionID   string         `json:"revisionid,omitempty"`
 	FileName     string         `json:"name,omitempty"`
 	SaveName     string         `json:"saved_file_name,omitempty"`
 	Parents      []string       `json:"parents,omitempty"`
@@ -82,16 +84,16 @@ type filea struct {
 type fileListSt struct {
 	NextPageToken string `json:"nextPageToken,omitempty"`
 	Files         []struct {
-		ID                string   `json:"id,omitempty"`
-		Name              string   `json:"name,omitempty"`
-		MimeType          string   `json:"mimeType,omitempty"`
-		Parents           []string `json:"parents,omitempty"`
-		CreatedTime       string   `json:"createdTime,omitempty"`
-		ModifiedTime      string   `json:"modifiedTime,omitempty"`
-		FullFileExtension string   `json:"fullFileExtension,omitempty"`
-		Size              string   `json:"size,omitempty"`
-		WebLink           string   `json:"webContentLink,omitempty"`
-		WebView           string   `json:"webViewLink,omitempty"`
+		ID                string    `json:"id,omitempty"`
+		Name              string    `json:"name,omitempty"`
+		MimeType          string    `json:"mimeType,omitempty"`
+		Parents           []string  `json:"parents,omitempty"`
+		CreatedTime       time.Time `json:"createdTime,omitempty"`
+		ModifiedTime      time.Time `json:"modifiedTime,omitempty"`
+		FullFileExtension string    `json:"fullFileExtension,omitempty"`
+		Size              string    `json:"size,omitempty"`
+		WebLink           string    `json:"webContentLink,omitempty"`
+		WebView           string    `json:"webViewLink,omitempty"`
 	}
 }
 
@@ -208,7 +210,7 @@ func (p *FileInf) writeFile(durl string) (*FileInf, []byte) {
 	var er dlError
 	json.Unmarshal(body, &er)
 	if err != nil || er.Error.Code-300 >= 0 {
-		fmt.Print(fmt.Sprintf("Error: %s Status code is %d. FileID: %s  ", er.Error.Message, er.Error.Code, p.FileID))
+		fmt.Print(fmt.Sprintf("Error: %s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID))
 		os.Exit(1)
 	}
 	if p.MimeType != "application/vnd.google-apps.script" {
@@ -288,7 +290,7 @@ func (p *FileInf) GetFileinf() *FileInf {
 					Name:         fl.Files[i].Name,
 					FileID:       fl.Files[i].ID,
 					MimeType:     fl.Files[i].MimeType,
-					ModifiedTime: fl.Files[i].ModifiedTime,
+					ModifiedTime: fl.Files[i].ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
 				}
 				rd, _ := json.MarshalIndent(dd, "", "  ")
 				fmt.Printf("%s\n", rd)
@@ -550,7 +552,12 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			p.WebView = fl.Files[0].WebView
 		} else if len(fl.Files) > 1 {
 			for i := range fl.Files {
-				fmt.Printf("{\n  Name: \"%s\",\n  ID: \"%s\",\n  ModifiedTime: \"%s\",\n  URL: \"%s\"\n}\n", fl.Files[i].Name, fl.Files[i].ID, fl.Files[i].ModifiedTime, fl.Files[i].WebView)
+				fmt.Printf("{\n  Name: \"%s\",\n  ID: \"%s\",\n  ModifiedTime: \"%s\",\n  URL: \"%s\"\n}\n",
+					fl.Files[i].Name,
+					fl.Files[i].ID,
+					fl.Files[i].ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+					fl.Files[i].WebView,
+				)
 			}
 			os.Exit(1)
 		} else {
@@ -598,7 +605,10 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 	p.Msgar = append(p.Msgar, fmt.Sprintf("Total: %d, File: %d, Folder: %d", len(fm.Files), len(fil), len(fol)))
 	p.Msgar = append(p.Msgar, fmt.Sprintf("If you want a file list, please use option '-s' or '-f'. The file name is automatically given."))
 	if c.Bool("stdout") {
-		fmt.Printf("| File name | File ID | Modified time | Create time | Type |\n")
+		buffer := &bytes.Buffer{}
+		w := new(tabwriter.Writer)
+		w.Init(buffer, 0, 4, 1, ' ', 0)
+		fmt.Fprintf(w, "\n%s\t%s\t%s\t%s\t%s\n", "# FileName", "# FileID", "# ModifiedTime", "# CreatedTime", "# Type")
 		var ftype string
 		for i := range fm.Files {
 			if strings.Contains(fm.Files[i].MimeType, "folder") {
@@ -606,9 +616,17 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			} else {
 				ftype = "File"
 			}
-			fmine := fmt.Sprintf("| %s | %s | %s | %s | %s |\n", fm.Files[i].Name, fm.Files[i].ID, fm.Files[i].ModifiedTime, fm.Files[i].CreatedTime, ftype)
-			fmt.Print(fmine)
+			fmt.Fprintf(
+				w, "%s\t%s\t%s\t%s\t%s\n",
+				fm.Files[i].Name,
+				fm.Files[i].ID,
+				fm.Files[i].ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+				fm.Files[i].CreatedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+				ftype,
+			)
 		}
+		w.Flush()
+		fmt.Printf("%s\n", buffer)
 	}
 	if c.Bool("file") {
 		filename := filepath.Join(p.Workdir, p.PstartTime.Format("Files_20060102_150405")+".json")

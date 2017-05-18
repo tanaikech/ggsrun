@@ -18,6 +18,8 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 6. Downloads files from Google Drive and Uploads files to Google Drive.
 
+7. Download revision files from Google Drive.
+
 You can see the release page https://github.com/tanaikech/ggsrun/releases
 
 # Google API

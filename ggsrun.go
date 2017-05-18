@@ -15,7 +15,7 @@ func main() {
 	app.Author = "tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.1.0"
+	app.Version = "1.2.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -216,6 +216,31 @@ func main() {
 				cli.BoolFlag{
 					Name:  "backup, b",
 					Usage: "Backup project with project ID you set as a file.",
+				},
+				cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Display results by JSON parser",
+				},
+			},
+		},
+		{
+			Name:        "revisionfiles",
+			Aliases:     []string{"r"},
+			Usage:       "Retrieves revision list and files.",
+			Description: "In this mode, an access token is required.",
+			Action:      revisionFiles,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "fileid, i",
+					Usage: "Value is file ID. Display revision ID list.",
+				},
+				cli.StringFlag{
+					Name:  "download, d",
+					Usage: "Value is revision ID. Download revision file using it and file ID.",
+				},
+				cli.StringFlag{
+					Name:  "extension, e",
+					Usage: "Extension (File format of downloaded file)",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",

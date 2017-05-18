@@ -29,6 +29,7 @@ ggsrun
     - Show File List
     - Search Files
     - Update Project
+    - Retrieve Revision Files
 - [Applications](#Applications)
     - For Sublime Text
     - For CoffeeScript
@@ -993,6 +994,28 @@ $ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
 
 If it is not used ``-p``, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
 
+<a name="RevisionFile"></a>
+## 11. Retrieve Revision Files
+It retrieves revisions for files on Google Drive.
+
+**Display revision ID list for file ID :**
+
+~~~bash
+$ ggsrun r -i [File ID]
+~~~
+
+**Download revision file using revision ID :**
+
+~~~bash
+$ ggsrun r -i [File ID] -d [Revision ID] -e [Extension]
+~~~
+
+Extension is used for converting files. For example, if you want to download spreadsheet on Google Drive as excel file, please input ``-e xlsx``.
+
+<u>At current stage, the revisions of project (GAS) cannot be retrieved yet. Because there are a revision history for each project at the script editor, there are possibly some methods for retrieving them using APIs. But I don't know yet. I'm sorry.</u>
+
+You can see the detail information about revision files at [my gist](https://gist.github.com/tanaikech/7c6657ac82af10fbc5355ddb3d9cc031).
+
 ---
 <a name="Applications"></a>
 # Applications
@@ -1469,6 +1492,10 @@ If you have any questions and commissions for me, feel free to tell me using e-m
     2. Added "TotalElapsedTime" for Show File List and Search Files.
     3. Some modifications.
 
+* v1.2.0 (May 19, 2017)
+
+    1. Added a command for retrieving revision files on Google Drive. The detail information is [here](#RevisionFile).
+    2. Some modifications.
 
 ## Server
 * v1.0.0 (April 24, 2017)

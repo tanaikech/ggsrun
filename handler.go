@@ -80,6 +80,17 @@ func updateProject(c *cli.Context) error {
 	return nil
 }
 
+// revisionFiles : Retrieves revision IDs and downloads revision files.
+func revisionFiles(c *cli.Context) error {
+	res := defAuthContainer(c).
+		ggsrunIni(c).
+		goauth().
+		defDownloadContainer(c).
+		GetRevisionList(c)
+	dispTransferResult(c, res)
+	return nil
+}
+
 // showFileList : Shows file list on Google Drive
 func showFileList(c *cli.Context) error {
 	res := defAuthContainer(c).
