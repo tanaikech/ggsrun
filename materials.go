@@ -4,6 +4,7 @@ package main
 
 import (
 	"math"
+	"os"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -23,6 +24,7 @@ const (
 
 	clientsecretFile = "client_secret.json"
 	cfgFile          = "ggsrun.cfg"
+	cfgpathenv       = "GGSRUN_CFG_PATH"
 
 	deffuncserv    = "ggsrunif.ExecutionApi"
 	deffuncwith    = "main"
@@ -42,6 +44,7 @@ const (
 type InitVal struct {
 	pstart  time.Time
 	workdir string
+	cfgdir  string
 	update  bool
 	log     bool
 	Port    int
@@ -247,6 +250,14 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	if err != nil {
 		panic(err)
 	}
+	if c.Command.Names()[0] == "auth" {
+		a.InitVal.cfgdir = a.InitVal.workdir
+	} else {
+		a.InitVal.cfgdir = os.Getenv(cfgpathenv)
+		if a.InitVal.cfgdir == "" {
+			a.InitVal.cfgdir = a.InitVal.workdir
+		}
+	}
 	a.Param.Function = c.String("function")
 	a.InitVal.log = c.Bool("log")
 	a.InitVal.Port = defPort
@@ -305,6 +316,10 @@ func defExecutionContainerWebApps() *ExecutionContainer {
 	e.InitVal.workdir, err = filepath.Abs(".")
 	if err != nil {
 		panic(err)
+	}
+	e.InitVal.cfgdir = os.Getenv(cfgpathenv)
+	if e.InitVal.cfgdir == "" {
+		e.InitVal.cfgdir = e.InitVal.workdir
 	}
 	return e
 }

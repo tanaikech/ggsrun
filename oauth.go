@@ -48,7 +48,7 @@ func (a *AuthContainer) reAuth() {
 // makecfgfile :
 func (a *AuthContainer) makecfgfile() {
 	btok, _ := json.MarshalIndent(a.GgsrunCfg, "", "\t")
-	ioutil.WriteFile(filepath.Join(a.InitVal.workdir, cfgFile), btok, 0777)
+	ioutil.WriteFile(filepath.Join(a.InitVal.cfgdir, cfgFile), btok, 0777)
 }
 
 // getAtoken : Retrieves accesstoken from refreshtoken.

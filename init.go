@@ -14,7 +14,7 @@ import (
 
 // GgsrunIni :
 func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
-	if cfgdata, err := ioutil.ReadFile(filepath.Join(a.InitVal.workdir, cfgFile)); err == nil {
+	if cfgdata, err := ioutil.ReadFile(filepath.Join(a.InitVal.cfgdir, cfgFile)); err == nil {
 		err = json.Unmarshal(cfgdata, &a.GgsrunCfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: Format error of '%s'. ", cfgFile)

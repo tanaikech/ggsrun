@@ -271,6 +271,21 @@ $ ggsrun auth
 - At the default, there are 6 scopes. If you want to change the scopes, please modify ``ggsrun.cfg`` and run ``$ ggsrun auth``.
 - You notice that ``script_id`` has no data. Don't worry. This is explained below.
 
+<a name="environmentvariable"></a>
+##### Environment Variable <sup><font color="Red">NEW! (v1.2.1)</font></sup>
+**``ggsrun.cfg`` can be read using the environment variable.**
+
+- If the environment variable (**``GGSRUN_CFG_PATH``**) is set, ggsrun.cfg is read using it.
+- If it is not set, ggsrun.cfg is read from the current working directory. This is as has been the way until now.
+
+For example, in the case of bash, please add a following code to ``.bashrc``.
+
+~~~bash
+export GGSRUN_CFG_PATH=~/ggsrun/
+~~~
+
+When you want to run ``$ ggsrun auth`` to authorize, please run under a directory with ``client_secret.json``. ``ggsrun.cfg`` is created to the current working directory.
+
 #### 5. <u>Run ggsrun</u>
 Please create ``sample.gs`` with following script.
 
@@ -995,7 +1010,7 @@ $ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
 If it is not used ``-p``, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
 
 <a name="RevisionFile"></a>
-## 11. Retrieve Revision Files
+## 11. Retrieve Revision Files <sup><font color="Red">NEW! (v1.2.0)</font></sup>
 It retrieves revisions for files on Google Drive.
 
 **Display revision ID list for file ID :**
@@ -1496,6 +1511,15 @@ If you have any questions and commissions for me, feel free to tell me using e-m
 
     1. Added a command for retrieving revision files on Google Drive. The detail information is [here](#RevisionFile).
     2. Some modifications.
+
+* v1.2.1 (May 28, 2017)
+
+    1. ggsrun.cfg got be able to be read using the environment variable.
+        - If the environment variable (**``GGSRUN_CFG_PATH``**) is set, ggsrun.cfg is read using it.
+        - If it is not set, ggsrun.cfg is read from the current working directory. This is as has been the way until now.
+        - This is the response for some requests.
+        - This incofmation was added to [here](#environmentvariable).
+
 
 ## Server
 * v1.0.0 (April 24, 2017)
