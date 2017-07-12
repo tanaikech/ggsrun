@@ -23,10 +23,11 @@ import (
 )
 
 const (
-	sdownloadurl = "https://script.google.com/feeds/download/export?id="
-	lurl         = "https://www.googleapis.com/drive/v3/files?"
-	driveapiurl  = "https://www.googleapis.com/drive/v3/files/"
-	uploadurl    = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
+	sdownloadurl  = "https://script.google.com/feeds/download/export?id="
+	lurl          = "https://www.googleapis.com/drive/v3/files?"
+	driveapiurl   = "https://www.googleapis.com/drive/v3/files/"
+	driveapiurlv2 = "https://www.googleapis.com/drive/v2/files/"
+	uploadurl     = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
 )
 
 // FileInf : File information for downloading and uploading
@@ -314,6 +315,20 @@ func extToMime(ext string) string {
 	json.Unmarshal([]byte(extVsmime), &fm)
 	st, _ := fm[strings.Replace(strings.ToLower(ext), ".", "", 1)].(string)
 	return st
+}
+
+// mimeToExt : Convert from mimeType to extension of the file.
+func mimeToExt(mime string) string {
+	var fm map[string]interface{}
+	json.Unmarshal([]byte(extVsmime), &fm)
+	var ext string
+	for e, i := range fm {
+		if i == mime {
+			ext = e
+			break
+		}
+	}
+	return ext
 }
 
 // defFormat : Default download format

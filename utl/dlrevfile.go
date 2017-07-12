@@ -16,16 +16,135 @@ import (
 	"github.com/urfave/cli"
 )
 
-// revisionList : Struct for revision list
+// revisionListOLD : Struct for revision list
 type revisionList struct {
 	Revisions []struct {
-		ID           string    `json:"id"`
-		ModifiedTime time.Time `json:"modifiedTime"`
+		ID           string    `json:"id,omitempty"`
+		ModifiedTime time.Time `json:"modifiedTime,omitempty"`
+	}
+}
+
+// revisionListv2 : Struct for revision list
+type revisionListv2 struct {
+	Items []struct {
+		ID           string    `json:"id,omitempty"`
+		ModifiedDate time.Time `json:"modifiedDate,omitempty"`
+		ExportLinks  struct {
+			// for spreadsheet
+			Elsx string `json:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,omitempty"`
+			CSV  string `json:"text/csv,omitempty"`
+			// for document
+			HTML string `json:"text/html,omitempty"`
+			Docx string `json:"application/vnd.openxmlformats-officedocument.wordprocessingml.document,omitempty"`
+			// for slide
+			Pptx string `json:"application/vnd.openxmlformats-officedocument.presentationml.presentation,omitempty"`
+			// for drawing
+			Svg string `json:"image/svg+xml,omitempty"`
+			PNG string `json:"image/png,omitempty"`
+			Jpg string `json:"image/jpeg,omitempty"`
+
+			Text string `json:"text/plain,omitempty"`
+			PDF  string `json:"application/pdf,omitempty"`
+			ZIP  string `json:"application/zip,omitempty"`
+		} `json:"exportLinks,omitempty"`
+	} `json:"items,omitempty"`
+}
+
+// GetRevisionList : Display revision IDs.
+func (p *FileInf) GetRevisionList(c *cli.Context) *FileInf {
+	p.GetFileinf()
+	if p.MimeType == "application/vnd.google-apps.spreadsheet" ||
+		p.MimeType == "application/vnd.google-apps.document" ||
+		p.MimeType == "application/vnd.google-apps.presentation" ||
+		p.MimeType == "application/vnd.google-apps.drawing" {
+		p.getRevFromGoogleDocs(c)
+	} else {
+		p.getRevFromExGoogleDocs(c)
+	}
+	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	return p
+}
+
+// getRevFromGoogleDocs : Display revision IDs from Google Docs.
+func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
+	if len(p.FileID) > 0 {
+		params := url.Values{}
+		params.Set("fields", "items(exportLinks,id,modifiedDate)")
+		params.Set("maxResults", "1000")
+		r := &RequestParams{
+			Method:      "GET",
+			APIURL:      driveapiurlv2 + p.FileID + "/revisions?" + params.Encode(),
+			Data:        nil,
+			Contenttype: "application/x-www-form-urlencoded",
+			Accesstoken: p.Accesstoken,
+			Dtime:       10,
+		}
+		body, err := r.FetchAPI()
+		var er dlError
+		json.Unmarshal(body, &er)
+		if err != nil || er.Error.Code-300 >= 0 {
+			fmt.Print(fmt.Sprintf("Error: %s (Status code is %d)\n", er.Error.Message, er.Error.Code))
+			os.Exit(1)
+		}
+		var rl revisionListv2
+		json.Unmarshal(body, &rl)
+		if len(c.String("download")) == 0 {
+			ar := rl.Items
+			if len(ar) > 0 {
+				buffer := &bytes.Buffer{}
+				w := new(tabwriter.Writer)
+				w.Init(buffer, 0, 4, 1, ' ', 0)
+				fmt.Fprintf(w, "\n%s\t%s\n", "# Revision ID", "# ModifedTime")
+				for _, e := range ar {
+					fmt.Fprintf(w, "%s\t%s\n", e.ID, e.ModifiedDate.In(time.Local))
+				}
+				w.Flush()
+				fmt.Printf("%s\n", buffer)
+			}
+			p.Msgar = append(p.Msgar, fmt.Sprintf("Revision ID list was retrieved."))
+			el, _ := json.Marshal(rl.Items[0].ExportLinks)
+			var obj map[string]interface{}
+			json.Unmarshal(el, &obj)
+			var extAr []string
+			for e := range obj {
+				ext := mimeToExt(e)
+				extAr = append(extAr, ext)
+			}
+			p.Msgar = append(p.Msgar, fmt.Sprintf("Extensions which can be outputted are '%s'.", strings.Join(extAr, ", ")))
+		} else {
+			p.FileID = c.String("fileid")
+			p.RevisionID = c.String("download")
+			for i := range rl.Items {
+				if rl.Items[i].ID == c.String("download") {
+					ext := strings.ToLower(p.WantExt)
+					if len(ext) > 0 {
+						p.DlMime = extToMime(ext)
+						if len(p.DlMime) == 0 {
+							fmt.Fprintf(os.Stderr, "Error: '%s' is wrong extension.\n", ext)
+							os.Exit(1)
+						}
+					} else {
+						p.DlMime, ext = defFormat(p.MimeType)
+					}
+					dlf, _ := json.Marshal(rl.Items[i])
+					var obj map[string]interface{}
+					json.Unmarshal(dlf, &obj)
+					p.SaveName = p.FileName + "." + ext
+					dURLq, _ := obj["exportLinks"].(map[string]interface{})[p.DlMime].(string)
+					p, _ = p.writeFile(dURLq)
+					break
+				}
+			}
+			if len(p.SaveName) == 0 {
+				fmt.Fprintf(os.Stderr, "Error: '%s' is wrong revision number.\n", c.String("download"))
+				os.Exit(1)
+			}
+		}
 	}
 }
 
 // downloadRevisionFile : Download revision file using revision ID
-func (p *FileInf) downloadRevisionFile() *FileInf {
+func (p *FileInf) downloadRevisionFile() {
 	ext := strings.ToLower(p.WantExt)
 	if len(ext) > 0 {
 		p.DlMime = extToMime(ext)
@@ -56,11 +175,10 @@ func (p *FileInf) downloadRevisionFile() *FileInf {
 	}
 	p, _ = p.writeFile(dURLq)
 	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
-	return p
 }
 
-// GetRevisionList : Display revision IDs.
-func (p *FileInf) GetRevisionList(c *cli.Context) *FileInf {
+// getRevFromExGoogleDocs : Display revision IDs from files except for Google Docs.
+func (p *FileInf) getRevFromExGoogleDocs(c *cli.Context) {
 	if len(p.FileID) > 0 && len(c.String("download")) == 0 {
 		params := url.Values{}
 		params.Set("fields", "revisions(id,modifiedTime)")
@@ -99,8 +217,6 @@ func (p *FileInf) GetRevisionList(c *cli.Context) *FileInf {
 	if len(p.FileID) > 0 && len(c.String("download")) > 0 {
 		p.FileID = c.String("fileid")
 		p.RevisionID = c.String("download")
-		return p.GetFileinf().downloadRevisionFile()
+		p.GetFileinf().downloadRevisionFile()
 	}
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
-	return p
 }

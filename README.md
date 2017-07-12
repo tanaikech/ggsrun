@@ -1010,13 +1010,22 @@ $ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
 If it is not used ``-p``, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
 
 <a name="RevisionFile"></a>
-## 11. Retrieve Revision Files <sup><font color="Red">NEW! (v1.2.0)</font></sup>
+## 11. Retrieve Revision Files <sup><font color="Red">NEW! (v1.2.2)</font></sup>
 It retrieves revisions for files on Google Drive.
 
 **Display revision ID list for file ID :**
 
 ~~~bash
 $ ggsrun r -i [File ID]
+~~~
+
+When above command is run, you can see the revision list and extensions which can be outputted as follows. Please select one of them and download it.
+
+~~~
+"message": [
+  "Revision ID list was retrieved.",
+  "Extensions which can be outputted are 'xlsx, csv, pdf, zip'."
+]
 ~~~
 
 **Download revision file using revision ID :**
@@ -1519,6 +1528,15 @@ If you have any questions and commissions for me, feel free to tell me using e-m
         - If it is not set, ggsrun.cfg is read from the current working directory. This is as has been the way until now.
         - This is the response for some requests.
         - This incofmation was added to [here](#environmentvariable).
+
+* v1.2.2 (July 12, 2017)
+
+    1. For Google Docs (spreadsheet, document, slide and drawing), since I noticed that the revision files would not be able to be retrieved using Drive API v3, I modified this using new workaround.
+        - The new workaround is to use Drive API v2. ``drive.revisions.get`` of Drive API v2 can retrieve not only the revision list, but also the export links. I thought of the use of the export links. This became the new workaround.
+        - For the files except for Google Docs, the revision files can be retrieved using Drive API v3.
+        - The usage is [here](#RevisionFile).
+
+    I don't know when this workaround will not be able to be used. But if this could not be used, I would like to investigate of other method.
 
 
 ## Server
