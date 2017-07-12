@@ -1045,6 +1045,12 @@ You can see the detail information about revision files at following gists.
 - [(NEW) Retrieve old revision file from Google Drive](https://gist.github.com/tanaikech/9ab6683e78de0044b4f670ff3761af19)
     - At v1.2.2, this new workaround was reflected. (July 12, 2017)
 
+### Demo for Retrieve Revision File
+
+![](images/demo_revision.gif)
+
+In this demonstration, 2 revision files of spreadsheet are retrieved.
+
 ---
 <a name="Applications"></a>
 # Applications
