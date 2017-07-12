@@ -1038,7 +1038,12 @@ Extension is used for converting files. For example, if you want to download spr
 
 <u>At current stage, the revisions of project (GAS) cannot be retrieved yet. Because there are a revision history for each project at the script editor, there are possibly some methods for retrieving them using APIs. But I don't know yet. I'm sorry.</u>
 
-You can see the detail information about revision files at [my gist](https://gist.github.com/tanaikech/7c6657ac82af10fbc5355ddb3d9cc031).
+You can see the detail information about revision files at following gists.
+
+- [Retrieve old revision file from Google Drive](https://gist.github.com/tanaikech/ddb3a2a00c9ad383bc4a0789b302b795).
+    - This method would not be able to be used.
+- [(NEW) Retrieve old revision file from Google Drive](https://gist.github.com/tanaikech/9ab6683e78de0044b4f670ff3761af19)
+    - At v1.2.2, this new workaround was reflected. (July 12, 2017)
 
 ---
 <a name="Applications"></a>
