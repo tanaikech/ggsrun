@@ -16,7 +16,7 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 5. Creates, updates and backs up project with GAS.
 
-6. Downloads files from Google Drive and Uploads files to Google Drive.
+6. Downloads files from Google Drive and Uploads files to Google Drive. Also container-bound scripts can be downloaded.
 
 7. Download revision files from Google Drive.
 

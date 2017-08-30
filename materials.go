@@ -332,8 +332,15 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 		Workdir:     a.InitVal.workdir,
 		PstartTime:  a.InitVal.pstart,
 		FileID:      c.String("fileid"),
-		WantExt:     c.String("extension"),
-		WantName:    c.String("filename"),
+		ProjectID: func(c *cli.Context) string {
+			id := c.String("projectid")
+			if c.String("fileid") != "" && c.String("projectid") != "" {
+				id = ""
+			}
+			return id
+		}(c),
+		WantExt:  c.String("extension"),
+		WantName: c.String("filename"),
 	}
 	return p
 }

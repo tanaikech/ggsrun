@@ -837,6 +837,7 @@ $ ggsrun e1 -f foo -v 1 -j
 
 ``GoogleElapsedTime`` cannot output in this mode, because this mode doesn't use server.
 
+<a name="DownloadFiles"></a>
 ## 6. Download Files
 ggsrun can download files from Google Drive by file ID and file name. The files also include GAS projects and scripts.
 
@@ -858,7 +859,26 @@ $ ggsrun d -f filename -e pdf
 
 You can convert only from Google Docs Files (spreadsheet, slide, documentation and so on). For example, you cannot convert image files and text data.
 
-<u>Here, I could notice that the container-bound scripts can be downloaded!</u>
+<a name="DownloadBoundScript"></a>
+### How to Download Container-Bound Scripts
+<u>Here, I could notice that the container-bound scripts can be downloaded! From version 1.3.0, the container-bound scripts could be downloaded.</u>
+
+- In order to download container-bound scripts, the project ID of container-bound scripts is required. The project ID can be retrieved as follows.
+    - Open the project. And please operate follows using click.
+        - -> File
+        - -> Project properties
+        - -> Get Script ID (**This is the project ID.**)
+
+You can download the project by the following command.
+
+~~~bash
+$ ggsrun d -pi project_id
+~~~
+
+**Limitation :**
+
+- The file information of container-bound scripts cannot be retrieved by Drive API. So the filename cannot be retrieved from the project ID.
+    - Prefix of filename of the downloaded project is the project ID.
 
 ### Help
 ~~~
@@ -873,11 +893,12 @@ DESCRIPTION:
    In this mode, an access token is required.
 
 OPTIONS:
-   --fileid value, -i value     File ID on Google Drive
-   --filename value, -f value   File Name on Google Drive
-   --extension value, -e value  Extension (File format of downloaded file)
-   --rawdata, -r                Save a project with GAS scripts as raw data (JSON data).
-   --jsonparser, -j             Display results by JSON parser
+   --fileid value, -i value       File ID on Google Drive
+   --filename value, -f value     File Name on Google Drive
+   --projectid value, --pi value  Project ID of bound scripts of Google Sheets, Docs, or Forms file
+   --extension value, -e value    Extension (File format of downloaded file)
+   --rawdata, -r                  Save a project with GAS scripts as raw data (JSON data).
+   --jsonparser, -j               Display results by JSON parser
 ~~~
 
 ## 7. Upload Files
@@ -1548,6 +1569,16 @@ If you have any questions and commissions for me, feel free to tell me using e-m
         - The usage is [here](#RevisionFile).
 
     I don't know when this workaround will not be able to be used. But if this could not be used, I would like to investigate of other method.
+
+* v1.3.0 (August 30, 2017)
+
+    1. From this version, [container-bound scripts](https://developers.google.com/apps-script/guides/bound) can be downloaded. The container-bound script is the script created at the script editor on Google Sheets, Docs, or Forms file. The usage is [here](#DownloadBoundScript).
+        - In order to download container-bound scripts, the project ID of container-bound scripts is required. The project ID can be retrieved as follows.
+            - Open the project. And please operate follows using click.
+                - -> File
+                - -> Project properties
+                - -> Get Script ID (**This is the project ID.**)
+    1. When a project is downloaded, the filename of HTML file had become ``.gs``. This bug was modified.
 
 
 ## Server

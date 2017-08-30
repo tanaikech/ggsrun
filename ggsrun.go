@@ -15,7 +15,7 @@ func main() {
 	app.Author = "tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.2.2"
+	app.Version = "1.3.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -154,6 +154,10 @@ func main() {
 				cli.StringFlag{
 					Name:  "filename, f",
 					Usage: "File Name on Google Drive",
+				},
+				cli.StringFlag{
+					Name:  "projectid, pi",
+					Usage: "Project ID of bound scripts of Google Sheets, Docs, or Forms file",
 				},
 				cli.StringFlag{
 					Name:  "extension, e",

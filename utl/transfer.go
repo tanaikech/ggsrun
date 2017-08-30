@@ -44,6 +44,7 @@ type FileInf struct {
 	SearchByName string         `json:"-"`
 	SearchByID   string         `json:"-"`
 	FileID       string         `json:"id,omitempty"`
+	ProjectID    string         `json:"project_id,omitempty"`
 	RevisionID   string         `json:"revisionid,omitempty"`
 	FileName     string         `json:"name,omitempty"`
 	SaveName     string         `json:"saved_file_name,omitempty"`
@@ -139,15 +140,20 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", p.FileName, len(f.Files)))
 		}
 		for _, e := range f.Files {
-			saveName := p.FileName + "_" + e.Name + "." + func(ex string) string {
+			saveName := p.FileName + "_" + e.Name + "." + func(ex, ty string) string {
 				var eext string
 				if len(ex) > 0 {
 					eext = ex
 				} else {
-					eext = "gs"
+					switch ty {
+					case "server_js":
+						eext = "gs"
+					case "html":
+						eext = "html"
+					}
 				}
 				return eext
-			}(p.WantExt)
+			}(p.WantExt, e.Type)
 			src := fmt.Sprintf("// Script ID in Project = %s \n%s", e.ID, e.Source)
 			ioutil.WriteFile(filepath.Join(p.Workdir, saveName), []byte(src), 0777)
 			p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", saveName))
@@ -164,7 +170,7 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	} else {
 		p.DlMime, ext = defFormat(p.MimeType)
 	}
-	if len(p.FileID) > 0 {
+	if len(p.FileID) > 0 || len(p.ProjectID) > 0 {
 		var body []byte
 		var gm map[string]interface{}
 		json.Unmarshal([]byte(googlemimetypes), &gm)
@@ -182,12 +188,19 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 			if p.MimeType == "application/vnd.google-apps.script" {
 				p, body = p.writeFile(sdownloadurl + p.FileID + "&format=json")
 				p.saveScript(body, c)
-			} else {
+			} else if p.MimeType != "" {
 				p, _ = p.writeFile(driveapiurl + p.FileID + "/export?mimeType=" + p.DlMime)
 			}
 		} else {
-			p.SaveName = p.FileName
-			p, _ = p.writeFile(driveapiurl + p.FileID + "?alt=media")
+			if len(p.ProjectID) > 0 && p.MimeType == "" {
+				p.FileName = p.ProjectID
+				p.MimeType = "application/vnd.google-apps.script"
+				p, body = p.writeFile(sdownloadurl + p.ProjectID + "&format=json")
+				p.saveScript(body, c)
+			} else {
+				p.SaveName = p.FileName
+				p, _ = p.writeFile(driveapiurl + p.FileID + "?alt=media")
+			}
 		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: Please input File Name or File ID. ")
