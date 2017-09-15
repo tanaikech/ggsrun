@@ -1580,6 +1580,10 @@ If you have any questions and commissions for me, feel free to tell me using e-m
                 - -> Get Script ID (**This is the project ID.**)
     1. When a project is downloaded, the filename of HTML file had become ``.gs``. This bug was modified.
 
+* v1.3.1 (September 15, 2017)
+
+    1. Recently, when scripts on local PC is uploaded to Google Drive as a new project, the time to create on Google became a bit long. (I think that this is due to Google Update.) Under this situation, when the script is uploaded, the timeout error occurs while the new project is created using the script. So the time until timeout of fetch was modified from 10 seconds to 30 seconds. By this, when the script is uploaded, no error occurs and the information of the created project is shown.
+        - You can create a new project on Google Drive using scripts on local PC. The sample command is ``ggsrun u -f sample.gs1,sample2.gs,sample3.html -pn newprojectname``
 
 ## Server
 * v1.0.0 (April 24, 2017)

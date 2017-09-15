@@ -394,7 +394,7 @@ func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *Fi
 		Data:        &b,
 		Contenttype: w.FormDataContentType(),
 		Accesstoken: p.Accesstoken,
-		Dtime:       10,
+		Dtime:       30,
 	}
 	body, err := r.FetchAPI()
 	if err != nil {

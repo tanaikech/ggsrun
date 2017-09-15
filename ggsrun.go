@@ -15,7 +15,7 @@ func main() {
 	app.Author = "tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.3.0"
+	app.Version = "1.3.1"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
