@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,18 +15,49 @@ import (
 
 // projectUpdateControl : Main method for updating project.
 func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
-	if len(c.String("filename")) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No Files. Please set them using '-f [ File name ]'. ")
-		os.Exit(1)
-	}
 	if len(c.String("projectid")) > 0 {
 		e.GgsrunCfg.Scriptid = c.String("projectid")
+		if len(c.String("filename")) > 0 {
+			return e.defUpdateProjectContainer(c).
+				projectBackup(c).
+				ProjectMaker().
+				projectUpdate().
+				dispUpdateProjectContainer()
+		}
+		if c.Bool("rearrange") {
+			e.defUpdateProjectContainer(c).
+				projectBackup(c).
+				rearrangeByTerminal()
+		}
+		if len(c.String("rearrangewithfile")) > 0 {
+			var data []string
+			f, err := os.Open(c.String("rearrangewithfile"))
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found.\n", c.String("rearrangewithfile"))
+				os.Exit(1)
+			}
+			defer f.Close()
+			scanner := bufio.NewScanner(f)
+			for scanner.Scan() {
+				if scanner.Text() == "end" {
+					break
+				}
+				if scanner.Text() != "" {
+					data = append(data, scanner.Text())
+				}
+			}
+			if scanner.Err() != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", scanner.Err())
+				os.Exit(1)
+			}
+			e.defUpdateProjectContainer(c).
+				projectBackup(c).
+				rearrangeByFile(data)
+		}
+	} else {
+		e.Msg = append(e.Msg, "Error: No options. Please check HELP using 'ggsrun ud -help'.")
 	}
-	return e.defUpdateProjectContainer(c).
-		projectBackup(c).
-		ProjectMaker().
-		projectUpdate().
-		dispUpdateProjectContainer()
+	return e.dispUpdateProjectContainer()
 }
 
 // ProjectMaker : Recreates the project using uploaded scripts.

@@ -12,10 +12,10 @@ import (
 func main() {
 	app := cli.NewApp()
 	app.Name = appname
-	app.Author = "tanaike [ https://github.com/tanaikech/ggsrun ] "
+	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.3.1"
+	app.Version = "1.3.2"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -220,6 +220,14 @@ func main() {
 				cli.BoolFlag{
 					Name:  "backup, b",
 					Usage: "Backup project with project ID you set as a file.",
+				},
+				cli.BoolFlag{
+					Name:  "rearrange, r",
+					Usage: "Interactively rearrange scripts in project using your terminal.",
+				},
+				cli.StringFlag{
+					Name:  "rearrangewithfile, rf",
+					Usage: "Rearrange scripts in project using a file.",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",

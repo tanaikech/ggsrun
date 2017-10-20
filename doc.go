@@ -20,6 +20,8 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 7. Download revision files from Google Drive.
 
+8. Rearranges scripts in project.
+
 You can see the release page https://github.com/tanaikech/ggsrun/releases
 
 # Google API
