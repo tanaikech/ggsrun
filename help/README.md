@@ -1104,6 +1104,18 @@ Have you thought about rearranging Google Apps Scripts in a project? Also I have
 $ ggsrun ud -r -p [Project ID]
 ~~~
 
+#### Keys for rearranging
+For rearranging scripts, [go-rearrange](https://github.com/tanaikech/go-rearrange) which is a golang library was used.
+
+| Key | Effect |
+|:-----------|:------------|
+| **Up**, **Down** | Moving one line |
+| **Page up**, **Page down** | Moving several lines |
+| **Home**, **End** | Moving top and bottom of data |
+| **Enter** | Selecting a value to rearrange |
+| **Back space** or **Space** | Reset the rearranged data |
+| **Ctrl + c** or **Escape** | Finishing rearranging |
+
 ### Rearrange scripts using configuration file
 Also you can rearrange scripts using a file. I added this to use from other scripts. The response is returned as JSON.
 
