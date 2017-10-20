@@ -1092,9 +1092,11 @@ In this demonstration, 2 revision files of spreadsheet are retrieved.
 
 <a name="rearrangescripts"></a>
 ## 12. Rearrange Script in Project
-From v1.3.2, scripts in a project can be rearranged.
+Have you thought about rearranging Google Apps Scripts in a project? Also I have thought about it. Finally, I found the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged.
 
-For rearranging scripts, there is one important point. **When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.** By copying project, the project before rearranging is saved.
+#### IMPORTANT!
+> 1. For rearranging scripts, there is one important point. <u>**When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.**</u> By copying project, the project before rearranging is saved.
+> 2. The rearrangement of scripts can be done for only standalone scripts. Because although the bound scripts can retrieve scripts, it cannot be updated.
 
 ### Interactively rearrange scrips on own terminal
 
