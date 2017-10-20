@@ -54,7 +54,7 @@ ggsrun
 
 * v1.3.2 (October 20, 2017)
 
-    1. Updated ggsrun's Install manual (README.md). Since I thought that the manual became too complicated, I separated it to [the simple version](https://github.com/tanaikech/ggsrun/) and [the detail version](https://github.com/tanaikech/ggsrun/help). And also , recently, since Google's specification was updated, about how to deploy API executable and enable APIs for ggsrun's Install manual were updated.
+    1. Updated ggsrun's Install manual (README.md). Since I thought that the manual became too complicated, I separated it to [the simple version](https://github.com/tanaikech/ggsrun/) and [the detail version](README.md). And also , recently, since Google's specification was updated, about how to deploy API executable and enable APIs for ggsrun's Install manual were updated.
     1. From this version, scripts in a project can be rearranged. The rearrangement can be done by interactively on your terminal and/or a configuration file. The usage is [here](README.md#rearrangescripts)
         - For rearranging scripts, there is one important point. **When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.** By copying project, the project before rearranging is saved.
 
