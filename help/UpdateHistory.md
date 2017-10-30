@@ -60,7 +60,8 @@ ggsrun
 
 * v1.3.3 (October 30, 2017)
 
-    1. [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). **In order to modify the manifests from local PC, I added this new function. By using this function, you can edit the manifests and update it for the Google Apps Script on your local PC.** The usage is [here](README.md#ModifyManifests)
+    1. [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). **In order to modify the manifests from local PC, I added this new function to ggsrun. By using this, you can edit the manifests and update it from your local PC.** The usage is [here](README.md#ModifyManifests)
+        - I think that modifying manifests will be able to apply to various applications.
     1. Some modifications.
 
 

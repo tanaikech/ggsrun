@@ -1152,7 +1152,9 @@ In this demonstration, scripts in a project is intaractively rearranged. After r
 
 Users can modify the manifests (the properties of GAS) by editing ``appsscript.json``. The json structure is [here](https://developers.google.com/apps-script/concepts/manifests#manifest_structure).
 
-**In order to modify the manifests from local PC, I added a new function for ggsrun. By using the new function, you can edit the manifests and update it for the Google Apps Script on your local PC.**
+**In order to modify the manifests from local PC, I added this new function to ggsrun. By using this, you can edit the manifests and update it from your local PC.**
+
+I expect that modifying manifests will be able to apply to various applications.
 
 ### Usage
 At the current stage, the filename for the manifests is only ``appsscript.json``. The strudcure of ``appsscript.json`` is [here](https://developers.google.com/apps-script/concepts/manifests#manifest_structure).
