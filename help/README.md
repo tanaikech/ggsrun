@@ -1175,7 +1175,7 @@ Awesome points of Manifests that I think are below.
 - Libraries for a project can be installed by scripts.
 - Scopes for using Google APIs can be set by scripts.
     - This means that OAuth2 process is not required for GAS.
-        - Most users have already known that we can retrieve access token using ScriptApp.getOAuthToken(). The scopes of the access token depended on the scopes shown at script editor (File -> Project properties -> Scopes) so far. But by Manifests, this situation was changed. The Manifests makes us be able to modify the scopes by modifying the file (appsscript.json) for setting Manifests. After modified it, ScriptApp.getOAuthToken() gives an access token with the modified scopes. In this case, the OAuth2 process is not required.
+        - Most users have already known that we can retrieve access token using ScriptApp.getOAuthToken(). The scopes of the access token depended on the scopes shown at script editor (File -> Project properties -> Scopes) so far. But by Manifests, this situation was changed. The Manifests makes us be able to modify the scopes by modifying the file (appsscript.json) for setting Manifests. After modified it, ScriptApp.getOAuthToken() gives an access token with the modified scopes. I think that the OAuth2 process is carried out inside in ScriptApp.getOAuthToken(). So users can retrieve the access token which has various scopes without preparing the script for OAuth2 process.
     - Enabling APIs on API console is required yet.
 - Advanced Google Services for a project can be installed by scripts.
     - Enabling APIs on API console is required yet.
