@@ -1169,6 +1169,16 @@ Also you can download the current manifests by
 $ ggsrun d -i [Project ID]
 ~~~
 
+### Awesome points of Manifests :
+Awesome points of Manifests that I think are below.
+
+- Libraries for a project can be installed by scripts.
+- Scopes for using Google APIs can be set by scripts.
+    - This means that OAuth2 process is not required for GAS.
+    - Enabling APIs on API console is required yet.
+- Advanced Google Services for a project can be installed by scripts.
+    - Enabling APIs on API console is required yet.
+
 ### Note
 - You can update the manifests (``appsscript.js``), even if you don't carry out ``Select View -> Show project manifest`` on script editor.
 - You cannot remove the file of ``appsscript.js`` from the project.
