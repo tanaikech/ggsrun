@@ -30,6 +30,8 @@ ggsrun
     - Search Files
     - Update Project
     - Retrieve Revision Files
+    - Rearrange Script in Project
+    - Modify Manifests
 - [Applications](#Applications)
     - For Sublime Text
     - For CoffeeScript
@@ -1139,6 +1141,44 @@ These are script names in the project. **There is no extension.** "sample1" to "
 ![](images/demo_rearrange.gif)
 
 In this demonstration, scripts in a project is intaractively rearranged. After rearranging, HTML file is the top of scripts. So GS file of 2nd script is opened as a default. When GS is the top of scripts, it will be opened as the default.
+
+
+<a name="ModifyManifests"></a>
+## 13. Modify Manifests
+[At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). The manifests can be seen as the following flow.
+
+- On the script editor.
+- Select View -> Show project manifest
+
+Users can modify the manifests (the properties of GAS) by editing ``appsscript.json``. The json structure is [here](https://developers.google.com/apps-script/concepts/manifests#manifest_structure).
+
+**In order to modify the manifests from local PC, I added a new function for ggsrun. By using the new function, you can edit the manifests and update it for the Google Apps Script on your local PC.**
+
+### Usage
+At the current stage, the filename for the manifests is only ``appsscript.json``. The strudcure of ``appsscript.json`` is [here](https://developers.google.com/apps-script/concepts/manifests#manifest_structure).
+
+~~~bash
+$ ggsrun ud -p [Project ID] -f appsscript.json
+~~~
+
+Also you can download the current manifests by
+
+~~~bash
+$ ggsrun d -i [Project ID]
+~~~
+
+### Note
+- You can update the manifests (``appsscript.js``), even if you don't carry out ``Select View -> Show project manifest`` on script editor.
+- You cannot remove the file of ``appsscript.js`` from the project.
+- You cannot rename the file of ``appsscript.js``.
+- Before you do both ``Select View -> Show project manifest`` on script editor and you update ``appsscript.js``, when you download the project, ``appsscript.js`` is not included.
+- After you updated the manifests once, ``appsscript.js`` is included in the downloaded project, even if you don't carry out ``Select View -> Show project manifest`` on script editor.
+
+### Demo for Modifying Manifests
+![](images/demo_manifests.gif)
+
+In this demonstration, Advanced Google Services are modified by modifying the manifests.
+
 
 
 ---

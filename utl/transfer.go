@@ -150,6 +150,8 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 						eext = "gs"
 					case "html":
 						eext = "html"
+					case "json":
+						eext = "json"
 					}
 				}
 				return eext
@@ -522,7 +524,8 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 				filepath.Ext(elm) == ".gas" ||
 				filepath.Ext(elm) == ".js" ||
 				filepath.Ext(elm) == ".htm" ||
-				filepath.Ext(elm) == ".html" {
+				filepath.Ext(elm) == ".html" ||
+				filepath.Ext(elm) == ".json" {
 				filedata := &filea{
 					Name: strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
 					Type: func(ex string) string {
@@ -532,6 +535,8 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 							scripttype = "server_js"
 						case ".htm", ".html":
 							scripttype = "html"
+						case ".json":
+							scripttype = "json"
 						}
 						return scripttype
 					}(filepath.Ext(elm)),

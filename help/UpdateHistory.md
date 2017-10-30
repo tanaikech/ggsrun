@@ -58,6 +58,12 @@ ggsrun
     1. From this version, scripts in a project can be rearranged. The rearrangement can be done by interactively on your terminal and/or a configuration file. The usage is [here](README.md#rearrangescripts)
         - For rearranging scripts, there is one important point. **When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.** By copying project, the project before rearranging is saved.
 
+* v1.3.3 (October 30, 2017)
+
+    1. [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). **In order to modify the manifests from local PC, I added this new function. By using this function, you can edit the manifests and update it for the Google Apps Script on your local PC.** The usage is [here](README.md#ModifyManifests)
+    1. Some modifications.
+
+
 ## Server
 * v1.0.0 (April 24, 2017)
 

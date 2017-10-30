@@ -67,7 +67,8 @@ func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
 			filepath.Ext(elm) == ".gas" ||
 			filepath.Ext(elm) == ".js" ||
 			filepath.Ext(elm) == ".htm" ||
-			filepath.Ext(elm) == ".html" {
+			filepath.Ext(elm) == ".html" ||
+			filepath.Ext(elm) == ".json" {
 			filedata := &File{
 				Name: strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
 				Type: func(ex string) string {
@@ -77,6 +78,8 @@ func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
 						scripttype = "server_js"
 					case ".htm", ".html":
 						scripttype = "html"
+					case ".json":
+						scripttype = "json"
 					}
 					return scripttype
 				}(filepath.Ext(elm)),
@@ -86,7 +89,7 @@ func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
 			for i, v := range e.Project.Files {
 				if v.Name == filedata.Name {
 					e.Project.Files[i].Source = filedata.Source
-					e.Msg = append(e.Msg, fmt.Sprintf("Script '%s' in project was overwritten.", v.Name))
+					e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) in project was overwritten.", v.Name, v.Type))
 					overwrite = true
 				}
 			}

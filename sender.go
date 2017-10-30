@@ -292,7 +292,7 @@ func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Project cannot be updated. So the script cannot be executed. May your project be not a stand alone script? 'e1' command cannot be used to the stand alone script. Even if your script is a bound script, you can download a project using '-b' option.\n%v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: Project cannot be updated.\n- Reason 1: If you try to execute your script, may your project be not a stand alone script? 'e1' command cannot be used to the stand alone script. Even if your script is a bound script, you can download a project using '-b' option.\n- Reason 2: If you try to update your project, scripts and json data that you uploaded may be wrong format.\n\n%v\n", string(res))
 		os.Exit(1)
 	}
 	e.Msg = append(e.Msg, "Project was updated.")

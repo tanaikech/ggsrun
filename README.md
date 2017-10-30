@@ -25,8 +25,9 @@ Features of "ggsrun" are as follows.
 1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#filedownload)**
 1. **[Creates, updates and backs up project with GAS.](help/README.md#fileupdate)**
 1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#fileupdown)**
-1. **[Download standalone script and bound script.](help/README.md#DownloadBoundScript)**
+1. **[Downloads standalone script and bound script.](help/README.md#DownloadBoundScript)**
 1. **[Rearranges scripts in project.](help/README.md#rearrangescripts)** <sup><font color="Red">NEW! (v1.3.2)</font></sup>
+1. **[Modifies Manifests in project.](help/README.md#ModifyManifests)** <sup><font color="Red">NEW! (v1.3.3)</font></sup>
 
 <a name="How_to_Install"></a>
 # How to Install
@@ -74,6 +75,7 @@ Congratulation! You got ggsrun!
 1. [Update Project](help/README.md#Update_Project)
 1. [Retrieve Revision Files](help/README.md#RevisionFile)
 1. [Rearrange Script in Project](help/README.md#rearrangescripts) <sup><font color="Red">NEW! (v1.3.2)</font></sup>
+1. [Modify Manifests](help/README.md#ModifyManifests) <sup><font color="Red">NEW! (v1.3.3)</font></sup>
 
 # Applications
 1. [For Sublime Text](help/README.md#demosublime)

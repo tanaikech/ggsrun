@@ -131,7 +131,7 @@ func (a *AuthContainer) getCode() (string, error) {
 	if !a.chkRedirectURI() {
 		return "", fmt.Errorf("Go manual mode.")
 	}
-	fmt.Printf("\n### This is a automatic input mode.\n### Please follow opened browser, login Google and click authentication.\n### Moves to a manual mode if you wait for 30 seconds under this situation.\n")
+	fmt.Printf("\n### This is a automatic input mode.\n### Please follow opened browser, login Google and click authentication.\n### It will move to a manual mode if you wait for 30 seconds under this situation.\n")
 	a.Cs.Cid.Redirecturis = append(a.Cs.Cid.Redirecturis, "http://localhost:"+strconv.Itoa(p)+"/")
 	codepara := url.Values{}
 	codepara.Set("client_id", a.Cs.Cid.ClientID)
@@ -207,6 +207,7 @@ func (a *AuthContainer) getCode() (string, error) {
 func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	var code string
 	var err error
+	fmt.Printf("\n### Since %s is not found, the authorization process is launched.", cfgFile)
 	code, err = a.getCode()
 	if err != nil {
 		codepara := url.Values{}
