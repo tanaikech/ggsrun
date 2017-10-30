@@ -1137,6 +1137,14 @@ sample5
 
 These are script names in the project. **There is no extension.** "sample1" to "sample5" mean the order of scripts you want to rearrange.
 
+### Principle of rearranging :
+1. Download all scripts in a project.
+1. Overwrite the project by one script with the filename which is difference from the filenames of downloaded scripts.
+1. Rearrange the downloaded scripts.
+1. Overwrite the project by the rearrenged scripts. At this time, remove the script ID of each script.
+
+When existing project is overwritten by a script with an unique filename, all scripts in the project are removed and only the file with the unique name is remained. I thought that this can be used for rearranging scripts.
+
 ### Demo for Rearrange Script in Project
 ![](images/demo_rearrange.gif)
 
