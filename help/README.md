@@ -1165,6 +1165,7 @@ Users can modify the manifests (the properties of GAS) by editing ``appsscript.j
 I expect that modifying manifests will be able to apply to various applications.
 
 ### Usage
+#### Update Manifests for Existing Project
 At the current stage, the filename for the manifests is only ``appsscript.json``. The strudcure of ``appsscript.json`` is [here](https://developers.google.com/apps-script/concepts/manifests#manifest_structure).
 
 ~~~bash
@@ -1175,6 +1176,13 @@ Also you can download the current manifests by
 
 ~~~bash
 $ ggsrun d -i [Project ID]
+~~~
+
+#### Create New Project with Original Manifests
+You can also create new project with your original Manifests. By using this, for example, when you created new project, the project can have libraries, Advanced Google Services and so on at the initial stage.
+
+~~~bash
+$ ggsrun u -pn [Project name] -f appsscript.json
 ~~~
 
 ### Principle for updating Manifests :
