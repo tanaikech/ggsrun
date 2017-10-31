@@ -1177,6 +1177,20 @@ Also you can download the current manifests by
 $ ggsrun d -i [Project ID]
 ~~~
 
+### Principle for updating Manifests :
+1. Download all scripts in a project.
+1. From the downloaded data, modify the source that type and name are "json" and "appsscript", respectively.
+    - At that time, the script ID is not required to modify. If the ID is removed and modified, an error of "Bad Request" occurs, when updates.
+    - Other scripts are not required to modify.
+1. Update the project by the modified json data.
+
+The type of "json" appeared in the json data of project for the first time. Two APIs is used for above flow. You can see the documents about each API at following links.
+
+- [Download project](https://developers.google.com/apps-script/guides/import-export#export_projects_from_drive)
+- [Update project](https://developers.google.com/drive/v3/reference/files/update)
+
+In order to use these APIs, an access token retrieved by OAuth2 is required. And the scopes are ``https://www.googleapis.com/auth/drive`` and``https://www.googleapis.com/auth/drive.scripts``. ggsrun supports them.
+
 ### Awesome points of Manifests :
 Awesome points of Manifests that I think are below.
 
