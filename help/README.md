@@ -1094,7 +1094,9 @@ In this demonstration, 2 revision files of spreadsheet are retrieved.
 
 <a name="rearrangescripts"></a>
 ## 12. Rearrange Script in Project
-Have you thought about rearranging Google Apps Scripts in a project? Also I have thought about it. Finally, I found the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged.
+Have you ever thought about rearranging Google Apps Scripts in a project which can be seen at the script editor? I also have thought about it. Finally, I could find the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged.
+
+If you want to rearrange using a GUI application, please check [RearrangeScripts](https://github.com/tanaikech/RearrangeScripts).
 
 #### IMPORTANT!
 > 1. For rearranging scripts, there is one important point. <u>**When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.**</u> By copying project, the project before rearranging is saved.
@@ -1141,9 +1143,9 @@ These are script names in the project. **There is no extension.** "sample1" to "
 1. Download all scripts in a project.
 1. Overwrite the project by one script with the filename which is difference from the filenames of downloaded scripts.
 1. Rearrange the downloaded scripts.
-1. Overwrite the project by the rearrenged scripts. At this time, remove the script ID of each script.
+1. Overwrite the project by the rearranged scripts. At this time, remove the script ID of each script.
 
-When existing project is overwritten by a script with an unique filename, all scripts in the project are removed and only the file with the unique name is remained. I thought that this can be used for rearranging scripts.
+When existing project is overwritten by a script with an unique filename, all scripts in the project are removed and only the file with the unique name is remained. I thought that this can be applied for rearranging scripts.
 
 ### Demo for Rearrange Script in Project
 ![](images/demo_rearrange.gif)
