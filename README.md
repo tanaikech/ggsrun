@@ -49,9 +49,9 @@ When you click each link of title, you can see the detail information.
     - Create new project and install the server as a library.
     - Script ID of the library is "**``115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov``**".
     - **<u>After installed the library, please push the save button at the script editor.</u>** This is important! By this, the library is completely reflected.
-1. [Install Execution API](help/README.md#Install_Execution_API)
+1. [Install Google Apps Script API(Execution API)](help/README.md#Install_Execution_API)
     - For the created project, deploy API executable.
-    - Enable **Execution API** and **Drive API** at API console.
+    - Enable **[Google Apps Script API(Execution API)](https://console.cloud.google.com/apis/library/script.googleapis.com/)** and **[Drive API](https://console.cloud.google.com/apis/api/drive.googleapis.com/)** at API console.
 1. [Get Client ID, Client Secret](help/README.md#GetClientID)
     - Create a credential as **Other** and download **``client_secret.json``**.
 1. [Create configure file for ggsrun](help/README.md#Createconfigurefile)

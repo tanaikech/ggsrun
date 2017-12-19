@@ -15,7 +15,7 @@ ggsrun
     - For High Security
     - Installation Flow
 - [How to Install](#How_to_Install)
-    - [Install Execution API](#Install_Execution_API)
+    - [Install Google Apps Script API](#Install_Execution_API)
     - [Install Web Apps](#Install_Web_Apps)
 - [How to Execute Google Apps Script Using ggsrun](#How_to_Execute_Google_Apps_Script_Using_ggsrun)
 - [Samples](#Samples)
@@ -103,13 +103,13 @@ function main(range) {
 
 <a name="Google_APIs"></a>
 # Google APIs
-ggsrun uses Execution API, Web Apps and Drive API on Google.
+ggsrun uses Google Apps Script API(Execution API), Web Apps and Drive API on Google.
 
-1. **[Execution API](https://developers.google.com/apps-script/guides/rest/api)** : This can be used by the authorization process of OAuth2. So you can use under higher security. But there are some [limitations](https://developers.google.com/apps-script/guides/rest/api#limitations).
+1. **[Google Apps Script API(Execution API)](https://developers.google.com/apps-script/guides/rest/api)** : This can be used by the authorization process of OAuth2. So you can use under higher security. But there are some [limitations](https://developers.google.com/apps-script/guides/rest/api#limitations).
 
 2. **[Drive API](https://developers.google.com/drive/v3/web/about-sdk)** : This can be used for downloading and uploading files.
 
-3. **[Web Apps](https://developers.google.com/apps-script/guides/web)** : This can be used without the authorization process. So a password can be set for using the server. The install process is very simple. However, the security is much lower than that of Execution API. ggsrun has to setup the access to Web Apps as "Anyone, even anonymous". There are no limitations. (I haven't confirmed it yet.) (I don't know whether this can be called an API.)
+3. **[Web Apps](https://developers.google.com/apps-script/guides/web)** : This can be used without the authorization process. So a password can be set for using the server. The install process is very simple. However, the security is much lower than that of Google Apps Script API(Execution API). ggsrun has to setup the access to Web Apps as "Anyone, even anonymous". There are no limitations. (I haven't confirmed it yet.) (I don't know whether this can be called an API.)
 
 And also  ggsrun uses a server script (ggsrunif) which is deployed at Google side as an interface for executing GAS script. **This server script is provided as a GAS library. Using APIs and the server, there are <u>4 methods</u> for executing GAS script.** These methods are provided as 4 commands. The comparison for each command is as follows.
 
@@ -142,10 +142,10 @@ Here, I explain the flow difference of ``exe1`` and ``exe2`` using flow of each 
 
 1. Prepare sample script of GAS. For example, it's ``sample.gs``.
 1. Execute ggsrun using command ``exe1``.
-1. [URL request] At first, the project, which was enabled Execution API, on Google Drive is downloaded for the back up.
+1. [URL request] At first, the project, which was enabled Google Apps Script API(Execution API), on Google Drive is downloaded for the back up.
 1. Add ``sample.gs`` to the downloaded project as a script with name of ``ggsrun.gs``.
 1. [URL request] The project with ``sample.gs`` is uploaded and overwrites the project on Google.
-1. [URL request] **Using <u>Execution API</u>, directly execute the function ``main()``** which is a default executing function and retrieves response. Of course, you can choose the function using option ``-f``.
+1. [URL request] **Using <u>Google Apps Script API(Execution API)</u>, directly execute the function ``main()``** which is a default executing function and retrieves response. Of course, you can choose the function using option ``-f``.
 
 In this case, there are 3 times URL requests.
 
@@ -174,7 +174,7 @@ When you use ``exe1`` and ``exe2``, please don't public the client ID, client se
 
 
 ## Installation Flow
-This is an installation flow for Execution API which is used for command ``exe1`` and ``exe2``, and Web Apps which is used command ``webapps``. Don't worry. These installations are not difficult. The details are [How to install Execution API](#installexecutionapi) and [How to install Web Apps](#installwebapps).
+This is an installation flow for Google Apps Script API(Execution API) which is used for command ``exe1`` and ``exe2``, and Web Apps which is used command ``webapps``. Don't worry. These installations are not difficult. The details are [How to install Google Apps Script API(Execution API)](#installexecutionapi) and [How to install Web Apps](#installwebapps).
 
 ![](images/readme_flow.png)
 
@@ -202,7 +202,7 @@ $ go get -u github.com/tanaikech/ggsrun
 
 <a name="Setup_ggsrun_Server"></a>
 ## 2. Setup ggsrun Server (at Google side)
-This is a common setup for Execution API and Web Apps.
+This is a common setup for Google Apps Script API(Execution API) and Web Apps.
 
 #### 1. <u>Create project</u>
 On Google Drive, a project can be created as a standalone script or a container-bound script. The project can have several script in it. Please create a project, and then open the Script Editor. If a standalone script is created, you can use all functions on ggsrun. If a container-bound script is created, you cannot use command ``exe1``.
@@ -225,7 +225,7 @@ On Google Drive, a project can be created as a standalone script or a container-
 - -> Identifier is "**``ggsrunif``**". (This is a important point)
 
 <a name="Install_Execution_API"></a>
-## Install Execution API
+## Install Google Apps Script API(Execution API)
 By installing this, you can use command ``exe1`` and ``exe2``. To use command ``exe1``, the project installed server has to be a standalone script. For the command ``exe2``, you can use a standalone script and a container-bound script.
 
 #### 1. <u>[Deploy API executable](https://developers.google.com/apps-script/guides/rest/api)</u>
@@ -239,7 +239,7 @@ By installing this, you can use command ``exe1`` and ``exe2``. To use command ``
     - -> Click "Close"
 
 <a name="authorization"></a>
-#### 2. <u>Enable APIs (Execution API and Drive API)</u>
+#### 2. <u>Enable APIs (Google Apps Script API(Execution API) and Drive API)</u>
 1. On the Script Editor
     - -> Resources
     - -> Cloud Platform Project
@@ -247,11 +247,13 @@ By installing this, you can use command ``exe1`` and ``exe2``. To use command ``
 2. On "API  APIs&services"
     - In "Getting Started", Click "Enable APIs and get credentials like keys".
     - Click Library at left side.
-    - -> At "Search APIs and services", Input "**execution api**", Click it.
-    - -> **Enable "Google Apps Script Execution API"**
+    - -> At "Search APIs and services", Input "**Google Apps Script API**", Click it.
+    - -> **Enable "Google Apps Script API(Execution API)"**
+      -> You can enable it at [this URL](https://console.cloud.google.com/apis/library/script.googleapis.com/).
     - Back to "API Library".
     - -> At "Search APIs and services", Input "**drive api**", Click it.
     - -> **Enable "Google Drive API"**
+      -> You can enable it at [this URL](https://console.cloud.google.com/apis/api/drive.googleapis.com/).
 
 <a name="GetClientID"></a>
 #### 3. <u>Get Client ID, Client Secret</u>
