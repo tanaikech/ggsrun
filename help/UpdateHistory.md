@@ -65,6 +65,16 @@ ggsrun
     1. Some modifications.
 
 
+* v1.3.4 (January 2, 2018)
+
+    1. Added new option for downloading 'bound-scripts' of Google Sheets, Docs, or Forms file.
+        - When the bound-scripts are downloaded, the project name cannot be retrieved because Drive API cannot be used for the bound-scripts. So when the bound-scripts are downloaded, the project ID had been used previously. Such filename is not easily to be seen. By this additional option, users can give the filename when it downloads the bound-scripts.
+        - The usage is [here](README.md#DownloadBoundScript)
+    1. Removed a bug.
+        - When a project is downloaded, script ID in the project is added to the top of each downloaded script as a comment. There was a problem at the character using for the comment out. This was modified.
+
+**You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#How_to_Install).**
+
 ## Server
 * v1.0.0 (April 24, 2017)
 

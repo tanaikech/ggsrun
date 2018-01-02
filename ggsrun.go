@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.3.3"
+	app.Version = "1.3.4"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -149,7 +149,7 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "fileid, i",
-					Usage: "File ID on Google Drive",
+					Usage: "File ID on Google Drive. Using file ID, you can download all files except for bound scripts.",
 				},
 				cli.StringFlag{
 					Name:  "filename, f",
@@ -157,7 +157,11 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "projectid, pi",
-					Usage: "Project ID of bound scripts of Google Sheets, Docs, or Forms file",
+					Usage: "Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.",
+				},
+				cli.StringFlag{
+					Name:  "boundscriptname, bn",
+					Usage: "This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.",
 				},
 				cli.StringFlag{
 					Name:  "extension, e",

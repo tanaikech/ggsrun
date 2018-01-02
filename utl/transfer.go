@@ -32,28 +32,29 @@ const (
 
 // FileInf : File information for downloading and uploading
 type FileInf struct {
-	Accesstoken  string         `json:"-"`
-	DlMime       string         `json:"-"`
-	MimeType     string         `json:"mimeType,omitempty"`
-	Workdir      string         `json:"-"`
-	PstartTime   time.Time      `json:"-"`
-	WantExt      string         `json:"-"`
-	WantName     string         `json:"-"`
-	WebLink      string         `json:"webContentLink,omitempty"`
-	WebView      string         `json:"webViewLink,omitempty"`
-	SearchByName string         `json:"-"`
-	SearchByID   string         `json:"-"`
-	FileID       string         `json:"id,omitempty"`
-	ProjectID    string         `json:"project_id,omitempty"`
-	RevisionID   string         `json:"revisionid,omitempty"`
-	FileName     string         `json:"name,omitempty"`
-	SaveName     string         `json:"saved_file_name,omitempty"`
-	Parents      []string       `json:"parents,omitempty"`
-	UpFilename   []string       `json:"upload_file_name,omitempty"`
-	UpFileID     []string       `json:"uid,omitempty"`
-	UppedFiles   []uploadedFile `json:"uploaded_files,omitempty"`
-	TotalEt      float64        `json:"TotalElapsedTime,omitempty"`
-	Msgar        []string       `json:"message,omitempty"`
+	Accesstoken     string         `json:"-"`
+	DlMime          string         `json:"-"`
+	MimeType        string         `json:"mimeType,omitempty"`
+	Workdir         string         `json:"-"`
+	PstartTime      time.Time      `json:"-"`
+	WantExt         string         `json:"-"`
+	WantName        string         `json:"-"`
+	WebLink         string         `json:"webContentLink,omitempty"`
+	WebView         string         `json:"webViewLink,omitempty"`
+	SearchByName    string         `json:"-"`
+	SearchByID      string         `json:"-"`
+	FileID          string         `json:"id,omitempty"`
+	ProjectID       string         `json:"project_id,omitempty"`
+	BoundScriptName string         `json:"_"`
+	RevisionID      string         `json:"revisionid,omitempty"`
+	FileName        string         `json:"name,omitempty"`
+	SaveName        string         `json:"saved_file_name,omitempty"`
+	Parents         []string       `json:"parents,omitempty"`
+	UpFilename      []string       `json:"upload_file_name,omitempty"`
+	UpFileID        []string       `json:"uid,omitempty"`
+	UppedFiles      []uploadedFile `json:"uploaded_files,omitempty"`
+	TotalEt         float64        `json:"TotalElapsedTime,omitempty"`
+	Msgar           []string       `json:"message,omitempty"`
 }
 
 // dlError : Error messages.
@@ -156,7 +157,15 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 				}
 				return eext
 			}(p.WantExt, e.Type)
-			src := fmt.Sprintf("// Script ID in Project = %s \n%s", e.ID, e.Source)
+			var src string
+			switch e.Type {
+			case "server_js":
+				src = fmt.Sprintf("// Script ID in Project = %s \n%s", e.ID, e.Source)
+			case "html":
+				src = fmt.Sprintf("<!-- Script ID in Project = %s -->\n%s", e.ID, e.Source)
+			default:
+				src = fmt.Sprintf("%s", e.Source)
+			}
 			ioutil.WriteFile(filepath.Join(p.Workdir, saveName), []byte(src), 0777)
 			p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", saveName))
 		}
@@ -195,7 +204,11 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 			}
 		} else {
 			if len(p.ProjectID) > 0 && p.MimeType == "" {
-				p.FileName = p.ProjectID
+				if p.BoundScriptName != "" {
+					p.FileName = p.BoundScriptName
+				} else {
+					p.FileName = p.ProjectID
+				}
 				p.MimeType = "application/vnd.google-apps.script"
 				p, body = p.writeFile(sdownloadurl + p.ProjectID + "&format=json")
 				p.saveScript(body, c)

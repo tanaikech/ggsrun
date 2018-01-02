@@ -69,6 +69,8 @@ Congratulation! You got ggsrun!
 1. [Executes GAS with Values and Downloads File](help/README.md#ExecutesGASwithValuesandDownloadsFile)
 1. [Executes Existing Functions on Project](help/README.md#ExecutesExistingFunctionsonProject)
 1. [Download Files](help/README.md#DownloadFiles)
+    1. [How to Download Container-Bound Scripts](help/README.md#DownloadBoundScript) <sup><font color="Red">NEW! (v1.3.4)</font></sup>
+
 1. [Upload Files](help/README.md#UploadFiles)
 1. [Show File List](help/README.md#ShowFileList)
 1. [Search Files](help/README.md#SearchFiles)

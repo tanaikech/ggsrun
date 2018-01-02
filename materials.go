@@ -339,8 +339,9 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 			}
 			return id
 		}(c),
-		WantExt:  c.String("extension"),
-		WantName: c.String("filename"),
+		BoundScriptName: c.String("boundscriptname"),
+		WantExt:         c.String("extension"),
+		WantName:        c.String("filename"),
 	}
 	return p
 }

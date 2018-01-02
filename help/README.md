@@ -891,13 +891,17 @@ You can convert only from Google Docs Files (spreadsheet, slide, documentation a
 You can download the project by the following command.
 
 ~~~bash
-$ ggsrun d -pi project_id
+$ ggsrun d -pi project_id -bn filename
 ~~~
+
+- pi: project_id
+- bn: filename which is used for downloading.
 
 **Limitation :**
 
 - The file information of container-bound scripts cannot be retrieved by Drive API. So the filename cannot be retrieved from the project ID.
-    - Prefix of filename of the downloaded project is the project ID.
+    - When the option ``bn`` is not used, the prefix of filename of the downloaded project is the project ID.
+    - When the option ``bn`` is used, the prefix of filename of the downloaded project is the filename you gave.
 
 ### Help
 ~~~
@@ -912,12 +916,13 @@ DESCRIPTION:
    In this mode, an access token is required.
 
 OPTIONS:
-   --fileid value, -i value       File ID on Google Drive
-   --filename value, -f value     File Name on Google Drive
-   --projectid value, --pi value  Project ID of bound scripts of Google Sheets, Docs, or Forms file
-   --extension value, -e value    Extension (File format of downloaded file)
-   --rawdata, -r                  Save a project with GAS scripts as raw data (JSON data).
-   --jsonparser, -j               Display results by JSON parser
+   --fileid value, -i value             File ID on Google Drive. Using file ID, you can download all files except for bound scripts.
+   --filename value, -f value           File Name on Google Drive
+   --projectid value, --pi value        Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.
+   --boundscriptname value, --bn value  This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.
+   --extension value, -e value          Extension (File format of downloaded file)
+   --rawdata, -r                        Save a project with GAS scripts as raw data (JSON data).
+   --jsonparser, -j                     Display results by JSON parser
 ~~~
 
 <a name="UploadFiles"></a>
@@ -1154,6 +1159,8 @@ When existing project is overwritten by a script with an unique filename, all sc
 
 In this demonstration, scripts in a project is intaractively rearranged. After rearranging, HTML file is the top of scripts. So GS file of 2nd script is opened as a default. When GS is the top of scripts, it will be opened as the default.
 
+### Add-on using Google Apps Script
+If you want to use add-on created by Google Apps Script. Please check [here](https://github.com/tanaikech/RearrangeScripts).
 
 <a name="ModifyManifests"></a>
 ## 13. Modify Manifests
