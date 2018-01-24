@@ -51,7 +51,8 @@ When you click each link of title, you can see the detail information.
 1. [Setup ggsrun Server (at Google side)](help/README.md#Setup_ggsrun_Server)
     - Create new project and install the server as a library.
     - [Deploy API executable](https://developers.google.com/apps-script/api/how-tos/execute#step_1_deploy_the_script_as_an_api_executable). Choose "Only myself" as "Who has access to the script"
-    - [Install the server as a library.](https://developers.google.com/apps-script/guides/libraries#managing_libraries) Script ID of the library is "**``115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov``**".
+    - [Install the server as a library.](https://developers.google.com/apps-script/guides/libraries#managing_libraries) Script ID of the library is
+        - **``115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov``**
     - **<u>After installed the library, please push the save button at the script editor.</u>** This is very important! By this, the library is completely reflected.
 1. [Get Client ID, Client Secret](help/README.md#GetClientID)
     - On the Script Editor
