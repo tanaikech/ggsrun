@@ -29,7 +29,7 @@ ggsrun
     - Show File List
     - Search Files
     - Update Project
-    - Retrieve Revision Files
+    - Retrieve Revision Files and Versions of Projects
     - Rearrange Script in Project
     - Modify Manifests
 - [Applications](#Applications)
@@ -57,19 +57,28 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 Features of "ggsrun" are as follows.
 
-1. **[Develops GAS using your terminal and text editor which got accustomed to using.](#demoterminal)**
+1. **[Develops GAS using your terminal and text editor which got accustomed to using.](#demosublime)**
 
-2. **[Executes GAS by giving values to your script.](#givevalues)**
+1. **[Executes GAS by giving values to your script.](#ExecutesGASandRetrievesResultValues)**
 
-3. **[Executes GAS made of CoffeeScript.](#coffee)**
+1. **[Executes GAS made of CoffeeScript.](#CoffeeScript)**
 
-4. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](#filedownload)**
+1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](#ExecutesGASwithValuesandDownloadsFile)**
 
-5. **[Creates, updates and backs up project with GAS.](#fileupdate)**
+1. **[Downloads files from Google Drive and Uploads files to Google Drive.](#DownloadFiles)**
 
-6. **[Downloads files from Google Drive and Uploads files to Google Drive.](#fileupdown)**
+1. **[Downloads standalone script and bound script.](#DownloadFiles)**
 
-7. **[Rearranges scripts in project.](#rearrangescripts)**
+1. **[Upload script files and create project as standalone script and container-bound script.](#UploadFiles)**
+
+1. **[Update project.](#Update_Project)**
+
+1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](#RevisionFile)**
+
+1. **[Rearranges scripts in project.](#rearrangescripts)**
+
+1. **[Modifies Manifests in project.](#ModifyManifests)**
+
 
 You can see the release page [here](https://github.com/tanaikech/ggsrun/releases).
 
@@ -105,7 +114,7 @@ function main(range) {
 # Google APIs
 ggsrun uses Google Apps Script API(Execution API), Web Apps and Drive API on Google.
 
-1. **[Google Apps Script API(Execution API)](https://developers.google.com/apps-script/guides/rest/api)** : This can be used by the authorization process of OAuth2. So you can use under higher security. But there are some [limitations](https://developers.google.com/apps-script/guides/rest/api#limitations).
+1. **[Google Apps Script API(previously known as Execution API)](https://developers.google.com/apps-script/guides/rest/api)** : This can be used by the authorization process of OAuth2. So you can use under higher security. But there are some [limitations](https://developers.google.com/apps-script/guides/rest/api#limitations). The reference of Google Apps Script API is [here](https://developers.google.com/apps-script/api/reference/rest/).
 
 2. **[Drive API](https://developers.google.com/drive/v3/web/about-sdk)** : This can be used for downloading and uploading files.
 
@@ -118,7 +127,7 @@ Each command is used as ``$ ggsrun [Command] [Options]``.
 
 | | Command | Execution method | Security | Response speed | Access token | Server | Authorization<br>for Google Services | Script | Available scripts | Call function | Limitation | Error Message | Library<sup>\*6</sup> |
 |:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | exe1<br>(e1) | Execution API | <font color="Red">High</font> | Slow<sup>\*1</sup> | Yes | <font color="Red">No</font> | <font color="Red">No</font> | Upload<br>& Save to project<br> | Only standalone script | Functions in project | [Some limitations](https://developers.google.com/apps-script/guides/rest/api) | <font color="Red">Error message<br>Line number</font><sup>\*5</sup> | <font color="Red">Yes</font> |
+| 1 | exe1<br>(e1) | Execution API | <font color="Red">High</font> | Slow<sup>\*1</sup> | Yes | <font color="Red">No</font> | <font color="Red">No</font> | Upload<br>& Save to project<br> | Standalone and Container-bound Script <font color="Red"><sup>NEW!</sup></font> | Functions in project | [Some limitations](https://developers.google.com/apps-script/guides/rest/api) | <font color="Red">Error message<br>Line number</font><sup>\*5</sup> | <font color="Red">Yes</font> |
 | 2 | exe1<br>(e1)<br>``-f`` | Execution API | <font color="Red">High</font> | <font color="Red">Fast</font> | Yes | <font color="Red">No</font> | <font color="Red">No</font> | No upload<br>& Only execute function on project | Standalone and Container-bound Script | Functions in project | [Some limitations](https://developers.google.com/apps-script/guides/rest/api) | <font color="Red">Error message<br>Line number<sup></font>\*5</sup> | <font color="Red">Yes</font> |
 | 3 | exe2<br>(e2) | Execution API | <font color="Red">High</font> | <font color="Red">Fast</font> | Yes | Yes | <font color="Red">No</font> | Upload<br>& No save | Standalone and Container-bound Script | Functions in execution script | [Some limitations](https://developers.google.com/apps-script/guides/rest/api) | Error message<sup>\*5</sup> | No |
 | 4 | webapps<br>(w) | Web Apps | Low<sup>\*2</sup> | <font color="Red">Fast</font> | <font color="Red">No</font><sup>\*2</sup> | Yes | Yes<sup>\*3</sup> | Upload<br>& No save | Standalone and Container-bound Script | Functions in execution script | \*4 | Error message<sup>\*5</sup> | No |
@@ -239,7 +248,7 @@ By installing this, you can use command ``exe1`` and ``exe2``. To use command ``
     - -> Click "Close"
 
 <a name="authorization"></a>
-#### 2. <u>Enable APIs (Google Apps Script API(Execution API) and Drive API)</u>
+#### 2. <u>Enable APIs (Google Apps Script API and Drive API)</u>
 1. On the Script Editor
     - -> Resources
     - -> Cloud Platform Project
@@ -247,13 +256,14 @@ By installing this, you can use command ``exe1`` and ``exe2``. To use command ``
 2. On "API  APIs&services"
     - In "Getting Started", Click "Enable APIs and get credentials like keys".
     - Click Library at left side.
-    - -> At "Search APIs and services", Input "**Google Apps Script API**", Click it.
-    - -> **Enable "Google Apps Script API(Execution API)"**
-      -> You can enable it at [this URL](https://console.cloud.google.com/apis/library/script.googleapis.com/).
+    - -> At "Search APIs and services", Input "**apps script**", Click it.
+    - -> **Enable "Google Apps Script API"**
+    - -> You can enable it at [this URL](https://console.cloud.google.com/apis/library/script.googleapis.com/).
+        - **Also here [https://script.google.com/home/usersettings](https://script.google.com/home/usersettings) has to be enabled. Please turn ON.**
     - Back to "API Library".
     - -> At "Search APIs and services", Input "**drive api**", Click it.
     - -> **Enable "Google Drive API"**
-      -> You can enable it at [this URL](https://console.cloud.google.com/apis/api/drive.googleapis.com/).
+    - -> You can enable it at [this URL](https://console.cloud.google.com/apis/api/drive.googleapis.com/).
 
 <a name="GetClientID"></a>
 #### 3. <u>Get Client ID, Client Secret</u>
@@ -782,6 +792,8 @@ When a result with error of "exe1" is below. You can see various error messages.
 
 **So I always create GAS script using the command "exe2". When an error occurred, I debug the script using the command "exe1" and the method ``Log()``. By this, the developing efficiency becomes high.**
 
+> Recently, users can use [Stackdriver](https://developers.google.com/apps-script/guides/logging). You can also use for this situation.
+
 <a name="ExecutesGASwithValuesandDownloadsFile"></a>
 ## 4. Executes GAS with Values and Downloads File
 At command ``exe2``, you can execute script and download file, simultaneously. So you can download file using ID created in the script. This cannot be used for ``exe1`` and ``webapps``.
@@ -878,9 +890,11 @@ $ ggsrun d -f filename -e pdf
 
 You can convert only from Google Docs Files (spreadsheet, slide, documentation and so on). For example, you cannot convert image files and text data.
 
-<a name="DownloadBoundScript"></a>
-### How to Download Container-Bound Scripts
-<u>Here, I could notice that the container-bound scripts can be downloaded! From version 1.3.0, the container-bound scripts could be downloaded.</u>
+When you download project files which are standalone script and container-bound script, you can use the option of ``--raw``. You can download raw files of project by this.
+
+~~~bash
+$ ggsrun d -i fileId -r
+~~~
 
 - In order to download container-bound scripts, the project ID of container-bound scripts is required. The project ID can be retrieved as follows.
     - Open the project. And please operate follows using click.
@@ -888,41 +902,14 @@ You can convert only from Google Docs Files (spreadsheet, slide, documentation a
         - -> Project properties
         - -> Get Script ID (**This is the project ID.**)
 
-You can download the project by the following command.
+> For the container-bound script, please download by file ID. Because for the baound script, Google APIs doesn't privide for retrieving file ID from filename yet.
+
+**Delete files**
+
+You can also delete files using file ID.
 
 ~~~bash
-$ ggsrun d -pi project_id -bn filename
-~~~
-
-- pi: project_id
-- bn: filename which is used for downloading.
-
-**Limitation :**
-
-- The file information of container-bound scripts cannot be retrieved by Drive API. So the filename cannot be retrieved from the project ID.
-    - When the option ``bn`` is not used, the prefix of filename of the downloaded project is the project ID.
-    - When the option ``bn`` is used, the prefix of filename of the downloaded project is the filename you gave.
-
-### Help
-~~~
-$ ggsrun d -h
-NAME:
-   ggsrun.exe download - Downloads files from Google Drive.
-
-USAGE:
-   ggsrun.exe download [command options] [arguments...]
-
-DESCRIPTION:
-   In this mode, an access token is required.
-
-OPTIONS:
-   --fileid value, -i value             File ID on Google Drive. Using file ID, you can download all files except for bound scripts.
-   --filename value, -f value           File Name on Google Drive
-   --projectid value, --pi value        Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.
-   --boundscriptname value, --bn value  This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.
-   --extension value, -e value          Extension (File format of downloaded file)
-   --rawdata, -r                        Save a project with GAS scripts as raw data (JSON data).
-   --jsonparser, -j                     Display results by JSON parser
+$ ggsrun d --deletefile [fileId]
 ~~~
 
 <a name="UploadFiles"></a>
@@ -939,19 +926,41 @@ At this time, you can upload files to the specific folder using option ``-p [par
 
 **Run :** Uploads scripts
 
-This is not the update. This is uploaded a new file to Google Drive.
+This is not the update. This is uploaded as a new file to Google Drive.
 
 ~~~bash
-$ ggsrun u -f [script filename .gs, .gas, .js]
+$ ggsrun u -f [script filename .gs, .gas, .js] -tz [timezone]
 ~~~
 
 Files upload and convert to GAS. If you want to create a project using several scripts and HTMLs, please use as follows.
 
+> **"timezone" :** For example, my timeZone is "Asia/Tokyo". So I use ``-tz "Asia/Tokyo"``. Please input it for yourself. If you don't use this option, it is automatically defined by Google side. But this might not be your timeZone. Don't worry. You can modify even after created.
+
 ~~~bash
-$ ggsrun u --pn [project name] -f script1.gs,script2.gs,index.html
+$ ggsrun u -pn [project name] -f script1.gs,script2.gs,index.html -tz [timezone]
 ~~~
 
 These files are uploaded and converted to a project with the project name. When you open the created project, you can see these files in the project. <u>The order of files is the same to the order when was uploaded.</u>
+
+
+Also you can upload script files as the container-bound script of new Spreadsheet.
+
+~~~bash
+$ ggsrun u -pn [project name] -f [script files] -pt [spreadsheet, document, slide, form] -tz [timezone]
+~~~
+
+For example, when you want to upload script files as the container-bound script of new spreadsheet.
+
+~~~bash
+$ ggsrun u -pn samplename -f script1.gs,script2.gs,index.html -pt spreadsheet -tz "Asia/Tokyo"
+~~~
+
+When this sample command runs, a new Spreadsheet is created and the script files are uploaded as a container-bound script. "samplename" is used for spreadsheet and project name.
+
+> **IMPORTANT :**
+
+> 1. After Manifests was added to GAS, the time zone can be set by it. But when a new project is created by API, I noticed that the time zone is different from own local time zone. When a new project is manually created by browser, the time zone is the same to own local time zone. I think that this may be a bug. So I added an option for setting time zone when a new project is created. And also I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72019223).
+1. If you want to create a bound script in Slide, an error occurs. When a bound script can be created to Apreadsheet, Document and Form using Apps Script API. Furthermore, when the bound script in Slide is updated, it works fine. So I think that this may be also a bug. I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72238499).
 
 ### Help
 ~~~
@@ -966,11 +975,15 @@ DESCRIPTION:
    In this mode, an access token is required.
 
 OPTIONS:
-   --filename value, -f value        File Name on local PC
-   --parentfolderid value, -p value  Folder ID of parent folder on Google Drive
-   --projectname value, --pn value   Upload several GAS scripts as a project.
-   --noconvert, --nc                 If you don't want to convert file to Google Apps format.
-   --jsonparser, -j                  Display results by JSON parser
+   --filename value, -f value         File Name on local PC. Please input files you want to upload.
+   --parentfolderid value, -p value   Folder ID of parent folder on Google Drive
+   --parentid value, --pid value      File ID of Google Docs (Spreadsheet, Document, Slide, Form) for creating container bound-script.
+   --timezone value, --tz value       Time zone of project. Please use this together with creating new project. When new project is created by API, time zone doesn't become the local time zone. (This might be a bug.) So please input this.
+   --projectname value, --pn value    Upload several GAS scripts as a project.
+   --googledocname value, --gn value  Filename of Google Docs which is created.
+   --projecttype value, --pt value    You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default. (default: "standalone")
+   --noconvert, --nc                  If you don't want to convert file to Google Apps format.
+   --jsonparser, -j                   Display results by JSON parser
 ~~~
 
 <a name="ShowFileList"></a>
@@ -1044,9 +1057,11 @@ $ ggsrun ls -si [file id] -j
 
 Result includes file name, file id, modified time and URL.
 
+> **Search of scripts :** You can search standalone scripts using filename and fileId. But the container-bound scripts cannot be searched by filename, while it can be searched by fileId. Because parentId cannot be retrieved using Apps Script API yet. About this, I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/71941200).
+
 <a name="Update_Project"></a>
 ## 10. Update Project
-It updates existing project on Google Drive.
+It updates existing project on Google Drive. You can update standalone script and container-bound script.
 
 **Run :**
 
@@ -1056,11 +1071,28 @@ $ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
 
 If it is not used ``-p``, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
 
-<a name="RevisionFile"></a>
-## 11. Retrieve Revision Files
-It retrieves revisions for files on Google Drive.
+**Delete files in project**
 
-**Display revision ID list for file ID :**
+You can also delete files in a project.
+
+~~~bash
+$ ggsrun ud -f [filename in project] -p [Project ID on Google Drive] --deletefiles
+~~~
+
+> **IMPORTANT :** If you use this option, at first, please test using a sample project. By this, please use this after you understand the work of this.
+
+### Demo for creating bound script in Google Docs <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+
+![](images/demo_update.gif)
+
+In this demonstration, create new Spreadsheet and upload 5 files as new project of bound script. And then, rearrange files in the new project.
+
+
+<a name="RevisionFile"></a>
+## 11. Retrieve Revision Files and Versions of Projects
+It retrieves revisions for files on Google Drive and retrieves versions for projects.
+
+**Display revision and version ID list for file ID :**
 
 ~~~bash
 $ ggsrun r -i [File ID]
@@ -1075,7 +1107,7 @@ When above command is run, you can see the revision list and extensions which ca
 ]
 ~~~
 
-**Download revision file using revision ID :**
+**Download revision and version file using revision ID :**
 
 ~~~bash
 $ ggsrun r -i [File ID] -d [Revision ID] -e [Extension]
@@ -1099,15 +1131,24 @@ You can see the detail information about revision files at following gists.
 In this demonstration, 2 revision files of spreadsheet are retrieved.
 
 
+**Create versions of projects**
+You can create versions of projects. Created versions are reflected to version list.
+
+~~~bash
+$ ggsrun r -i [File ID] -cv [description of version]
+~~~
+
+
 <a name="rearrangescripts"></a>
 ## 12. Rearrange Script in Project
-Have you ever thought about rearranging Google Apps Scripts in a project which can be seen at the script editor? I also have thought about it. Finally, I could find the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged.
+Have you ever thought about rearranging Google Apps Scripts in a project which can be seen at the script editor? I also have thought about it. Finally, I could find the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged. And also, from v1.4.0, it gets to be able to rearrange both standalone script and container-bound script.
 
 If you want to rearrange using a GUI application, please check [RearrangeScripts](https://github.com/tanaikech/RearrangeScripts).
 
 #### IMPORTANT!
 > 1. For rearranging scripts, there is one important point. <u>**When scripts in a project is rearranged, version history of scripts is reset once. So if you don't want to reset the version history, before rearranging, please copy the project.**</u> By copying project, the project before rearranging is saved.
-> 2. The rearrangement of scripts can be done for only standalone scripts. Because although the bound scripts can retrieve scripts, it cannot be updated.
+> 2. <u>From v1.4.0, it got to be able to rearrange both standalone script and container-bound script.</u>
+> 3. The file of ``appsscript`` for Manifests is displayed to the top of files on the script editor, while the array of files can be changed. I think that this is the specification.
 
 ### Interactively rearrange scrips on own terminal
 
@@ -1526,7 +1567,7 @@ The GAS script can be modified by the received values from Google. I think that 
 <a name="Appendix"></a>
 # Appendix
 ## A1. Scopes
-As the default, 6 scopes are set as follows.
+As the default, 7 scopes are set in ggsrun as follows.
 
 - https://www.googleapis.com/auth/drive
 - https://www.googleapis.com/auth/drive.file
@@ -1534,6 +1575,7 @@ As the default, 6 scopes are set as follows.
 - https://www.googleapis.com/auth/script.external_request
 - https://www.googleapis.com/auth/script.scriptapp
 - https://www.googleapis.com/auth/spreadsheets
+- https://www.googleapis.com/auth/script.projects
 
 If you want to change the scopes,
 
@@ -1546,6 +1588,8 @@ When you run ggsrun , if you see an error message below,
 If the SCOPEs have changed, modify them in 'ggsrun.cfg' and delete a line of 'refresh_token', then, execute 'ggsrun' again. You can retrieve new access token with modified SCOPEs.**"
 
 Please confirm Scopes, which is used at your script, at the Script Editor on Google.
+
+> ``https://www.googleapis.com/auth/script.projects`` was added from v.1.4.0.
 
 ## A2. Format of Data to GAS
 Here it describes about the format of data received at GAS on Google. Data you inputted is converted by ggsrun as follows.
@@ -1694,6 +1738,11 @@ In such case, please confirm whether ``;`` with end of each line in the script i
 <a name="QA6"></a>
 #### 6. Library
 You can use various libraries for GAS by ggsrun. But there are one limitation. When you want to use libraries, please add them to the project with server, and execute scripts using ``exe1`` mode. At ``exe2`` mode, additional library cannot be used, because the mode executes on the server script.
+
+<a name="QA7"></a>
+#### 7. Order of directories for searching
+- About the order of directories for searching ``client_secret.json`` and ``ggsrun.cfg``, at first, files are searched in the current working directory, and next, they are searched in the directory declared by the environment variable of ``GGSRUN_CFG_PATH``.
+- About uploading and downloded files, the current working directory is used as the default.
 
 <a name="Update_History"></a>
 # Update History

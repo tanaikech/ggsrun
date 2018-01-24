@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/tanaikech/ggsrun/utl"
@@ -32,12 +33,13 @@ const (
 	defprojectname = appname
 	defPort        = 8080
 
-	oauthurl     = "https://accounts.google.com/o/oauth2/"
-	sdownloadurl = "https://script.google.com/feeds/download/export?id="
-	executionurl = "https://script.googleapis.com/v1/scripts/"
-	driveapiurl  = "https://www.googleapis.com/drive/v3/files/"
-	chkatutl     = "https://www.googleapis.com/oauth2/v3/"
-	uploadurl    = "https://www.googleapis.com/upload/drive/v3/files/"
+	oauthurl      = "https://accounts.google.com/o/oauth2/"
+	sdownloadurl  = "https://script.google.com/feeds/download/export?id="
+	executionurl  = "https://script.googleapis.com/v1/scripts/"
+	driveapiurl   = "https://www.googleapis.com/drive/v3/files/"
+	chkatutl      = "https://www.googleapis.com/oauth2/v3/"
+	uploadurl     = "https://www.googleapis.com/upload/drive/v3/files/"
+	appsscriptapi = "https://script.googleapis.com/v1/projects"
 )
 
 // InitVal : Initial values
@@ -45,6 +47,7 @@ type InitVal struct {
 	pstart  time.Time
 	workdir string
 	cfgdir  string
+	usedDir string // "work" for working directory or "env" for directory declared by the environment variable.
 	update  bool
 	log     bool
 	Port    int
@@ -124,15 +127,32 @@ type Com struct {
 
 // Project : Project for uploading using Drive API
 type Project struct {
-	Files []File `json:"files"`
+	ScriptId string `json:"scriptId,omitempty"`
+	Files    []File `json:"files"`
 }
 
 // File : Individual file in a project
 type File struct {
-	ID     string `json:"id,omitempty"`
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	Source string `json:"source"`
+	ID             string          `json:"id,omitempty"`
+	Name           string          `json:"name"`
+	Type           string          `json:"type"`
+	Source         string          `json:"source"`
+	CreateTime     string          `json:"createTime,omitempty"`
+	UpdateTime     string          `json:"updateTime,omitempty"`
+	Creator        *creator        `json:"creator,omitempty"`
+	LastModifyUser *lastmodifyuser `json:"lastModifyUser,omitempty"`
+}
+
+// creator : Creator
+type creator struct {
+	Email string `json:"email,omitempty"`
+	Name  string `json:"name,omitempty"`
+}
+
+// lastmodifyuser : lastModifyUser
+type lastmodifyuser struct {
+	Email string `json:"email,omitempty"`
+	Name  string `json:"name,omitempty"`
 }
 
 // FeedBackData : Feedbacked data from function using Execution API (modified)
@@ -266,9 +286,12 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 			a.InitVal.Port = c.Int("port")
 		}
 	}
+
 	// Default scopes for using Execution API and Drive API
 	// If you want to use own scopes, please write them to configuration file.
 	// They are used for retrieving access token.
+	//
+	// From v1.4.0, https://www.googleapis.com/auth/script.projects was added to scope.
 	a.GgsrunCfg.Scopes = []string{
 		"https://www.googleapis.com/auth/drive",
 		"https://www.googleapis.com/auth/drive.file",
@@ -276,6 +299,7 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 		"https://www.googleapis.com/auth/script.external_request",
 		"https://www.googleapis.com/auth/script.scriptapp",
 		"https://www.googleapis.com/auth/spreadsheets",
+		"https://www.googleapis.com/auth/script.projects",
 	}
 	return a
 }
@@ -353,7 +377,40 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 		Accesstoken: a.GgsrunCfg.Accesstoken,
 		Workdir:     a.InitVal.workdir,
 		PstartTime:  a.InitVal.pstart,
-		UpFilename:  regexp.MustCompile(`\s*,\s*`).Split(c.String("filename"), -1),
+		UpFilename: func(filenames string) []string {
+			if filenames != "" {
+				return regexp.MustCompile(`\s*,\s*`).Split(filenames, -1)
+			} else {
+				return nil
+			}
+		}(c.String("filename")),
+		ParentID: c.String("parentid"),
+		ProjectType: func(ptype string) string {
+			var ret string
+			switch strings.ToLower(ptype) {
+			case "spreadsheet", "spreadsheets", "sheet", "sheets":
+				ret = "spreadsheet"
+			case "document", "documents", "doc":
+				ret = "document"
+			case "slide", "slides":
+				ret = "slide"
+			case "form":
+				ret = "form"
+			default:
+				ret = ptype
+			}
+			return ret
+		}(c.String("projecttype")),
+		GoogleDocName: c.String("googledocname"),
+	}
+	return p
+}
+
+// dispUpdateProjectContainer : Struct container for downloading files by GAS
+func (e *ExecutionContainer) dispUpdateProjectContainer() *utl.FileInf {
+	p := &utl.FileInf{
+		Msgar:   e.Msg,
+		TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
 	}
 	return p
 }
@@ -377,11 +434,23 @@ func (e *ExecutionContainer) defUpdateProjectContainer(c *cli.Context) *Executio
 	return e
 }
 
-// dispUpdateProjectContainer : Struct container for downloading files by GAS
-func (e *ExecutionContainer) dispUpdateProjectContainer() *utl.FileInf {
+// convExecutionContainerToFileInf : Convert ExecutionContainer to FileInf
+func (e *ExecutionContainer) convExecutionContainerToFileInf() *utl.FileInf {
 	p := &utl.FileInf{
-		Msgar:   e.Msg,
-		TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
+		Accesstoken: e.Accesstoken,
 	}
 	return p
+}
+
+// adaptProjectForAppsScriptApi : Adapt project for Apps Script Api
+func (e *ExecutionContainer) adaptProjectForAppsScriptApi() *ExecutionContainer {
+	// e.Project.ScriptId = ""
+	for i, f := range e.Project.Files {
+		e.Project.Files[i].Type = strings.ToLower(f.Type)
+		e.Project.Files[i].CreateTime = ""
+		e.Project.Files[i].UpdateTime = ""
+		e.Project.Files[i].Creator = nil
+		e.Project.Files[i].LastModifyUser = nil
+	}
+	return e
 }

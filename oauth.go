@@ -48,7 +48,16 @@ func (a *AuthContainer) reAuth() {
 // makecfgfile :
 func (a *AuthContainer) makecfgfile() {
 	btok, _ := json.MarshalIndent(a.GgsrunCfg, "", "\t")
-	ioutil.WriteFile(filepath.Join(a.InitVal.cfgdir, cfgFile), btok, 0777)
+	var path string
+	if a.InitVal.usedDir == "work" {
+		path = a.InitVal.workdir
+	} else if a.InitVal.usedDir == "env" {
+		path = a.InitVal.cfgdir
+	} else {
+		fmt.Fprintf(os.Stderr, "Error: directory. '%s'\n", a.InitVal.usedDir)
+		os.Exit(1)
+	}
+	ioutil.WriteFile(filepath.Join(path, cfgFile), btok, 0777)
 }
 
 // getAtoken : Retrieves accesstoken from refreshtoken.

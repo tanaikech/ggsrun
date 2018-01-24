@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,38 +24,55 @@ import (
 )
 
 const (
-	sdownloadurl  = "https://script.google.com/feeds/download/export?id="
-	lurl          = "https://www.googleapis.com/drive/v3/files?"
-	driveapiurl   = "https://www.googleapis.com/drive/v3/files/"
-	driveapiurlv2 = "https://www.googleapis.com/drive/v2/files/"
-	uploadurl     = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
+	lurl              = "https://www.googleapis.com/drive/v3/files?"
+	driveapiurl       = "https://www.googleapis.com/drive/v3/files/"
+	driveapiurlv2     = "https://www.googleapis.com/drive/v2/files/"
+	uploadurl         = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
+	lengthOfProjectId = 57
 )
 
 // FileInf : File information for downloading and uploading
 type FileInf struct {
-	Accesstoken     string         `json:"-"`
-	DlMime          string         `json:"-"`
-	MimeType        string         `json:"mimeType,omitempty"`
-	Workdir         string         `json:"-"`
-	PstartTime      time.Time      `json:"-"`
-	WantExt         string         `json:"-"`
-	WantName        string         `json:"-"`
-	WebLink         string         `json:"webContentLink,omitempty"`
-	WebView         string         `json:"webViewLink,omitempty"`
-	SearchByName    string         `json:"-"`
-	SearchByID      string         `json:"-"`
-	FileID          string         `json:"id,omitempty"`
-	ProjectID       string         `json:"project_id,omitempty"`
-	BoundScriptName string         `json:"_"`
-	RevisionID      string         `json:"revisionid,omitempty"`
-	FileName        string         `json:"name,omitempty"`
-	SaveName        string         `json:"saved_file_name,omitempty"`
-	Parents         []string       `json:"parents,omitempty"`
-	UpFilename      []string       `json:"upload_file_name,omitempty"`
-	UpFileID        []string       `json:"uid,omitempty"`
-	UppedFiles      []uploadedFile `json:"uploaded_files,omitempty"`
-	TotalEt         float64        `json:"TotalElapsedTime,omitempty"`
-	Msgar           []string       `json:"message,omitempty"`
+	Accesstoken       string            `json:"-"`
+	DlMime            string            `json:"-"`
+	MimeType          string            `json:"mimeType,omitempty"`
+	Workdir           string            `json:"-"`
+	PstartTime        time.Time         `json:"-"`
+	WantExt           string            `json:"-"`
+	WantName          string            `json:"-"`
+	WebLink           string            `json:"webContentLink,omitempty"`
+	WebView           string            `json:"webViewLink,omitempty"`
+	SearchByName      string            `json:"-"`
+	SearchByID        string            `json:"-"`
+	FileID            string            `json:"id,omitempty"`
+	ProjectID         string            `json:"project_id,omitempty"`
+	ProjectType       string            `json:"-"`
+	ParentID          string            `json:"parentId,omitempty"`
+	BoundScriptName   string            `json:"-"`
+	GoogleDocName     string            `json:"-"`
+	RevisionID        string            `json:"revisionid,omitempty"`
+	FileName          string            `json:"name,omitempty"`
+	SaveName          string            `json:"saved_file_name,omitempty"`
+	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
+	Owners            []owners          `json:"owners,omitempty"`
+	Parents           []string          `json:"parents,omitempty"`
+	UpFilename        []string          `json:"upload_file_name,omitempty"`
+	UpFileID          []string          `json:"uid,omitempty"`
+	UppedFiles        []uploadedFile    `json:"uploaded_files,omitempty"`
+	TotalEt           float64           `json:"TotalElapsedTime,omitempty"`
+	Msgar             []string          `json:"message,omitempty"`
+}
+
+// owners : Owners of file
+type owners struct {
+	Name  string `json:"displayName,omitempty"`
+	Email string `json:"emailAddress,omitempty"`
+}
+
+// lastmodifieduser : Last modified user of file
+type lastmodifieduser struct {
+	Name  string `json:"displayName,omitempty"`
+	Email string `json:"emailAddress,omitempty"`
 }
 
 // dlError : Error messages.
@@ -81,6 +99,12 @@ type filea struct {
 	Name   string `json:"name"`
 	Type   string `json:"type"`
 	Source string `json:"source"`
+}
+
+// newProject : Create new project
+type newProject struct {
+	ParentId string `json:"parentId,omitempty"`
+	Title    string `json:"title"`
 }
 
 // fileListSt : File list.
@@ -141,6 +165,7 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", p.FileName, len(f.Files)))
 		}
 		for _, e := range f.Files {
+			eType := strings.ToLower(e.Type)
 			saveName := p.FileName + "_" + e.Name + "." + func(ex, ty string) string {
 				var eext string
 				if len(ex) > 0 {
@@ -153,20 +178,13 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 						eext = "html"
 					case "json":
 						eext = "json"
+					default:
+						eext = "txt"
 					}
 				}
 				return eext
-			}(p.WantExt, e.Type)
-			var src string
-			switch e.Type {
-			case "server_js":
-				src = fmt.Sprintf("// Script ID in Project = %s \n%s", e.ID, e.Source)
-			case "html":
-				src = fmt.Sprintf("<!-- Script ID in Project = %s -->\n%s", e.ID, e.Source)
-			default:
-				src = fmt.Sprintf("%s", e.Source)
-			}
-			ioutil.WriteFile(filepath.Join(p.Workdir, saveName), []byte(src), 0777)
+			}(p.WantExt, eType)
+			ioutil.WriteFile(filepath.Join(p.Workdir, saveName), []byte(e.Source), 0777)
 			p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", saveName))
 		}
 	}
@@ -181,7 +199,7 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	} else {
 		p.DlMime, ext = defFormat(p.MimeType)
 	}
-	if len(p.FileID) > 0 || len(p.ProjectID) > 0 {
+	if len(p.FileID) > 0 && c.String("deletefile") == "" {
 		var body []byte
 		var gm map[string]interface{}
 		json.Unmarshal([]byte(googlemimetypes), &gm)
@@ -197,29 +215,22 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 				os.Exit(1)
 			}
 			if p.MimeType == "application/vnd.google-apps.script" {
-				p, body = p.writeFile(sdownloadurl + p.FileID + "&format=json")
+				u, _ := url.Parse(appsscriptapi)
+				u.Path = path.Join(u.Path, p.FileID+"/content")
+				p, body = p.writeFile(u.String())
 				p.saveScript(body, c)
 			} else if p.MimeType != "" {
 				p, _ = p.writeFile(driveapiurl + p.FileID + "/export?mimeType=" + p.DlMime)
 			}
 		} else {
-			if len(p.ProjectID) > 0 && p.MimeType == "" {
-				if p.BoundScriptName != "" {
-					p.FileName = p.BoundScriptName
-				} else {
-					p.FileName = p.ProjectID
-				}
-				p.MimeType = "application/vnd.google-apps.script"
-				p, body = p.writeFile(sdownloadurl + p.ProjectID + "&format=json")
-				p.saveScript(body, c)
-			} else {
-				p.SaveName = p.FileName
-				p, _ = p.writeFile(driveapiurl + p.FileID + "?alt=media")
-			}
+			p.SaveName = p.FileName
+			p, _ = p.writeFile(driveapiurl + p.FileID + "?alt=media")
 		}
+	} else if c.String("deletefile") != "" {
+		p.deleteFile(c.String("deletefile"))
+		p.Msgar = append(p.Msgar, fmt.Sprintf("File with fileId '%s' was deleted.", c.String("deletefile")))
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: Please input File Name or File ID. ")
-		os.Exit(1)
+		p.Msgar = append(p.Msgar, "Error: Please input File Name or File ID. Please check HELP using 'ggsrun d --help'.")
 	}
 	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 	return p
@@ -240,6 +251,9 @@ func (p *FileInf) writeFile(durl string) (*FileInf, []byte) {
 	json.Unmarshal(body, &er)
 	if err != nil || er.Error.Code-300 >= 0 {
 		fmt.Print(fmt.Sprintf("Error: %s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID))
+		if er.Error.Message == "Request had insufficient authentication scopes." {
+			DispScopeError1()
+		}
 		os.Exit(1)
 	}
 	if p.MimeType != "application/vnd.google-apps.script" {
@@ -249,14 +263,32 @@ func (p *FileInf) writeFile(durl string) (*FileInf, []byte) {
 	return p, body
 }
 
-// nameToID :
+// deleteFile : Delete a file using a file ID on own Google Drive.
+func (p *FileInf) deleteFile(id string) {
+	r := &RequestParams{
+		Method:      "DELETE",
+		APIURL:      driveapiurl + id,
+		Data:        nil,
+		Contenttype: "application/x-www-form-urlencoded",
+		Accesstoken: p.Accesstoken,
+		Dtime:       30,
+	}
+	_, err := r.FetchAPI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		os.Exit(1)
+	}
+	return
+}
+
+// nameToID : Convert filename to file ID
 func (p *FileInf) nameToID(name string) ([]byte, error) {
 	number := 1000
 	tokenparams := url.Values{}
 	tokenparams.Set("orderBy", "name")
 	tokenparams.Set("pageSize", strconv.Itoa(number))
 	tokenparams.Set("q", "name='"+name+"' and trashed=false")
-	tokenparams.Set("fields", "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink)")
+	tokenparams.Set("fields", "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress))")
 	r := &RequestParams{
 		Method:      "GET",
 		APIURL:      lurl + tokenparams.Encode(),
@@ -268,10 +300,10 @@ func (p *FileInf) nameToID(name string) ([]byte, error) {
 	return r.FetchAPI()
 }
 
-// idToName : Convert file ID to file name.
+// idToName : Convert file ID to filename.
 func (p *FileInf) idToName(id string) ([]byte, error) {
 	tokenparams := url.Values{}
-	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink")
+	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress)")
 	r := &RequestParams{
 		Method:      "GET",
 		APIURL:      driveapiurl + id + "?" + tokenparams.Encode(),
@@ -283,21 +315,32 @@ func (p *FileInf) idToName(id string) ([]byte, error) {
 	return r.FetchAPI()
 }
 
+// ChkBoundOrStandalone : Check whether the fileId is a bound script or a standalone script.
+func (p *FileInf) ChkBoundOrStandalone(fileId string) ([]byte, error, bool) {
+	body, err := p.idToName(fileId)
+	if err != nil && len(fileId) == lengthOfProjectId {
+		return body, err, false
+	} else if err != nil && len(fileId) < lengthOfProjectId {
+		fmt.Fprintf(os.Stderr, "Error: File ID '%s' Not found. %v .", fileId, err)
+		os.Exit(1)
+	}
+	var er dlError
+	json.Unmarshal(body, &er)
+	if err != nil || er.Error.Code-300 >= 0 {
+		fmt.Fprintf(os.Stderr, fmt.Sprintf("Error: %s Status code is %d. ", er.Error.Message, er.Error.Code))
+		os.Exit(1)
+	}
+	return body, err, true
+}
+
 // GetFileinf : Retrieve file infomation using Drive API.
 func (p *FileInf) GetFileinf() *FileInf {
 	if len(p.FileID) > 0 {
-		body, err := p.idToName(p.FileID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: File ID '%s' Not found. %v .", p.FileID, err)
-			os.Exit(1)
+		if body, _, chk := p.ChkBoundOrStandalone(p.FileID); chk {
+			json.Unmarshal(body, &p)
+		} else {
+			p.getBoundScriptInf(p.FileID)
 		}
-		var er dlError
-		json.Unmarshal(body, &er)
-		if err != nil || er.Error.Code-300 >= 0 {
-			fmt.Fprintf(os.Stderr, fmt.Sprintf("Error: %s Status code is %d. ", er.Error.Message, er.Error.Code))
-			os.Exit(1)
-		}
-		json.Unmarshal(body, &p)
 	} else if len(p.WantName) > 0 {
 		finf, err := p.nameToID(p.WantName)
 		if err != nil {
@@ -413,7 +456,7 @@ func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *Fi
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		fmt.Fprintf(os.Stderr, "Error: %v.\n%v\n", err, string(body))
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -440,20 +483,22 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
 		os.Exit(1)
 	}
-	fs, err := os.Open(file)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	defer fs.Close()
-	data, err = w.CreateFormFile("file", file)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	if _, err = io.Copy(data, fs); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
+	if file != "" {
+		fs, err := os.Open(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		defer fs.Close()
+		data, err = w.CreateFormFile("file", file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		if _, err = io.Copy(data, fs); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
 	}
 	w.Close()
 	r := &RequestParams{
@@ -466,7 +511,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n%v\n", err, string(body))
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -478,7 +523,9 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 // Uploader : Main method for uploading
 // "$ ggsrun u -f t1.gs,t2.gs" or "$ ggsrun u -f "t1.gs, t2.gs""
 func (p *FileInf) Uploader(c *cli.Context) *FileInf {
-	if len(c.String("projectname")) == 0 {
+	if c.String("projectname") == "" && len(p.UpFilename) == 0 {
+		p.Msgar = append(p.Msgar, "Error: No options. Please check HELP using 'ggsrun u --help'.")
+	} else if c.String("projectname") == "" && len(p.UpFilename) > 0 && p.ParentID == "" {
 		for _, elm := range p.UpFilename {
 			metadata := &fileUploaderMeta{
 				Name:    filepath.Base(elm),
@@ -520,49 +567,162 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 			}
 		}
 	} else {
-		metadata := &fileUploaderMeta{
-			Name:     c.String("projectname"),
-			Parents:  []string{c.String("parentfolderid")},
-			MimeType: "application/vnd.google-apps.script",
+		if p.ParentID == "" {
+			if p.ProjectType == "standalone" {
+				metadata := &fileUploaderMeta{
+					Name:     c.String("projectname"),
+					Parents:  []string{c.String("parentfolderid")},
+					MimeType: "application/vnd.google-apps.script",
+				}
+				upmeta, _ := json.Marshal(metadata)
+				var u map[string]interface{}
+				json.Unmarshal(upmeta, &u)
+				if len(c.String("parentfolderid")) == 0 {
+					delete(u, "parents")
+				}
+				pre := p.createProject(c.String("timezone"))
+				_ = p.scriptUploader(u, pre)
+				p.createdprojectresult(len(p.UpFilename), metadata.Name)
+			} else {
+				parentId := p.createGoogleDocs(c)
+				p.createProjectInGoogleDocs(c, parentId)
+			}
+		} else {
+			if c.String("projectname") != "" {
+				p.createProjectInGoogleDocs(c, p.ParentID)
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: No project name. Please input project name using '--projectname' or '-pn' and try again.\n")
+				os.Exit(1)
+			}
 		}
-		upmeta, _ := json.Marshal(metadata)
-		var u map[string]interface{}
-		json.Unmarshal(upmeta, &u)
-		if len(c.String("parentfolderid")) == 0 {
-			delete(u, "parents")
-		}
-		var pr project
+	}
+	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	return p
+}
+
+// createProjectInGoogleDocs : Create new project as a bound script.
+func (p *FileInf) createProjectInGoogleDocs(c *cli.Context, parentId string) {
+	metadata := &newProject{
+		ParentId: parentId,
+		Title:    c.String("projectname"),
+	}
+	meta, _ := json.Marshal(metadata)
+	asi := p.boundScriptCreator(meta)
+	manifests := p.getBoundScript(asi.ScriptId).getManifests(c.String("timezone"))
+	pre := p.createProjectForAppsScriptApi(asi.ScriptId).setManifests(manifests)
+	_ = p.ProjectUpdateByAppsScriptApi(pre)
+	p.createdprojectresult(len(p.UpFilename), metadata.Title)
+}
+
+// createGoogleDocs : Create new Google Docs (spreadsheet, document, slide and form)
+func (p *FileInf) createGoogleDocs(c *cli.Context) string {
+	metadata := &fileUploaderMeta{
+		Name: func(c *cli.Context) string {
+			if c.String("googledocname") != "" {
+				return c.String("googledocname")
+			}
+			return c.String("projectname")
+		}(c),
+		Parents: func(folderId string) []string {
+			if folderId != "" {
+				return []string{folderId}
+			}
+			return []string{}
+		}(c.String("parentfolderid")),
+		MimeType: func(ptype string) string {
+			var ret string
+			switch strings.ToLower(ptype) {
+			case "spreadsheet":
+				ret = "application/vnd.google-apps.spreadsheet"
+			case "document":
+				ret = "application/vnd.google-apps.document"
+			case "slide":
+				ret = "application/vnd.google-apps.presentation"
+			case "form":
+				ret = "application/vnd.google-apps.form"
+			}
+			return ret
+		}(p.ProjectType),
+	}
+	upmeta, _ := json.Marshal(metadata)
+	var u map[string]interface{}
+	json.Unmarshal(upmeta, &u)
+	p.fileUploader(u, "")
+	return p.UppedFiles[0].ID
+}
+
+// createdprojectresult : Result of created project
+func (p *FileInf) createdprojectresult(num int, filename string) {
+	if num > 0 {
+		p.Msgar = append(p.Msgar, fmt.Sprintf("Uploaded %d scripts as new project with a name of '%s'.", num, filename))
+	} else {
+		p.Msgar = append(p.Msgar, fmt.Sprintf("New project was created as the filename of '%s'.", filename))
+	}
+}
+
+// createProject : Create new project as json
+func (p *FileInf) createProject(timeZone string) []byte {
+	var pr project
+	if len(p.UpFilename) > 0 {
 		for _, elm := range p.UpFilename {
-			if filepath.Ext(elm) == ".gs" ||
-				filepath.Ext(elm) == ".gas" ||
-				filepath.Ext(elm) == ".js" ||
-				filepath.Ext(elm) == ".htm" ||
-				filepath.Ext(elm) == ".html" ||
-				filepath.Ext(elm) == ".json" {
+			if ChkExtention(filepath.Ext(elm)) {
 				filedata := &filea{
-					Name: strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
-					Type: func(ex string) string {
-						var scripttype string
-						switch ex {
-						case ".gs", ".gas", ".js":
-							scripttype = "server_js"
-						case ".htm", ".html":
-							scripttype = "html"
-						case ".json":
-							scripttype = "json"
-						}
-						return scripttype
-					}(filepath.Ext(elm)),
+					Name:   strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
+					Type:   ExtToType(filepath.Ext(elm), false),
 					Source: ConvGasToUpload(elm),
 				}
 				pr.Files = append(pr.Files, *filedata)
 			}
 		}
-		p.Msgar = append(p.Msgar, fmt.Sprintf("Uploaded %d scripts as a project with a name of '%s'.", len(p.UpFilename), metadata.Name))
-		pre, _ := json.Marshal(pr)
-		_ = p.scriptUploader(u, pre)
+		if len(pr.Files) == 0 {
+			fmt.Fprintf(os.Stderr, "Error: Inputted files cannot be used for GAS project.\n")
+			os.Exit(1)
+		}
+	} else {
+		filedata := &filea{
+			Name:   "Code",
+			Type:   "server_js",
+			Source: "function myFunction() {\n  \n}\n",
+		}
+		pr.Files = append(pr.Files, *filedata)
 	}
-	return p
+	if timeZone != "" {
+		filedata := &filea{
+			Name:   "appsscript",
+			Type:   "json",
+			Source: "{\n  \"timeZone\": \"" + timeZone + "\",\n  \"dependencies\": {\n  },\n  \"exceptionLogging\": \"STACKDRIVER\"\n}\n",
+		}
+		pr.Files = append(pr.Files, *filedata)
+	}
+	pre, _ := json.Marshal(pr)
+	return pre
+}
+
+// ChkExtention : Check extension of inputted files.
+func ChkExtention(ex string) bool {
+	switch strings.ToLower(ex) {
+	case ".gs", ".gas", ".js", ".htm", ".html", ".json":
+		return true
+	default:
+		return false
+	}
+}
+
+// ExtToType : Convert extension to scripttype for project.
+func ExtToType(ex string, uppercase bool) string {
+	var scripttype string
+	switch strings.ToLower(ex) {
+	case ".gs", ".gas", ".js":
+		scripttype = "server_js"
+	case ".htm", ".html":
+		scripttype = "html"
+	case ".json":
+		scripttype = "json"
+	}
+	if uppercase {
+		scripttype = strings.ToUpper(scripttype)
+	}
+	return scripttype
 }
 
 // extToGMime : Convert from extension to mimeType of the files on Google.
@@ -607,7 +767,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			}
 			os.Exit(1)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. ", p.SearchByName)
+			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. How about trying this using file ID, again?", p.SearchByName)
 			os.Exit(1)
 		}
 		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
@@ -615,12 +775,11 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 	}
 	if len(c.String("searchbyid")) > 0 {
 		p.SearchByID = c.String("searchbyid")
-		body, err := p.idToName(p.SearchByID)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: File ID '%s' is not found. ", p.SearchByID)
-			os.Exit(1)
+		if body, _, chk := p.ChkBoundOrStandalone(p.SearchByID); chk {
+			json.Unmarshal(body, &p)
+		} else {
+			p.getBoundScriptInf(p.SearchByID)
 		}
-		json.Unmarshal(body, &p)
 		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}

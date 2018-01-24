@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.3.4"
+	app.Version = "1.4.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -155,14 +155,14 @@ func main() {
 					Name:  "filename, f",
 					Usage: "File Name on Google Drive",
 				},
-				cli.StringFlag{
-					Name:  "projectid, pi",
-					Usage: "Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.",
-				},
-				cli.StringFlag{
-					Name:  "boundscriptname, bn",
-					Usage: "This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.",
-				},
+				// cli.StringFlag{
+				// 	Name:  "projectid, pi",
+				// 	Usage: "Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.",
+				// },
+				// cli.StringFlag{
+				// 	Name:  "boundscriptname, bn",
+				// 	Usage: "This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.",
+				// },
 				cli.StringFlag{
 					Name:  "extension, e",
 					Usage: "Extension (File format of downloaded file)",
@@ -170,6 +170,10 @@ func main() {
 				cli.BoolFlag{
 					Name:  "rawdata, r",
 					Usage: "Save a project with GAS scripts as raw data (JSON data).",
+				},
+				cli.StringFlag{
+					Name:  "deletefile",
+					Usage: "Value is file ID. This can delete a file using a file ID on Google Drive.",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",
@@ -186,15 +190,32 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "filename, f",
-					Usage: "File Name on local PC",
+					Usage: "File Name on local PC. Please input files you want to upload.",
 				},
 				cli.StringFlag{
 					Name:  "parentfolderid, p",
 					Usage: "Folder ID of parent folder on Google Drive",
 				},
 				cli.StringFlag{
+					Name:  "parentid, pid",
+					Usage: "File ID of Google Docs (Spreadsheet, Document, Slide, Form) for creating container bound-script.",
+				},
+				cli.StringFlag{
+					Name:  "timezone, tz",
+					Usage: "Time zone of project. Please use this together with creating new project. When new project is created by API, time zone doesn't become the local time zone. (This might be a bug.) So please input this.",
+				},
+				cli.StringFlag{
 					Name:  "projectname, pn",
 					Usage: "Upload several GAS scripts as a project.",
+				},
+				cli.StringFlag{
+					Name:  "googledocname, gn",
+					Usage: "Filename of Google Docs which is created.",
+				},
+				cli.StringFlag{
+					Name:  "projecttype, pt",
+					Usage: "You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default.",
+					Value: "standalone",
 				},
 				cli.BoolFlag{
 					Name:  "noconvert, nc",
@@ -215,7 +236,11 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "filename, f",
-					Usage: "File name. It's source files for updating.",
+					Usage: "File name. It's source files for updating. When you set files which are not in the project, the files are added to the project. When you set files which are in the project, the files are overwritten to the files with same filename.",
+				},
+				cli.BoolFlag{
+					Name:  "deletefiles",
+					Usage: "When you use this bool flag, projectid and filename, they are removed from the project.",
 				},
 				cli.StringFlag{
 					Name:  "projectid, p",
@@ -255,8 +280,16 @@ func main() {
 					Usage: "Value is revision ID. Download revision file using it and file ID.",
 				},
 				cli.StringFlag{
+					Name:  "createversion, cv",
+					Usage: "Create new version of GAS project. Please input the description of version as string.",
+				},
+				cli.StringFlag{
 					Name:  "extension, e",
 					Usage: "Extension (File format of downloaded file)",
+				},
+				cli.BoolFlag{
+					Name:  "rawdata, r",
+					Usage: "Save a project with GAS scripts as raw data (JSON data).",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 )
 
 // rearrangeByTerminal : Rearranging scripts in a project using go-rearrange.
-func (e *ExecutionContainer) rearrangeByTerminal() {
+func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 	var baseProject Project
 	baseProject = *e.Project
 	var scripts []string
@@ -42,15 +43,15 @@ func (e *ExecutionContainer) rearrangeByTerminal() {
 		e.rearrange(baseProject, changedIndx)
 		s.Stop()
 		fmt.Printf("\n")
-		return
+		return e
 	} else {
 		e.Msg = append(e.Msg, "Scripts of project were NOT rearranged.")
-		return
+		return e
 	}
 }
 
 // rearrange : Rearranging scripts in a project using a configuration file.
-func (e *ExecutionContainer) rearrangeByFile(data []string) {
+func (e *ExecutionContainer) rearrangeByFile(data []string) *ExecutionContainer {
 	var baseProject Project
 	baseProject = *e.Project
 	var temp []string
@@ -82,22 +83,22 @@ func (e *ExecutionContainer) rearrangeByFile(data []string) {
 				}
 				if cn == len(e.Project.Files) {
 					e.rearrange(baseProject, changedIndx)
-					return
+					return e
 				} else {
 					e.Msg = append(e.Msg, "Error: Script names of inputted file are different for script names in project.")
-					return
+					return e
 				}
 			} else {
 				e.Msg = append(e.Msg, "Error: Order of inputted file are the same to the order in project.")
-				return
+				return e
 			}
 		} else {
 			e.Msg = append(e.Msg, "Error: Number of script names of inputted file are different for number of scripts in project.")
-			return
+			return e
 		}
 	} else {
 		e.Msg = append(e.Msg, "Error: There are duplicated names in script names of inputted file.")
-		return
+		return e
 	}
 }
 
@@ -106,22 +107,25 @@ func (e *ExecutionContainer) rearrange(baseProject Project, changedIndx []string
 	var temp1 Project
 	const layout = "20060102_150405_"
 	t := time.Now()
-	dummyScript := &File{
+	temp1.Files = append(temp1.Files, File{
 		Name:   "Dummy_" + t.Format(layout) + t.AddDate(0, 0, 2).Weekday().String(),
 		Source: "// This is a dummy.",
-		Type:   "server_js",
-	}
-	temp1.Files = append(temp1.Files, *dummyScript)
+		Type:   "SERVER_JS",
+	})
+	temp1.Files = append(temp1.Files, File{
+		Name:   "appsscript",
+		Source: "{}",
+		Type:   "JSON",
+	})
 	e.Project = &temp1
-	e.projectUpdate()
+	e.projectUpdate2()
 	var temp2 Project
-	for i, e := range changedIndx {
+	for _, e := range changedIndx {
 		idx, _ := strconv.Atoi(e)
 		temp2.Files = append(temp2.Files, baseProject.Files[idx])
-		temp2.Files[i].ID = ""
 	}
 	e.Project = &temp2
-	e.projectUpdate()
+	e.projectUpdate2()
 	var from, to []string
 	for i, f := range e.Project.Files {
 		from = append(from, baseProject.Files[i].Name)
@@ -129,4 +133,29 @@ func (e *ExecutionContainer) rearrange(baseProject Project, changedIndx []string
 	}
 	msg := fmt.Sprintf("Scripts in project were rearranged from [%s] to [%s].", strings.Join(from, ", "), strings.Join(to, ", "))
 	e.Msg = []string{msg}
+}
+
+// getRearrangeTemplate : Retrieve data from template file for rearranging.
+func getRearrangeTemplate(templateFile string) []string {
+	var data []string
+	f, err := os.Open(templateFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found.\n", templateFile)
+		os.Exit(1)
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if scanner.Text() == "end" {
+			break
+		}
+		if scanner.Text() != "" {
+			data = append(data, scanner.Text())
+		}
+	}
+	if scanner.Err() != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", scanner.Err())
+		os.Exit(1)
+	}
+	return data
 }

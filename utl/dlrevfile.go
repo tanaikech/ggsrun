@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -52,17 +53,63 @@ type revisionListv2 struct {
 
 // GetRevisionList : Display revision IDs.
 func (p *FileInf) GetRevisionList(c *cli.Context) *FileInf {
-	p.GetFileinf()
-	if p.MimeType == "application/vnd.google-apps.spreadsheet" ||
-		p.MimeType == "application/vnd.google-apps.document" ||
-		p.MimeType == "application/vnd.google-apps.presentation" ||
-		p.MimeType == "application/vnd.google-apps.drawing" {
-		p.getRevFromGoogleDocs(c)
+	if c.String("fileid") == "" && c.String("download") == "" && c.String("createversion") == "" {
+		p.Msgar = append(p.Msgar, "Error: No options. Please check HELP using 'ggsrun r --help'.")
 	} else {
-		p.getRevFromExGoogleDocs(c)
+		p.GetFileinf()
+		if p.MimeType == "application/vnd.google-apps.spreadsheet" ||
+			p.MimeType == "application/vnd.google-apps.document" ||
+			p.MimeType == "application/vnd.google-apps.presentation" ||
+			p.MimeType == "application/vnd.google-apps.drawing" {
+			p.getRevFromGoogleDocs(c)
+		} else if p.MimeType == "application/vnd.google-apps.script" || len(p.FileID) == lengthOfProjectId {
+			p.versionForProject(c)
+		} else {
+			p.getRevFromExGoogleDocs(c)
+		}
 	}
 	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 	return p
+}
+
+// versionForProject : Manage versions for project
+func (p *FileInf) versionForProject(c *cli.Context) *FileInf {
+	if c.String("createversion") == "" {
+		pvl := p.getProjectVersionListInit()
+		if c.String("download") == "" {
+			p.dispProjectVersionList(pvl)
+		} else {
+			p.FileID = c.String("fileid")
+			p.RevisionID = c.String("download")
+			u, _ := url.Parse(appsscriptapi)
+			u.Path = path.Join(u.Path, p.FileID+"/content")
+			params := url.Values{}
+			params.Set("versionNumber", p.RevisionID)
+			verUrl := u.String() + "?" + params.Encode()
+			p, body := p.writeFile(verUrl)
+			p.saveScript(body, c)
+		}
+	} else {
+		p.createProjectVersion(c.String("createversion"))
+	}
+	return p
+}
+
+// getVerFromProject : Retrieve version from project
+func (p *FileInf) dispProjectVersionList(pvl *projectVersionList) {
+	ar := pvl.Versions
+	if len(ar) > 0 {
+		buffer := &bytes.Buffer{}
+		w := new(tabwriter.Writer)
+		w.Init(buffer, 0, 4, 1, ' ', 0)
+		fmt.Fprintf(w, "\n%s\t%s\t%s\n", "# versionNumber", "# description", "# createTime")
+		for _, e := range ar {
+			fmt.Fprintf(w, "%d\t%s\t%s\n", e.VersionNumber, e.Description, e.CreateTime.In(time.Local).Format("20060102_15:04:05"))
+		}
+		w.Flush()
+		fmt.Printf("%s\n", buffer)
+	}
+	p.Msgar = append(p.Msgar, fmt.Sprintf("Version list of '%s' was retrieved.", p.FileName))
 }
 
 // getRevFromGoogleDocs : Display revision IDs from Google Docs.

@@ -73,6 +73,33 @@ ggsrun
     1. Removed a bug.
         - When a project is downloaded, script ID in the project is added to the top of each downloaded script as a comment. There was a problem at the character using for the comment out. This was modified.
 
+
+* v1.4.0 (January 25, 2018)
+
+    [Google Apps Script API](https://developers.google.com/apps-script/api/reference/rest/) was finally released. From this version, ggsrun uses this API. So ggsrun got to be able to use not only projects of standalone script type, but also projects of container-bound script type. I hope this updated ggsrun will be useful for you.
+
+    1. **[To users which are using ggsrun with v1.3.4 and/or less](https://github.com/tanaikech/ggsrun/blob/master/README.md#from134to140).**
+    1. For retrieving, downloading, creating and updating projects, [Apps Script API](https://developers.google.com/apps-script/api/reference/rest/) is used.
+        - About retrieving information of projects, the information from Drive API is more than that from Apps Script API. So I used Drive API in this situation.
+        - **[Please read how to enable APIs.](https://github.com/tanaikech/ggsrun/blob/master/README.md#BasicSettingFlow)**
+    1. ggsrun got to be able to use both standalone scripts and container-bound scripts by Apps Script API.
+        - [Create projects](README.md#UploadFiles)
+        - [Update projects](README.md#Update_Project)
+        - There are some issues for creating projects.
+            1. After Manifests was added to GAS, the time zone can be set by it. But when a new project is created by API, I noticed that the time zone is different from own local time zone. When a new project is manually created by browser, the time zone is the same to own local time zone. I think that this may be a bug. So I added an option for setting time zone when a new project is created. And also I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72019223).
+            1. If you want to create a bound script in Slide, an error occurs. When a bound script can be created to Spreadsheet, Document and Form using Apps Script API. Furthermore, when the bound script in Slide is updated, it works fine. So I think that this may be also a bug. I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72238499).
+                - About this, when you create a bound script in Slides, if ggsrun returns no errors, it means that this issue was solved.
+    1. [Both standalone scripts and container-bound scripts can be rearranged.](README.md#rearrangescripts)
+        - The file of ``appsscript`` for Manifests is always displayed to the top of files on the script editor, while the array of files can be changed. I think that this is the specification.
+    1. For the option ``exe1`` for executing GAS, it can use for both standalone scripts and container-bound scripts.
+    1. [Delete files using file ID on Google Drive.](README.md#DownloadFiles)
+    1. [Delete files in the project.](README.md#Update_Project)
+    1. [ggsrun can create new container-bound script in the new Google Docs.](README.md#UploadFiles)
+        - For example, ggsrun creates a new Spreadsheet and uploads the script files to the Spreadsheet as a container-bound script.
+    1. [Retrieve and create versions of projects.](README.md#RevisionFile)
+    1. [Unified the order of directories for searching ``client_secret.json`` and ``ggsrun.cfg``.](README.md#QA7)
+    1. Some modifications.
+
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#How_to_Install).**
 
 ## Server

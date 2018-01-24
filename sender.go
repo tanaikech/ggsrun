@@ -13,6 +13,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -26,7 +27,7 @@ import (
 // Exe1Function :
 func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 	if len(c.String("scriptfile")) > 0 || c.Bool("backup") {
-		return e.projectBackup(c).projectUpdateIni(utl.ConvGasToPut(c)).projectUpdate()
+		return e.projectBackup(c).projectUpdateIni(utl.ConvGasToPut(c)).projectUpdate2()
 	}
 	return e
 }
@@ -234,6 +235,7 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 	return e
 }
 
+// projectUpdateIni : Initialize for updating project
 func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionContainer {
 	var overwrite bool
 	for i := range e.Project.Files {
@@ -245,7 +247,7 @@ func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionConta
 	if !overwrite {
 		filedata := &File{
 			Name:   defprojectname,
-			Type:   "server_js",
+			Type:   "SERVER_JS",
 			Source: sendscript,
 		}
 		e.Project.Files = append(e.Project.Files, *filedata)
@@ -253,7 +255,7 @@ func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionConta
 	return e
 }
 
-// ProjectUpdate :
+// ProjectUpdate : In this method, the project is updated using Drive API.
 func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
 	script, _ := json.Marshal(e.Project)
 	metadata, _ := json.Marshal(&ProjectUpdaterMeta{MimeType: "application/vnd.google-apps.script"})
@@ -300,19 +302,50 @@ func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
 	return e
 }
 
-// ProjectBackup :
-func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
+// projectUpdate2 : In this method, the project is updated using Apps Script API.
+func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
+	script, _ := json.Marshal(e.Project)
+	tokenparams := url.Values{}
+	tokenparams.Set("fields", "files,scriptId")
+	u, _ := url.Parse(appsscriptapi)
+	u.Path = path.Join(u.Path, e.GgsrunCfg.Scriptid+"/content")
 	r := &utl.RequestParams{
-		Method:      "GET",
-		APIURL:      sdownloadurl + e.GgsrunCfg.Scriptid + "&format=json",
-		Data:        nil,
-		Contenttype: "",
+		Method:      "PUT",
+		APIURL:      u.String() + "?" + tokenparams.Encode(),
+		Data:        bytes.NewBuffer(script),
 		Accesstoken: e.GgsrunCfg.Accesstoken,
-		Dtime:       10,
+		Dtime:       30,
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. Please check project ID. Inputted project ID is '%s'.\n", err, e.Scriptid)
+		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		utl.DispScopeError2(res)
+		os.Exit(1)
+	}
+	e.Msg = append(e.Msg, "Project was updated.")
+	_ = res // Now, no results are returned.
+	return e
+}
+
+// ProjectBackup : Download and backup project (Apps Script API v1)
+func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
+	tokenparams := url.Values{}
+	tokenparams.Set("fields", "files,scriptId")
+	u, _ := url.Parse(appsscriptapi)
+	u.Path = path.Join(u.Path, e.GgsrunCfg.Scriptid+"/content")
+	r := &utl.RequestParams{
+		Method:      "GET",
+		APIURL:      u.String() + "?" + tokenparams.Encode(),
+		Data:        nil,
+		Contenttype: "application/x-www-form-urlencoded",
+		Accesstoken: e.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+	res, err := r.FetchAPI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v.\n%v\n\n", err, string(res))
+		fmt.Fprintf(os.Stderr, "One of reasons of error :\n Was the inputted project ID correct?.\n")
+		utl.DispScopeError2(res)
 		os.Exit(1)
 	}
 	json.Unmarshal(res, &e.Project)
