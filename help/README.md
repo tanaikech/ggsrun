@@ -924,6 +924,21 @@ $ ggsrun u -f filename
 
 At this time, you can upload files to the specific folder using option ``-p [parent folder ID]``. When Microsoft Word, Excel and Powerpoint files are uploaded, they are automatically converted to Google Docs. If you don't want to convert them, please use option ``--nc``.
 
+<a name="ResumableUpload"></a>
+**Run :** [Resumable upload](https://developers.google.com/drive/v3/web/resumable-upload)
+
+When the file size is less than 5 MB, "multipart/form-data" method is used. When the file size is more than 5 MB, "resumable-upload" method is used. This is automatically selected by ggsrun.
+
+For the resumable-upload method, the chunk size is 100 MB as the default. If you want to change the chunk size, please use the option of ``-chunk``.
+
+~~~bash
+$ ggsrun u -f filename -chunk 10
+~~~
+
+This means that a file with filename is uploaded by each chunk of 10 MB.
+
+![](images/demo_resumableupload.gif)
+
 **Run :** Uploads scripts
 
 This is not the update. This is uploaded as a new file to Google Drive.

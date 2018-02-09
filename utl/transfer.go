@@ -24,17 +24,19 @@ import (
 )
 
 const (
-	lurl              = "https://www.googleapis.com/drive/v3/files?"
-	driveapiurl       = "https://www.googleapis.com/drive/v3/files/"
-	driveapiurlv2     = "https://www.googleapis.com/drive/v2/files/"
-	uploadurl         = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
-	lengthOfProjectId = 57
+	lurl                = "https://www.googleapis.com/drive/v3/files?"
+	driveapiurl         = "https://www.googleapis.com/drive/v3/files/"
+	driveapiurlv2       = "https://www.googleapis.com/drive/v2/files/"
+	uploadurl           = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
+	lengthOfProjectId   = 57
+	maxSizeForMultipart = 5242880
 )
 
 // FileInf : File information for downloading and uploading
 type FileInf struct {
 	Accesstoken       string            `json:"-"`
 	DlMime            string            `json:"-"`
+	ChunkSize         int64             `json:"-"`
 	MimeType          string            `json:"mimeType,omitempty"`
 	Workdir           string            `json:"-"`
 	PstartTime        time.Time         `json:"-"`
@@ -467,6 +469,29 @@ func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *Fi
 
 // fileUploader : For uploading files.
 func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *FileInf {
+	var err error
+	var fs *os.File
+	if file != "" {
+		fs, err = os.Open(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v.\n", err)
+			os.Exit(1)
+		}
+		defer fs.Close()
+		fstatus, err := fs.Stat()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v.\n", err)
+			os.Exit(1)
+		}
+		if fstatus.Size() > maxSizeForMultipart {
+			rbody := p.ResumableUpload(metadata, fs, fstatus)
+			var uf uploadedFile
+			json.Unmarshal(rbody, &uf)
+			p.UppedFiles = append(p.UppedFiles, uf)
+			p.Msgar = append(p.Msgar, fmt.Sprintf("'%s' (%d bytes) was uploaded by resumable upload.", metadata["name"], fstatus.Size()))
+			return p
+		}
+	}
 	tokenparams := url.Values{}
 	tokenparams.Set("fields", "id,mimeType,name,parents")
 	var b bytes.Buffer
@@ -484,12 +509,6 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 		os.Exit(1)
 	}
 	if file != "" {
-		fs, err := os.Open(file)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-			os.Exit(1)
-		}
-		defer fs.Close()
 		data, err = w.CreateFormFile("file", file)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
@@ -522,6 +541,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 
 // Uploader : Main method for uploading
 // "$ ggsrun u -f t1.gs,t2.gs" or "$ ggsrun u -f "t1.gs, t2.gs""
+// Upload type is automatically selected by the file size.
 func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 	if c.String("projectname") == "" && len(p.UpFilename) == 0 {
 		p.Msgar = append(p.Msgar, "Error: No options. Please check HELP using 'ggsrun u --help'.")

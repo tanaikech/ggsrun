@@ -100,6 +100,17 @@ ggsrun
     1. [Unified the order of directories for searching ``client_secret.json`` and ``ggsrun.cfg``.](README.md#QA7)
     1. Some modifications.
 
+* v1.4.1 (February 9, 2018)
+    1. [For uploading, the resumable-upload method was added.](README.md#ResumableUpload)
+        - The resumable-upload method is automatically used by the size of file.
+            - "multipart/form-data" can upload files with the size less than 5 MB.
+            - "resumable-upload" can upload files with the size more than 5 MB.
+        - The chunk for resumable-upload is 100 MB as the default.
+            - Users can also give this chunk size using an option.
+        - ``$ ggsrun u -f filename -chunk 10``
+            - This means that a file with filename is uploaded by each chunk of 10 MB.
+
+
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#How_to_Install).**
 
 ## Server

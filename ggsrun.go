@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.4.0"
+	app.Version = "1.4.1"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -155,14 +155,6 @@ func main() {
 					Name:  "filename, f",
 					Usage: "File Name on Google Drive",
 				},
-				// cli.StringFlag{
-				// 	Name:  "projectid, pi",
-				// 	Usage: "Project ID of 'bound scripts' of Google Sheets, Docs, or Forms file. Please use this for downloading 'bound scripts'.",
-				// },
-				// cli.StringFlag{
-				// 	Name:  "boundscriptname, bn",
-				// 	Usage: "This is used for the option of 'projectid'. Using this option, when you download the 'bound scripts', you can give the filename.",
-				// },
 				cli.StringFlag{
 					Name:  "extension, e",
 					Usage: "Extension (File format of downloaded file)",
@@ -216,6 +208,11 @@ func main() {
 					Name:  "projecttype, pt",
 					Usage: "You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default.",
 					Value: "standalone",
+				},
+				cli.Int64Flag{
+					Name:  "chunksize, chunk",
+					Usage: "You can also set the maximum chunk size for the resumable upload. This unit is MB.",
+					Value: 100,
 				},
 				cli.BoolFlag{
 					Name:  "noconvert, nc",

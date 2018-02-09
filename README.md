@@ -19,11 +19,11 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 Features of "ggsrun" are as follows.
 
-1. **[Develops GAS using your local terminal and text editor which got accustomed to using.](help/README.md#demoterminal)**<sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Executes GAS by giving values to your script.](help/README.md#givevalues)**
-1. **[Executes GAS made of CoffeeScript.](help/README.md#coffee)**
-1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#filedownload)**
-1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#fileupdown)**
+1. **[Develops GAS using your local terminal and text editor which got accustomed to using.](help/README.md#demosublime)**<sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Executes GAS by giving values to your script.](help/README.md#ExecutesGASandRetrievesResultValues)**
+1. **[Executes GAS made of CoffeeScript.](help/README.md#CoffeeScript)**
+1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#DownloadFiles)**
+1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.1)</font></sup>
 1. **[Downloads standalone script and bound script.](help/README.md#DownloadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Update project.](help/README.md#Update_Project)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>

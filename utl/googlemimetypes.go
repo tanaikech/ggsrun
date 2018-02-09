@@ -32,6 +32,8 @@ const (
     "ico":   "image/x-icon",
     "tif":   "image/tiff",
     "tiff":  "image/tiff",
+    "mp3":   "audio/mp3",
+    "wav":   "audio/wav",
     "mp4":   "video/mp4",
     "zip":   "application/zip"
     }`

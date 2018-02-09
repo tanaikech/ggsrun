@@ -377,6 +377,13 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 		Accesstoken: a.GgsrunCfg.Accesstoken,
 		Workdir:     a.InitVal.workdir,
 		PstartTime:  a.InitVal.pstart,
+		ChunkSize: func(chnk int64) int64 {
+			if chnk < 1 {
+				return 1048576
+			} else {
+				return chnk * 1048576
+			}
+		}(c.Int64("chunksize")),
 		UpFilename: func(filenames string) []string {
 			if filenames != "" {
 				return regexp.MustCompile(`\s*,\s*`).Split(filenames, -1)
