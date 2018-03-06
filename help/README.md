@@ -975,7 +975,7 @@ When this sample command runs, a new Spreadsheet is created and the script files
 > **IMPORTANT :**
 
 > 1. After Manifests was added to GAS, the time zone can be set by it. But when a new project is created by API, I noticed that the time zone is different from own local time zone. When a new project is manually created by browser, the time zone is the same to own local time zone. I think that this may be a bug. So I added an option for setting time zone when a new project is created. And also I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72019223).
-1. If you want to create a bound script in Slide, an error occurs. When a bound script can be created to Apreadsheet, Document and Form using Apps Script API. Furthermore, when the bound script in Slide is updated, it works fine. So I think that this may be also a bug. I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72238499).
+> 1. If you want to create a bound script in Slide, an error occurs. When a bound script can be created to Apreadsheet, Document and Form using Apps Script API. Furthermore, when the bound script in Slide is updated, it works fine. So I think that this may be also a bug. I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72238499). **This issue was solved at Mar. 6, 2018.**
 
 ### Help
 ~~~
