@@ -60,7 +60,7 @@ Features of "ggsrun" are as follows.
 
 1. **[Develops GAS using your terminal and text editor which got accustomed to using.](#demosublime)**
 
-1. **[Executes GAS by giving values to your script.](#ExecutesGASandRetrievesResultValues)**
+1. **[Executes GAS by giving values to your script.](#executesgasandretrievesresultvalues)**
 
 1. **[Executes GAS made of CoffeeScript.](#CoffeeScript)**
 
@@ -543,7 +543,7 @@ $ ggsrun w -s sample.gs -p password -u [ WebApps URL ]
 # Samples
 Here, it introduces some samples for using ggsrun. <u>Following samples are supposed that command ``exe2`` is used.</u> If you want to use ``exe1`` and ``webbapps``, please change from ``e2`` to ``e1`` and ``w``. Basically usage is the same for all.
 
-<a name="ExecutesGASandRetrievesResultValues"></a>
+<a name="executesgasandretrievesresultvalues"></a>
 ## 1. Executes GAS and Retrieves Result Values
 This may be most popular usage for this tool.
 
