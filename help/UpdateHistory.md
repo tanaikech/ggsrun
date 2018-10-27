@@ -26,7 +26,7 @@ ggsrun
         - If the environment variable (**``GGSRUN_CFG_PATH``**) is set, ggsrun.cfg is read using it.
         - If it is not set, ggsrun.cfg is read from the current working directory. This is as has been the way until now.
         - This is the response for some requests.
-        - This incofmation was added to [here](help/README.md#environmentvariable).
+        - This information was added to [here](help/README.md#environmentvariable).
 
 * v1.2.2 (July 12, 2017)
 
@@ -109,6 +109,17 @@ ggsrun
             - Users can also give this chunk size using an option.
         - ``$ ggsrun u -f filename -chunk 10``
             - This means that a file with filename is uploaded by each chunk of 10 MB.
+
+* v1.5.0 (October 27, 2018)
+    1. [From this version, ggsrun got to be able to download all files and folders in the specific folder in Google Drive.](README.md#DownloadFilesFromFolder) When all files are downloaded from a folder, the same folder structure of Google Drive is created to the local PC.
+        - ``$ ggsrun d -f folderName or folderId``
+            - When the project file is downloaded, it is downloaded as a zip file. All scripts in the project is put in the zip file.
+            - Also when you download a single project, you can use an option ``--zip`` or ``-z``. By this, the downloaded project is saved as a zip file.
+            - This new function can be also used for the shared folders. When you want to download the files from the shared folder, please use the folder ID of the shared folder.
+    1. The file list with the folder tree in the specific folder got to be able to be retrieved.
+    1. When the files are downloaded, the progression got to be able to be seen. When you want to see the progression, please use ``-j`` when you download files and folders.
+    1. Files with large size got to be able to be used. In order to download files with large size (several gigabytes), files are saved by chunks.
+    1. Some modifications.
 
 
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#How_to_Install).**

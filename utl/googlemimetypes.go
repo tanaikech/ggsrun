@@ -238,9 +238,38 @@ const (
 	defaultformat = `{
         "application/vnd.google-apps.form": "application/zip",
         "application/vnd.google-apps.document": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/vnd.google-apps.drawing": "image/png",
+        "application/vnd.google-apps.drawing": "application/pdf",
         "application/vnd.google-apps.spreadsheet": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "application/vnd.google-apps.script": "application/vnd.google-apps.script+json",
-        "application/vnd.google-apps.presentation": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        "application/vnd.google-apps.presentation": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.google-apps.site": "text/plain",
+        "application/vnd.google-apps.jam": "application/pdf"
+    }`
+
+	mimeVsEx = `{
+        "application/vnd.google-apps.script": ".gs",
+        "text/csv": ".csv",
+        "text/html": ".html",
+        "text/plain": ".txt",
+        "application/json": ".json",
+        "application/msword": ".doc",
+        "application/vnd.ms-excel": ".xls",
+        "application/vnd.ms-powerpoint": ".ppt",
+        "application/vnd.google-apps.document": ".docx",
+        "application/vnd.google-apps.spreadsheet": ".xlsx",
+        "application/vnd.google-apps.presentation": ".pptx",
+        "application/pdf": ".pdf",
+        "application/postscript": ".ps",
+        "image/gif": ".gif",
+        "image/png": ".png",
+        "image/svg+xml": ".svg",
+        "image/jpeg": ".jpg",
+        "image/bmp": ".bmp",
+        "image/x-icon": ".ico",
+        "image/tiff": ".tif",
+        "audio/mp3": ".mp3",
+        "audio/wav": ".wav",
+        "video/mp4": ".mp4",
+        "application/zip": ".zip"
     }`
 )

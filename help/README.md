@@ -25,6 +25,7 @@ ggsrun
     - Executes GAS with Values and Downloads File
     - Executes Existing Functions on Project
     - Download Files
+        - Download All Files and Folders in Specific Folder
     - Upload Files
     - Show File List
     - Search Files
@@ -68,6 +69,8 @@ Features of "ggsrun" are as follows.
 1. **[Downloads files from Google Drive and Uploads files to Google Drive.](#DownloadFiles)**
 
 1. **[Downloads standalone script and bound script.](#DownloadFiles)**
+
+1. **[Downloads all files and folders in a specific folder.](#DownloadFilesFromFolder)**
 
 1. **[Upload script files and create project as standalone script and container-bound script.](#UploadFiles)**
 
@@ -890,7 +893,8 @@ $ ggsrun d -f filename -e pdf
 
 You can convert only from Google Docs Files (spreadsheet, slide, documentation and so on). For example, you cannot convert image files and text data.
 
-When you download project files which are standalone script and container-bound script, you can use the option of ``--raw``. You can download raw files of project by this.
+- When you download project files which are standalone script and container-bound script, you can use the option of ``--raw``. You can download raw files of project by this.
+- When you download a project file, when you use the option ``--zip`` or ``-zip``, you can download the prject as a zip file. This zip file has all scripts in the project. This option was added at v1.5.0.
 
 ~~~bash
 $ ggsrun d -i fileId -r
@@ -911,6 +915,106 @@ You can also delete files using file ID.
 ~~~bash
 $ ggsrun d --deletefile [fileId]
 ~~~
+
+<a name="DownloadFilesFromFolder"></a>
+### 6-1. Download All Files and Folders in Specific Folder
+From version 1.5.0, ggsrun got to be able to download all files and folders in the specific folder in Google Drive. The same folder structure of Google Drive is created to the local PC.
+
+**Run :**
+
+~~~bash
+$ ggsrun d -f foldername
+~~~
+
+or
+
+~~~bash
+$ ggsrun d -i folderid
+~~~
+
+- When the option ``--jsonparser`` or ``-j `` is used like ``$ ggsrun d -f foldername -j``, you can see the progress of download. Other options are the same with those of download.
+- When the option ``--showfilelist`` or ``-l`` is used, only the file list and folder structure can be retrieved as JSON object. In this case, no files and folders are downloaded.
+- When the option ``--overwrite`` or ``-o`` is used, when the duplicated files in the downloaded folder on the local PC are found, the downloaded files are overwritten.
+- When the option ``--skip`` or ``-s`` is used, when the duplicated files in the downloaded folder on the local PC are found, the downloaded files are skipped and not saved. This can be used to know whether the files with new filename were created in the folder of Google Drive.
+- About the folder, you can download from not only the folders in your Google Drive, but also the shared folders in other Google Drive. When you want to download the files from the shared folder, please use the folder ID of the shared folder.
+- When the files and folders are downloaded, the folder structure in Google Drive is also created to the working directory on the local PC.
+- When the project of the standalone script script type is downloaded, it is created as a zip file. In the zip file, all scripts are included.
+
+#### Sample:
+![](images/downloadFolder_sample.png)
+As a sample, it supposes that it downloads the files from the above structure. The command is as follows.
+
+~~~bash
+$ ggsrun d -f sampleFolder1 -j
+~~~
+
+By this command, all files with the folder structure ot the above figure are created in the working directory on local PC. When the command is run, the following result is returned. When ``-j`` is not used, only JSON object is returned.
+
+~~~bash
+$ ggsrun d -f sampleFolder1 -j
+Files are downloaded from a folder 'sampleFolder1'.
+Getting values to download.
+Download files from a folder 'sampleFolder1'.
+There are 10 files and 6 folders in the folder.
+Starting download.
+Now downloading 'Spreadsheet1.xlsx' (bytes)... 3595
+Now downloading 'Spreadsheet2.xlsx' (bytes)... 3595
+Now downloading 'Spreadsheet4.xlsx' (bytes)... 3595
+Now downloading 'Spreadsheet3.xlsx' (bytes)... 3595
+Now downloading 'Document1.docx' (bytes)... 6097
+Now downloading 'image1.jpg' (bytes)... 958546 / 958546
+Now downloading 'Slides1.pptx' (bytes)... 31733
+Now downloading 'Spreadsheet5.xlsx' (bytes)... 3595
+Project file 'StandaloneProject1.gs' is downloaded.
+Now downloading 'Text1.txt' (bytes)... 50000000 / 50000000
+{
+  "id": "### folderId ###",
+  "name": "sampleFolder1",
+  "mimeType": "application/vnd.google-apps.folder",
+  "parents": [
+    "### parent folderId ###"
+  ],
+  "webViewLink": "https://drive.google.com/drive/folders/###",
+  "createdTime": "2000-01-01T00:00:00.000Z",
+  "modifiedTime": "2000-01-01T00:00:00.000Z",
+  "lastModifyingUser": {
+    "displayName": "Tanaike",
+    "emailAddress": "mailaddress"
+  },
+  "owners": [
+    {
+      "displayName": "Tanaike",
+      "permissionId": "###",
+      "emailAddress": "mailaddress"
+    }
+  ],
+  "message": [
+    "Files were downloaded from folder 'sampleFolder1'.",
+    "File was downloaded as 'Spreadsheet1.xlsx'. Size was 3595 bytes.",
+    "File was downloaded as 'Spreadsheet2.xlsx'. Size was 3595 bytes.",
+    "File was downloaded as 'Spreadsheet4.xlsx'. Size was 3595 bytes.",
+    "File was downloaded as 'Spreadsheet3.xlsx'. Size was 3595 bytes.",
+    "File was downloaded as 'Document1.docx'. Size was 6097 bytes.",
+    "File was downloaded as 'image1.jpg'. Size was 958546 bytes.",
+    "File was downloaded as 'Slides1.pptx'. Size was 31733 bytes.",
+    "File was downloaded as 'Spreadsheet5.xlsx'. Size was 3595 bytes.",
+    "StandaloneProject1.gs has 4 scripts.",
+    "4 scripts in the project were saved as 'StandaloneProject1.gs.zip'.",
+    "File was downloaded as 'Text1.txt'. Size was 50000000 bytes.",
+    "There were 10 files and 6 folders in the folder."
+  ],
+  "TotalElapsedTime": 12.345
+}
+~~~
+
+
+> **IMPORTANT :**
+
+> As a limitation, the project ID of the container-bound script still cannot be retrieved using the file ID of Google Docs by Drive API and Apps Script API. By this situation, only the projects of the container-bound script type cannot be downloaded. When the container-bound script can be retrieved from file ID of Google Docs, the backup of folder will be completely done.
+
+> I have already reported about this situation at [https://issuetracker.google.com/issues/111149037](https://issuetracker.google.com/issues/111149037).
+
+
 
 <a name="UploadFiles"></a>
 ## 7. Upload Files

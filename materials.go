@@ -366,6 +366,12 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 		BoundScriptName: c.String("boundscriptname"),
 		WantExt:         c.String("extension"),
 		WantName:        c.String("filename"),
+		Progress:        c.Bool("jsonparser"),
+		OverWrite:       c.Bool("overwrite"),
+		RawProject:      c.Bool("rawdata"),
+		ShowFileInf:     c.Bool("showfilelist"),
+		Skip:            c.Bool("skip"),
+		Zip:             c.Bool("zip"),
 	}
 	return p
 }
@@ -380,16 +386,14 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 		ChunkSize: func(chnk int64) int64 {
 			if chnk < 1 {
 				return 1048576
-			} else {
-				return chnk * 1048576
 			}
+			return chnk * 1048576
 		}(c.Int64("chunksize")),
 		UpFilename: func(filenames string) []string {
 			if filenames != "" {
 				return regexp.MustCompile(`\s*,\s*`).Split(filenames, -1)
-			} else {
-				return nil
 			}
+			return nil
 		}(c.String("filename")),
 		ParentID: c.String("parentid"),
 		ProjectType: func(ptype string) string {

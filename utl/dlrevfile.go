@@ -85,9 +85,8 @@ func (p *FileInf) versionForProject(c *cli.Context) *FileInf {
 			u.Path = path.Join(u.Path, p.FileID+"/content")
 			params := url.Values{}
 			params.Set("versionNumber", p.RevisionID)
-			verUrl := u.String() + "?" + params.Encode()
-			p, body := p.writeFile(verUrl)
-			p.saveScript(body, c)
+			verURL := u.String() + "?" + params.Encode()
+			p.writeFile(verURL)
 		}
 	} else {
 		p.createProjectVersion(c.String("createversion"))
@@ -178,7 +177,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 					json.Unmarshal(dlf, &obj)
 					p.SaveName = p.FileName + "." + ext
 					dURLq, _ := obj["exportLinks"].(map[string]interface{})[p.DlMime].(string)
-					p, _ = p.writeFile(dURLq)
+					p.writeFile(dURLq)
 					break
 				}
 			}
@@ -220,7 +219,7 @@ func (p *FileInf) downloadRevisionFile() {
 		p.SaveName = p.FileName
 		dURLq = driveapiurl + p.FileID + "/revisions/" + p.RevisionID + "?alt=media"
 	}
-	p, _ = p.writeFile(dURLq)
+	p.writeFile(dURLq)
 	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 }
 

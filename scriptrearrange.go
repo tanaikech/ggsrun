@@ -44,10 +44,9 @@ func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 		s.Stop()
 		fmt.Printf("\n")
 		return e
-	} else {
-		e.Msg = append(e.Msg, "Scripts of project were NOT rearranged.")
-		return e
 	}
+	e.Msg = append(e.Msg, "Scripts of project were NOT rearranged.")
+	return e
 }
 
 // rearrange : Rearranging scripts in a project using a configuration file.
@@ -84,22 +83,18 @@ func (e *ExecutionContainer) rearrangeByFile(data []string) *ExecutionContainer 
 				if cn == len(e.Project.Files) {
 					e.rearrange(baseProject, changedIndx)
 					return e
-				} else {
-					e.Msg = append(e.Msg, "Error: Script names of inputted file are different for script names in project.")
-					return e
 				}
-			} else {
-				e.Msg = append(e.Msg, "Error: Order of inputted file are the same to the order in project.")
+				e.Msg = append(e.Msg, "Error: Script names of inputted file are different for script names in project.")
 				return e
 			}
-		} else {
-			e.Msg = append(e.Msg, "Error: Number of script names of inputted file are different for number of scripts in project.")
+			e.Msg = append(e.Msg, "Error: Order of inputted file are the same to the order in project.")
 			return e
 		}
-	} else {
-		e.Msg = append(e.Msg, "Error: There are duplicated names in script names of inputted file.")
+		e.Msg = append(e.Msg, "Error: Number of script names of inputted file are different for number of scripts in project.")
 		return e
 	}
+	e.Msg = append(e.Msg, "Error: There are duplicated names in script names of inputted file.")
+	return e
 }
 
 // rearrange : Main method for rearranging scripts.

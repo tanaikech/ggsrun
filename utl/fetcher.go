@@ -66,6 +66,34 @@ func (r *RequestParams) FetchAPI() ([]byte, error) {
 	return body, err
 }
 
+// FetchAPIRaw : For fetching data to URL. Raw data (http.Response) from API is returned.
+func (r *RequestParams) FetchAPIRaw() (*http.Response, error) {
+	req, err := http.NewRequest(
+		r.Method,
+		r.APIURL,
+		r.Data,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", r.Contenttype)
+	req.Header.Set("Authorization", "Bearer "+r.Accesstoken)
+	client := &http.Client{
+		Timeout: time.Duration(r.Dtime) * time.Second,
+	}
+	res, err := client.Do(req)
+	if err != nil || res.StatusCode-300 >= 0 {
+		var er string
+		if res == nil {
+			er = err.Error()
+		} else {
+			er = "Status Code: " + strconv.Itoa(res.StatusCode)
+		}
+		return nil, errors.New(er)
+	}
+	return res, err
+}
+
 // FetchAPIres : For fetching data to URL.
 func (r *RequestParams) FetchAPIres() (*http.Response, error) {
 	req, err := http.NewRequest(

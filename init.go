@@ -73,5 +73,5 @@ func (a *AuthContainer) chkInitFile(file string) ([]byte, error) {
 			return body, err
 		}
 	}
-	return nil, fmt.Errorf("Error: %s was not found.\n", file)
+	return nil, fmt.Errorf("error: %s was not found", file)
 }

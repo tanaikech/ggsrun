@@ -5,7 +5,6 @@ package utl
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -62,9 +61,8 @@ func pullDataFromFile(fileBytes []byte, st, en int64) []byte {
 	endE := func(s, n int64, fileBytes []byte) int64 {
 		if n > 0 {
 			return s + n
-		} else {
-			return int64(len(fileBytes))
 		}
+		return int64(len(fileBytes))
 	}(startE, numE, fileBytes)
 	return fileBytes[startE:endE]
 }
@@ -90,9 +88,8 @@ func (p *FileInf) getChunks(size int64) *chunkPot {
 			c := f % n
 			if c == 0 {
 				return 0
-			} else {
-				return c
 			}
+			return c
 		}(size, numE)
 		repeat = size / numE
 		var startAddress int64
@@ -146,11 +143,11 @@ func (cP *chunkPot) resumableSingleRequest(location string, fileBytes []byte, me
 	}
 	res, err := r.FetchAPIres()
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("%v\n", err))
+		return nil, fmt.Errorf("%v", err)
 	}
 	body := resToBody(res)
 	if res.StatusCode != 200 {
-		return nil, errors.New(fmt.Sprintf("%v\n%v\n", err, string(body)))
+		return nil, fmt.Errorf("%v\n%v", err, string(body))
 	}
 	defer res.Body.Close()
 	return body, nil
@@ -182,7 +179,7 @@ func (cP *chunkPot) resumableMultipleRequest(location string, fileBytes []byte, 
 			bar.FinishPrint("Done.")
 			return resToBody(res), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("%v\n%v\n", err, string(resToBody(res))))
+			return nil, fmt.Errorf("%v\n%v", err, string(resToBody(res)))
 		}
 	}
 	return nil, nil

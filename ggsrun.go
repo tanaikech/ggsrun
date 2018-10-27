@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.4.1"
+	app.Version = "1.5.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -163,9 +163,25 @@ func main() {
 					Name:  "rawdata, r",
 					Usage: "Save a project with GAS scripts as raw data (JSON data).",
 				},
+				cli.BoolFlag{
+					Name:  "zip, z",
+					Usage: "Create a zip file including all scripts of a GAS project. Please use this for downloading a GAS project.",
+				},
 				cli.StringFlag{
 					Name:  "deletefile",
 					Usage: "Value is file ID. This can delete a file using a file ID on Google Drive.",
+				},
+				cli.BoolFlag{
+					Name:  "overwrite, o",
+					Usage: "When filename of downloading file is existing in directory at local PC, overwrite it. At default, it is not overwritten.",
+				},
+				cli.BoolFlag{
+					Name:  "skip, s",
+					Usage: "When filename of downloading file is existing in directory at local PC, skip it. At default, it is not overwritten.",
+				},
+				cli.BoolFlag{
+					Name:  "showfilelist, l",
+					Usage: "When files from a folder are retrieved, file list is returned using this option. When this is used, files are not downloaded.",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",

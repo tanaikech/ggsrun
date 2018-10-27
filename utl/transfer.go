@@ -1,5 +1,5 @@
 // Package utl (transfer.go) :
-// These methods are for downloading, uploading and retrieving file list from or to Google Drive.
+// These methods are for downloading, uploading files and folders, and retrieving file list from or to Google Drive.
 package utl
 
 import (
@@ -34,41 +34,54 @@ const (
 
 // FileInf : File information for downloading and uploading
 type FileInf struct {
-	Accesstoken       string            `json:"-"`
-	DlMime            string            `json:"-"`
-	ChunkSize         int64             `json:"-"`
-	MimeType          string            `json:"mimeType,omitempty"`
-	Workdir           string            `json:"-"`
-	PstartTime        time.Time         `json:"-"`
-	WantExt           string            `json:"-"`
-	WantName          string            `json:"-"`
-	WebLink           string            `json:"webContentLink,omitempty"`
-	WebView           string            `json:"webViewLink,omitempty"`
-	SearchByName      string            `json:"-"`
-	SearchByID        string            `json:"-"`
-	FileID            string            `json:"id,omitempty"`
 	ProjectID         string            `json:"project_id,omitempty"`
-	ProjectType       string            `json:"-"`
 	ParentID          string            `json:"parentId,omitempty"`
-	BoundScriptName   string            `json:"-"`
-	GoogleDocName     string            `json:"-"`
 	RevisionID        string            `json:"revisionid,omitempty"`
+	FileID            string            `json:"id,omitempty"`
 	FileName          string            `json:"name,omitempty"`
 	SaveName          string            `json:"saved_file_name,omitempty"`
-	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
-	Owners            []owners          `json:"owners,omitempty"`
-	Parents           []string          `json:"parents,omitempty"`
+	MimeType          string            `json:"mimeType,omitempty"`
 	UpFilename        []string          `json:"upload_file_name,omitempty"`
 	UpFileID          []string          `json:"uid,omitempty"`
+	Parents           []string          `json:"parents,omitempty"`
+	FileSize          string            `json:"size,omitempty"`
+	WebLink           string            `json:"webContentLink,omitempty"`
+	WebView           string            `json:"webViewLink,omitempty"`
+	CreatedTime       time.Time         `json:"createdTime,omitempty"`
+	ModifiedTime      time.Time         `json:"modifiedTime,omitempty"`
 	UppedFiles        []uploadedFile    `json:"uploaded_files,omitempty"`
-	TotalEt           float64           `json:"TotalElapsedTime,omitempty"`
+	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
+	Owners            []owners          `json:"owners,omitempty"`
 	Msgar             []string          `json:"message,omitempty"`
+	TotalEt           float64           `json:"TotalElapsedTime,omitempty"`
+	FolderTree        *fileListDl       `json:"folderTreeWithFiles,omitempty"`
+
+	Accesstoken     string    `json:"-"`
+	BoundScriptName string    `json:"-"`
+	ChunkSize       int64     `json:"-"`
+	DlMime          string    `json:"-"`
+	GoogleDocName   string    `json:"-"`
+	OverWrite       bool      `json:"-"`
+	Progress        bool      `json:"-"`
+	ProjectType     string    `json:"-"`
+	PstartTime      time.Time `json:"-"`
+	RawProject      bool      `json:"-"`
+	SearchByName    string    `json:"-"`
+	SearchByID      string    `json:"-"`
+	ShowFileInf     bool      `json:"-"`
+	Size            int64     `json:"-"`
+	Skip            bool      `json:"-"`
+	WantExt         string    `json:"-"`
+	WantName        string    `json:"-"`
+	Workdir         string    `json:"-"`
+	Zip             bool      `json:"-"`
 }
 
 // owners : Owners of file
 type owners struct {
-	Name  string `json:"displayName,omitempty"`
-	Email string `json:"emailAddress,omitempty"`
+	Name         string `json:"displayName,omitempty"`
+	PermissionID string `json:"permissionId"`
+	Email        string `json:"emailAddress,omitempty"`
 }
 
 // lastmodifieduser : Last modified user of file
@@ -109,21 +122,39 @@ type newProject struct {
 	Title    string `json:"title"`
 }
 
+// fileS : Structure of a file information.
+type fileS struct {
+	ID                string    `json:"id,omitempty"`
+	Name              string    `json:"name,omitempty"`
+	MimeType          string    `json:"mimeType,omitempty"`
+	Parents           []string  `json:"parents,omitempty"`
+	CreatedTime       time.Time `json:"createdTime,omitempty"`
+	ModifiedTime      time.Time `json:"modifiedTime,omitempty"`
+	FullFileExtension string    `json:"fullFileExtension,omitempty"`
+	Size              string    `json:"size,omitempty"`
+	WebLink           string    `json:"webContentLink,omitempty"`
+	WebView           string    `json:"webViewLink,omitempty"`
+	Owners            []owners  `json:"owners,omitempty"`
+	Shared            bool      `json:"shared"`
+	Permissions       []struct {
+		Kind         string `json:"kind"`
+		ID           string `json:"id"`
+		Type         string `json:"type"`
+		EmailAddress string `json:"emailAddress"`
+		Role         string `json:"role"`
+		DisplayName  string `json:"displayName"`
+		PhotoLink    string `json:"photoLink"`
+		Deleted      bool   `json:"deleted"`
+	} `json:"permissions,omitempty"`
+	Path              string            `json:"path,omitempty"`
+	OutMimeType       string            `json:"outMimeType,omitempty"`
+	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
+}
+
 // fileListSt : File list.
 type fileListSt struct {
-	NextPageToken string `json:"nextPageToken,omitempty"`
-	Files         []struct {
-		ID                string    `json:"id,omitempty"`
-		Name              string    `json:"name,omitempty"`
-		MimeType          string    `json:"mimeType,omitempty"`
-		Parents           []string  `json:"parents,omitempty"`
-		CreatedTime       time.Time `json:"createdTime,omitempty"`
-		ModifiedTime      time.Time `json:"modifiedTime,omitempty"`
-		FullFileExtension string    `json:"fullFileExtension,omitempty"`
-		Size              string    `json:"size,omitempty"`
-		WebLink           string    `json:"webContentLink,omitempty"`
-		WebView           string    `json:"webViewLink,omitempty"`
-	}
+	NextPageToken string  `json:"nextPageToken,omitempty"`
+	Files         []fileS `json:"files,omitempty"`
 }
 
 // fileUploaderMeta : For uploading scripts.
@@ -149,16 +180,28 @@ type dispDup struct {
 	ModifiedTime string
 }
 
-// saveScript : Back up a project.
-func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
+// saveScript : Back up a project. Save a project as a raw, each file and zip.
+func (p *FileInf) saveScript(data []byte) *FileInf {
 	var f project
 	json.Unmarshal(data, &f)
-	if c.Bool("rawdata") {
+	if p.RawProject {
 		filename := filepath.Join(p.Workdir, p.FileName+".json")
-		p.SaveName = p.FileName + ".json"
-		p.Msgar = append(p.Msgar, fmt.Sprintf("Saved project as a JSON file '%s.json'.", p.FileName))
-		btok, _ := json.MarshalIndent(f, "", "\t")
-		ioutil.WriteFile(filename, btok, 0777)
+		if chkFile(filename) && !p.OverWrite {
+			if !p.Skip {
+				fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", filename)
+				os.Exit(1)
+			} else {
+				if p.Progress {
+					fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", filename)
+				}
+				p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", filename))
+			}
+		} else {
+			p.SaveName = p.FileName + ".json"
+			p.Msgar = append(p.Msgar, fmt.Sprintf("Saved project as a JSON file '%s.json'.", p.FileName))
+			btok, _ := json.MarshalIndent(f, "", "\t")
+			ioutil.WriteFile(filename, btok, 0777)
+		}
 	} else {
 		p.SaveName = ""
 		if len(f.Files) == 1 {
@@ -166,6 +209,7 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 		} else {
 			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", p.FileName, len(f.Files)))
 		}
+		zh := &zipFileHeads{}
 		for _, e := range f.Files {
 			eType := strings.ToLower(e.Type)
 			saveName := p.FileName + "_" + e.Name + "." + func(ex, ty string) string {
@@ -186,15 +230,78 @@ func (p *FileInf) saveScript(data []byte, c *cli.Context) *FileInf {
 				}
 				return eext
 			}(p.WantExt, eType)
-			ioutil.WriteFile(filepath.Join(p.Workdir, saveName), []byte(e.Source), 0777)
-			p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", saveName))
+			z := &zipFileHead{
+				Name:     saveName,
+				Modified: p.PstartTime,
+				Method:   8,
+				Body:     []byte(e.Source),
+			}
+			zh.Files = append(zh.Files, *z)
+		}
+		if p.Zip {
+			buf := zh.doFilesZip(p.zipComment())
+			zn := p.FileName + ".zip"
+			zipFileName := filepath.Join(p.Workdir, zn)
+			if chkFile(zipFileName) && !p.OverWrite {
+				if !p.Skip {
+					fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", zipFileName)
+					os.Exit(1)
+				} else {
+					if p.Progress {
+						fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.FileName)
+					}
+					p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", p.FileName))
+				}
+			} else {
+				if p.Progress {
+					fmt.Printf("Project file '%s' is downloaded.\n", p.FileName)
+				}
+				ioutil.WriteFile(zipFileName, buf.Bytes(), 0777)
+				p.Msgar = append(p.Msgar, fmt.Sprintf("%d scripts in the project were saved as '%s'.", len(zh.Files), zn))
+			}
+		} else {
+			for _, e := range zh.Files {
+				scriptFileName := filepath.Join(p.Workdir, e.Name)
+				if chkFile(scriptFileName) && !p.OverWrite {
+					if !p.Skip {
+						fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", scriptFileName)
+						os.Exit(1)
+					} else {
+						if p.Progress {
+							fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", scriptFileName)
+						}
+						p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", scriptFileName))
+					}
+				} else {
+					if p.Progress {
+						fmt.Printf("Script '%s' is downloaded.\n", e.Name)
+					}
+					ioutil.WriteFile(scriptFileName, e.Body, 0777)
+					p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", e.Name))
+				}
+			}
 		}
 	}
 	return p
 }
 
+// chkFile : Check the existence of file and directory in local PC.
+func chkFile(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
 // Downloader : Download files.
 func (p *FileInf) Downloader(c *cli.Context) *FileInf {
+	if p.MimeType == "application/vnd.google-apps.folder" {
+		err := p.DlFolders()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s", err)
+			os.Exit(1)
+		}
+		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+		return p
+	}
 	ext := strings.ToLower(p.WantExt)
 	if len(ext) > 0 {
 		p.DlMime = extToMime(ext)
@@ -202,7 +309,6 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 		p.DlMime, ext = defFormat(p.MimeType)
 	}
 	if len(p.FileID) > 0 && c.String("deletefile") == "" {
-		var body []byte
 		var gm map[string]interface{}
 		json.Unmarshal([]byte(googlemimetypes), &gm)
 		if gm["exportFormats"].(map[string]interface{})[p.MimeType] != nil {
@@ -219,14 +325,13 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 			if p.MimeType == "application/vnd.google-apps.script" {
 				u, _ := url.Parse(appsscriptapi)
 				u.Path = path.Join(u.Path, p.FileID+"/content")
-				p, body = p.writeFile(u.String())
-				p.saveScript(body, c)
+				p.writeFile(u.String())
 			} else if p.MimeType != "" {
-				p, _ = p.writeFile(driveapiurl + p.FileID + "/export?mimeType=" + p.DlMime)
+				p.writeFile(driveapiurl + p.FileID + "/export?mimeType=" + p.DlMime)
 			}
 		} else {
 			p.SaveName = p.FileName
-			p, _ = p.writeFile(driveapiurl + p.FileID + "?alt=media")
+			p.writeFile(driveapiurl + p.FileID + "?alt=media")
 		}
 	} else if c.String("deletefile") != "" {
 		p.deleteFile(c.String("deletefile"))
@@ -238,31 +343,132 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	return p
 }
 
+// chunks : For io.Reader
+type chunks struct {
+	io.Reader
+	cChunk   int64
+	End      int64
+	FileName string
+}
+
+// Read : For io.Reader
+func (c *chunks) Read(dat []byte) (int, error) {
+	n, err := c.Reader.Read(dat)
+	c.cChunk += int64(n)
+	if err == nil {
+		if c.End == 0 {
+			fmt.Printf("\rNow downloading '%s' (bytes)... %d", c.FileName, c.cChunk)
+		} else {
+			fmt.Printf("\rNow downloading '%s' (bytes)... %d / %d", c.FileName, c.cChunk, c.End)
+		}
+	}
+	return n, err
+}
+
 // writeFile : Create files on local.
-func (p *FileInf) writeFile(durl string) (*FileInf, []byte) {
+func (p *FileInf) writeFile(durl string) *FileInf {
+	var err error
+	timeOut, err := func(size int64, err error) (int64, error) {
+		if err == nil || size == 0 {
+			switch {
+			case size < 100000000:
+				return 3600, nil
+			case size > 100000000:
+				return 0, nil
+			}
+		}
+		return 0, fmt.Errorf("%s", err)
+	}(strconv.ParseInt(p.FileSize, 10, 64))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error 1: %v. ", err)
+		os.Exit(1)
+	}
 	r := &RequestParams{
 		Method:      "GET",
 		APIURL:      durl,
 		Data:        nil,
 		Contenttype: "application/x-www-form-urlencoded",
 		Accesstoken: p.Accesstoken,
-		Dtime:       10,
+		Dtime:       timeOut,
 	}
-	body, err := r.FetchAPI()
-	var er dlError
-	json.Unmarshal(body, &er)
-	if err != nil || er.Error.Code-300 >= 0 {
-		fmt.Print(fmt.Sprintf("Error: %s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID))
-		if er.Error.Message == "Request had insufficient authentication scopes." {
-			DispScopeError1()
-		}
+	res, err := r.FetchAPIRaw()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error 2: %v. ", err)
 		os.Exit(1)
 	}
-	if p.MimeType != "application/vnd.google-apps.script" {
-		ioutil.WriteFile(filepath.Join(p.Workdir, p.SaveName), body, 0777)
-		p.Msgar = append(p.Msgar, fmt.Sprintf("File was downloaded as '%s'.", p.SaveName))
+	var body []byte
+	var dFileName string
+	if p.MimeType == "application/vnd.google-apps.script" {
+		body, err = ioutil.ReadAll(res.Body)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error 3: %v. ", err)
+			os.Exit(1)
+		}
+		defer res.Body.Close()
+		var er dlError
+		json.Unmarshal(body, &er)
+		if err != nil || er.Error.Code-300 >= 0 {
+			fmt.Print(fmt.Sprintf("Error: %s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID))
+			if er.Error.Message == "Request had insufficient authentication scopes." {
+				DispScopeError1()
+			}
+			os.Exit(1)
+		}
+		return p.saveScript(body)
 	}
-	return p, body
+	dFileName = filepath.Join(p.Workdir, p.SaveName)
+	if chkFile(dFileName) && !p.OverWrite {
+		if !p.Skip {
+			fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", dFileName)
+			os.Exit(1)
+		} else {
+			if p.Progress {
+				fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.SaveName)
+			}
+			p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", p.SaveName))
+		}
+	} else {
+		file, err := os.Create(dFileName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error 4: %v. ", err)
+			os.Exit(1)
+		}
+		if p.Progress {
+			chunks := &chunks{
+				Reader: res.Body,
+				End: func() int64 {
+					size, _ := strconv.ParseInt(p.FileSize, 10, 64)
+					if size > 0 {
+						return size
+					}
+					return 0
+				}(),
+				FileName: p.FileName,
+			}
+			_, err = io.Copy(file, chunks)
+		} else {
+			_, err = io.Copy(file, res.Body)
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error 5: %v. ", err)
+			os.Exit(1)
+		}
+		fileInfo, err := file.Stat()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error 6: %v. ", err)
+			os.Exit(1)
+		}
+		if p.Progress {
+			fmt.Printf("\n")
+		}
+		defer func() {
+			file.Close()
+			res.Body.Close()
+		}()
+		p.Msgar = append(p.Msgar, fmt.Sprintf("File was downloaded as '%s'. Size was %d bytes.", p.SaveName, fileInfo.Size()))
+		return p
+	}
+	return p
 }
 
 // deleteFile : Delete a file using a file ID on own Google Drive.
@@ -290,7 +496,7 @@ func (p *FileInf) nameToID(name string) ([]byte, error) {
 	tokenparams.Set("orderBy", "name")
 	tokenparams.Set("pageSize", strconv.Itoa(number))
 	tokenparams.Set("q", "name='"+name+"' and trashed=false")
-	tokenparams.Set("fields", "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress))")
+	tokenparams.Set("fields", "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId))")
 	r := &RequestParams{
 		Method:      "GET",
 		APIURL:      lurl + tokenparams.Encode(),
@@ -305,7 +511,7 @@ func (p *FileInf) nameToID(name string) ([]byte, error) {
 // idToName : Convert file ID to filename.
 func (p *FileInf) idToName(id string) ([]byte, error) {
 	tokenparams := url.Values{}
-	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress)")
+	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
 	r := &RequestParams{
 		Method:      "GET",
 		APIURL:      driveapiurl + id + "?" + tokenparams.Encode(),
@@ -354,9 +560,15 @@ func (p *FileInf) GetFileinf() *FileInf {
 		if len(fl.Files) == 1 {
 			p.FileID = fl.Files[0].ID
 			p.FileName = fl.Files[0].Name
+			p.FileSize = fl.Files[0].Size
 			p.MimeType = fl.Files[0].MimeType
+			p.Parents = fl.Files[0].Parents
 			p.WebLink = fl.Files[0].WebLink
 			p.WebView = fl.Files[0].WebView
+			p.Owners = fl.Files[0].Owners
+			p.CreatedTime = fl.Files[0].CreatedTime
+			p.ModifiedTime = fl.Files[0].ModifiedTime
+			p.LastModifyingUser = fl.Files[0].LastModifyingUser
 		} else if len(fl.Files) > 1 {
 			fmt.Printf("# %d files were found. Please download them using File ID.\n", len(fl.Files))
 			for i := range fl.Files {
@@ -374,10 +586,6 @@ func (p *FileInf) GetFileinf() *FileInf {
 			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. ", p.WantName)
 			os.Exit(1)
 		}
-	}
-	if p.MimeType == "application/vnd.google-apps.folder" {
-		fmt.Fprintf(os.Stderr, "Error: '%s' is a Folder. Cannot download Folder yet. ", p.FileID)
-		os.Exit(1)
 	}
 	return p
 }
@@ -803,22 +1011,9 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
-	var fm fileListSt
-	var fl fileListSt
-	var dmy fileListSt
-	fm.NextPageToken = ""
-	for i := 0; ; {
-		_ = i
-		body, err := p.getList(fm.NextPageToken)
-		json.Unmarshal(body, &fl)
-		fm.NextPageToken = fl.NextPageToken
-		fm.Files = append(fm.Files, fl.Files...)
-		fl.NextPageToken = ""
-		fl.Files = dmy.Files
-		if len(fm.NextPageToken) == 0 || err != nil {
-			break
-		}
-	}
+	q := "trashed=false"
+	fields := "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size),nextPageToken"
+	fm := p.GetListLoop(q, fields)
 	var fol, fil []string
 	for i := range fm.Files {
 		if strings.Contains(fm.Files[i].MimeType, "folder") {
@@ -863,14 +1058,34 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 	return p
 }
 
+// GetListLoop : Loop for retrieving file list.
+func (p *FileInf) GetListLoop(q, fields string) fileListSt {
+	var fm fileListSt
+	var fl fileListSt
+	var dmy fileListSt
+	fm.NextPageToken = ""
+	for {
+		body, err := p.getList(fm.NextPageToken, q, fields)
+		json.Unmarshal(body, &fl)
+		fm.NextPageToken = fl.NextPageToken
+		fm.Files = append(fm.Files, fl.Files...)
+		fl.NextPageToken = ""
+		fl.Files = dmy.Files
+		if len(fm.NextPageToken) == 0 || err != nil {
+			break
+		}
+	}
+	return fm
+}
+
 // getList : For retrieving file list.
-func (p *FileInf) getList(ptoken string) ([]byte, error) {
+func (p *FileInf) getList(ptoken, q, fields string) ([]byte, error) {
 	number := 1000
 	tokenparams := url.Values{}
 	tokenparams.Set("orderBy", "name")
 	tokenparams.Set("pageSize", strconv.Itoa(number))
-	tokenparams.Set("q", "trashed=false")
-	tokenparams.Set("fields", "files(createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size),nextPageToken")
+	tokenparams.Set("q", q)
+	tokenparams.Set("fields", fields)
 	if len(ptoken) > 0 {
 		tokenparams.Set("pageToken", ptoken)
 	}

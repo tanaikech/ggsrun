@@ -24,13 +24,12 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 					ProjectMaker().
 					projectUpdate2().
 					dispUpdateProjectContainer()
-			} else {
-				return e.defUpdateProjectContainer(c).
-					projectBackup(c).
-					filesInProjectRemover().
-					projectUpdate2().
-					dispUpdateProjectContainer()
 			}
+			return e.defUpdateProjectContainer(c).
+				projectBackup(c).
+				filesInProjectRemover().
+				projectUpdate2().
+				dispUpdateProjectContainer()
 		}
 		if c.Bool("rearrange") {
 			e.defUpdateProjectContainer(c).

@@ -14,23 +14,21 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 4. Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.
 
-5. Upload files to Google Drive. When files are uploaded, also they can be converted by options.
+5. Downloads files from Google Drive and Uploads files to Google Drive.
 
-6. Creates, updates and backs up project of both standalone type and bound script type.
+6. Downloads standalone script and bound script.
 
-7. Creates Google Docs (Spreadsheet, Document, Slide and Form) and create bound script in the created Google Docs.
+7. Downloads all files and folders in a specific folder.
 
-8. Downloads files from Google Drive and Uploads files to Google Drive. Also container-bound scripts can be downloaded.
+8. Upload script files and create project as standalone script and container-bound script.
 
-9. Downloads revision files from Google Drive.
+9. Update project.
 
-10. Rearranges files in project of both standalone type and bound script type.
+10. Retrieve revision files of Google Docs and retrieve versions of projects.
 
-11. Modifies Manifests (appsscript.json) in project.
+11. Rearranges scripts in project.
 
-12. Remove files in the project of both standalone type and bound script type.
-
-13. Retrieve revision file list and revision data.
+12. Modifies Manifests in project.
 
 
 You can see the release page https://github.com/tanaikech/ggsrun/releases

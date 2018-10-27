@@ -227,6 +227,5 @@ func ConvGasToUpload(scriptfile string) string {
 	} else {
 		res = ""
 	}
-
 	return res
 }

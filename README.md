@@ -25,6 +25,7 @@ Features of "ggsrun" are as follows.
 1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#DownloadFiles)**
 1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.1)</font></sup>
 1. **[Downloads standalone script and bound script.](help/README.md#DownloadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Downloads all files and folders in a specific folder.](help/README.md#DownloadFilesFromFolder)** <sup><font color="Red">Updated! (v1.5.0)</font></sup>
 1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Update project.](help/README.md#Update_Project)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](help/README.md#RevisionFile)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
@@ -99,6 +100,7 @@ Completed!
 1. [Executes GAS with Values and Downloads File](help/README.md#ExecutesGASwithValuesandDownloadsFile)
 1. [Executes Existing Functions on Project](help/README.md#ExecutesExistingFunctionsonProject)
 1. [Download Files](help/README.md#DownloadFiles)
+1. [Downloads all files and folders in a specific folder.](help/README.md#DownloadFilesFromFolder)
 1. [Upload Files](help/README.md#UploadFiles)
 1. [Show File List](help/README.md#ShowFileList)
 1. [Search Files](help/README.md#SearchFiles)
