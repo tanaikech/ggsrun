@@ -110,6 +110,7 @@ ggsrun
         - ``$ ggsrun u -f filename -chunk 10``
             - This means that a file with filename is uploaded by each chunk of 10 MB.
 
+<a name="v150"></a>
 * v1.5.0 (October 27, 2018)
     1. [From this version, ggsrun got to be able to download all files and folders in the specific folder in Google Drive.](README.md#downloadfilesfromfolder) When all files are downloaded from a folder, the same folder structure of Google Drive is created to the local PC.
         - ``$ ggsrun d -f folderName or folderId``
