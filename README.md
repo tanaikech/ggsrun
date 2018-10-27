@@ -20,19 +20,19 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 Features of "ggsrun" are as follows.
 
 1. **[Develops GAS using your local terminal and text editor which got accustomed to using.](help/README.md#demosublime)**<sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Executes GAS by giving values to your script.](help/README.md#ExecutesGASandRetrievesResultValues)**
-1. **[Executes GAS made of CoffeeScript.](help/README.md#CoffeeScript)**
-1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#DownloadFiles)**
-1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.1)</font></sup>
-1. **[Downloads standalone script and bound script.](help/README.md#DownloadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Downloads all files and folders in a specific folder.](help/README.md#DownloadFilesFromFolder)** <sup><font color="Red">Updated! (v1.5.0)</font></sup>
-1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#UploadFiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Update project.](help/README.md#Update_Project)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](help/README.md#RevisionFile)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Executes GAS by giving values to your script.](help/README.md#executesgasandretrievesresultvalues)**
+1. **[Executes GAS made of CoffeeScript.](help/README.md#coffeescript)**
+1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#downloadfiles)**
+1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#uploadfiles)** <sup><font color="Red">Updated! (v1.4.1)</font></sup>
+1. **[Downloads standalone script and bound script.](help/README.md#downloadfiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Downloads all files and folders in a specific folder.](help/README.md#downloadfilesfromfolder)** <sup><font color="Red">Updated! (v1.5.0)</font></sup>
+1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#uploadfiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Update project.](help/README.md#updateproject)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](help/README.md#revisionfile)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Rearranges scripts in project.](help/README.md#rearrangescripts)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Modifies Manifests in project.](help/README.md#ModifyManifests)**
+1. **[Modifies Manifests in project.](help/README.md#modifymanifests)**
 
-<a name="How_to_Install"></a>
+<a name="howtoinstall"></a>
 # How to Install
 ## 1. Get ggsrun
 Download an executable file of ggsrun from [the release page](https://github.com/tanaikech/ggsrun/releases) and import to a directory with path.
@@ -67,7 +67,7 @@ When you click each link of title, you can see the detail information.
         - Input Name (This is a name you want.)
         - done
         - Download a JSON file with Client ID and Client Secret as **``client_secret.json``** using download button.
-1. [Enable APIs](help/README.md#Install_Execution_API)
+1. [Enable APIs](help/README.md#onstallexecutionapi)
     - ggsrun uses Google Apps Script API and Drive API. Please enable them at API console. You can directly access them as follows. Project ID can be seen at downloaded ``client_secret.json``.
         - ``https://console.cloud.google.com/apis/library/script.googleapis.com/?project=### project ID ###``
             - **Also here [https://script.google.com/home/usersettings](https://script.google.com/home/usersettings) has to be enabled. Please turn ON.**
@@ -94,24 +94,24 @@ Please reauthorize to include a new scope to the access token as follows.
 Completed!
 
 # How to use ggsrun
-1. [Executes GAS and Retrieves Result Values](help/README.md#ExecutesGASandRetrievesResultValues)
+1. [Executes GAS and Retrieves Result Values](help/README.md#executesgasandretrievesresultvalues)
 1. [Executes GAS with Values and Retrieves Feedbacked Values](help/README.md#ExecutesGASwithValuesandRetrievesFeedbackedValues)
 1. [For Debug](help/README.md#ForDebug)
-1. [Executes GAS with Values and Downloads File](help/README.md#ExecutesGASwithValuesandDownloadsFile)
+1. [Executes GAS with Values and Downloads File](help/README.md#executesgaswithvaluesanddownloadsfile)
 1. [Executes Existing Functions on Project](help/README.md#ExecutesExistingFunctionsonProject)
-1. [Download Files](help/README.md#DownloadFiles)
-1. [Downloads all files and folders in a specific folder.](help/README.md#DownloadFilesFromFolder)
-1. [Upload Files](help/README.md#UploadFiles)
+1. [Download Files](help/README.md#downloadfiles)
+1. [Downloads all files and folders in a specific folder.](help/README.md#downloadfilesfromfolder)
+1. [Upload Files](help/README.md#uploadfiles)
 1. [Show File List](help/README.md#ShowFileList)
 1. [Search Files](help/README.md#SearchFiles)
-1. [Update Project](help/README.md#Update_Project)
-1. [Retrieve Revision Files and Versions of Projects](help/README.md#RevisionFile)
+1. [Update Project](help/README.md#updateproject)
+1. [Retrieve Revision Files and Versions of Projects](help/README.md#revisionfile)
 1. [Rearrange Script in Project](help/README.md#rearrangescripts)
-1. [Modify Manifests](help/README.md#ModifyManifests)
+1. [Modify Manifests](help/README.md#modifymanifests)
 
 # Applications
 1. [For Sublime Text](help/README.md#demosublime)
-1. [For CoffeeScript](help/README.md#CoffeeScript)
+1. [For CoffeeScript](help/README.md#coffeescript)
 1. [Create Triggers](help/README.md#CreateTriggers)
 1. [Link to Python script](help/README.md#LinktoVariousResources)
 

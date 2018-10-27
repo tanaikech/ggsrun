@@ -11,13 +11,13 @@ ggsrun
 
 * v1.1.0 (April 28, 2017)
 
-    1. Added a command for updating existing project on Google Drive. The detail information is [here](help/README.md#Update_Project).
+    1. Added a command for updating existing project on Google Drive. The detail information is [here](help/README.md#updateproject).
     2. Added "TotalElapsedTime" for Show File List and Search Files.
     3. Some modifications.
 
 * v1.2.0 (May 19, 2017)
 
-    1. Added a command for retrieving revision files on Google Drive. The detail information is [here](help/README.md#RevisionFile).
+    1. Added a command for retrieving revision files on Google Drive. The detail information is [here](help/README.md#revisionfile).
     2. Some modifications.
 
 * v1.2.1 (May 28, 2017)
@@ -33,7 +33,7 @@ ggsrun
     1. For Google Docs (spreadsheet, document, slide and drawing), since I noticed that the revision files would not be able to be retrieved using Drive API v3, I modified this using new workaround.
         - The new workaround is to use Drive API v2. ``drive.revisions.get`` of Drive API v2 can retrieve not only the revision list, but also the export links. I thought of the use of the export links. This became the new workaround.
         - For the files except for Google Docs, the revision files can be retrieved using Drive API v3.
-        - The usage is [here](help/README.md#RevisionFile).
+        - The usage is [here](help/README.md#revisionfile).
 
     I don't know when this workaround will not be able to be used. But if this could not be used, I would like to investigate of other method.
 
@@ -60,7 +60,7 @@ ggsrun
 
 * v1.3.3 (October 30, 2017)
 
-    1. [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). **In order to modify the manifests from local PC, I added this new function to ggsrun. By using this, you can edit the manifests and update it from your local PC.** The usage is [here](README.md#ModifyManifests)
+    1. [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). **In order to modify the manifests from local PC, I added this new function to ggsrun. By using this, you can edit the manifests and update it from your local PC.** The usage is [here](README.md#modifymanifests)
         - I think that modifying manifests will be able to apply to various applications.
     1. Some modifications.
 
@@ -83,8 +83,8 @@ ggsrun
         - About retrieving information of projects, the information from Drive API is more than that from Apps Script API. So I used Drive API in this situation.
         - **[Please read how to enable APIs.](https://github.com/tanaikech/ggsrun/blob/master/README.md#BasicSettingFlow)**
     1. ggsrun got to be able to use both standalone scripts and container-bound scripts by Apps Script API.
-        - [Create projects](README.md#UploadFiles)
-        - [Update projects](README.md#Update_Project)
+        - [Create projects](README.md#uploadfiles)
+        - [Update projects](README.md#updateproject)
         - There are some issues for creating projects.
             1. After Manifests was added to GAS, the time zone can be set by it. But when a new project is created by API, I noticed that the time zone is different from own local time zone. When a new project is manually created by browser, the time zone is the same to own local time zone. I think that this may be a bug. So I added an option for setting time zone when a new project is created. And also I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72019223).
             1. If you want to create a bound script in Slide, an error occurs. When a bound script can be created to Spreadsheet, Document and Form using Apps Script API. Furthermore, when the bound script in Slide is updated, it works fine. So I think that this may be also a bug. I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/72238499).
@@ -92,11 +92,11 @@ ggsrun
     1. [Both standalone scripts and container-bound scripts can be rearranged.](README.md#rearrangescripts)
         - The file of ``appsscript`` for Manifests is always displayed to the top of files on the script editor, while the array of files can be changed. I think that this is the specification.
     1. For the option ``exe1`` for executing GAS, it can use for both standalone scripts and container-bound scripts.
-    1. [Delete files using file ID on Google Drive.](README.md#DownloadFiles)
-    1. [Delete files in the project.](README.md#Update_Project)
-    1. [ggsrun can create new container-bound script in the new Google Docs.](README.md#UploadFiles)
+    1. [Delete files using file ID on Google Drive.](README.md#downloadfiles)
+    1. [Delete files in the project.](README.md#updateproject)
+    1. [ggsrun can create new container-bound script in the new Google Docs.](README.md#uploadfiles)
         - For example, ggsrun creates a new Spreadsheet and uploads the script files to the Spreadsheet as a container-bound script.
-    1. [Retrieve and create versions of projects.](README.md#RevisionFile)
+    1. [Retrieve and create versions of projects.](README.md#revisionfile)
     1. [Unified the order of directories for searching ``client_secret.json`` and ``ggsrun.cfg``.](README.md#QA7)
     1. Some modifications.
 
@@ -111,7 +111,7 @@ ggsrun
             - This means that a file with filename is uploaded by each chunk of 10 MB.
 
 * v1.5.0 (October 27, 2018)
-    1. [From this version, ggsrun got to be able to download all files and folders in the specific folder in Google Drive.](README.md#DownloadFilesFromFolder) When all files are downloaded from a folder, the same folder structure of Google Drive is created to the local PC.
+    1. [From this version, ggsrun got to be able to download all files and folders in the specific folder in Google Drive.](README.md#downloadfilesfromfolder) When all files are downloaded from a folder, the same folder structure of Google Drive is created to the local PC.
         - ``$ ggsrun d -f folderName or folderId``
             - When the project file is downloaded, it is downloaded as a zip file. All scripts in the project is put in the zip file.
             - Also when you download a single project, you can use an option ``--zip`` or ``-z``. By this, the downloaded project is saved as a zip file.
@@ -122,7 +122,7 @@ ggsrun
     1. Some modifications.
 
 
-**You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#How_to_Install).**
+**You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
 
 ## Server
 * v1.0.0 (April 24, 2017)
