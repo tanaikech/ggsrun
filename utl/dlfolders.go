@@ -244,7 +244,7 @@ func (p *FileInf) getFilesFromFolder(folderTree *folderTree) *fileListDl {
 	f.FolderTree = folderTree
 	for i, id := range folderTree.Folders {
 		q := "'" + id + "' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false"
-		fields := "files(createdTime,description,id,mimeType,modifiedTime,name,owners,parents,permissions,shared,size),nextPageToken"
+		fields := "files(createdTime,description,id,mimeType,modifiedTime,name,owners,parents,permissions,shared,size,webContentLink,webViewLink),nextPageToken"
 		fm := p.GetListLoop(q, fields)
 		var fe fileListEle
 		fe.FolderTree = folderTree.IDs[i]

@@ -984,6 +984,11 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			p.MimeType = fl.Files[0].MimeType
 			p.Parents = fl.Files[0].Parents
 			p.WebView = fl.Files[0].WebView
+			p.WebLink = fl.Files[0].WebLink
+			p.Owners = fl.Files[0].Owners
+			p.CreatedTime = fl.Files[0].CreatedTime
+			p.ModifiedTime = fl.Files[0].ModifiedTime
+			p.LastModifyingUser = fl.Files[0].LastModifyingUser
 		} else if len(fl.Files) > 1 {
 			for i := range fl.Files {
 				fmt.Printf("{\n  Name: \"%s\",\n  ID: \"%s\",\n  ModifiedTime: \"%s\",\n  URL: \"%s\"\n}\n",

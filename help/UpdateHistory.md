@@ -122,6 +122,11 @@ ggsrun
     1. Files with large size got to be able to be used. In order to download files with large size (several gigabytes), files are saved by chunks.
     1. Some modifications.
 
+<a name="v151"></a>
+* v1.5.1 (November 2, 2018)
+    1. Removed a bug.
+        - When a file information was retrieved, createdTime and modifiedTime couldn't be seen and the information was incompleted.
+
 
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
 

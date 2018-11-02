@@ -942,6 +942,7 @@ $ ggsrun d -i folderid
 
 #### Sample:
 ![](images/downloadFolder_sample.png)
+
 As a sample, it supposes that it downloads the files from the above structure. The command is as follows.
 
 ~~~bash
