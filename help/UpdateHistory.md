@@ -129,9 +129,9 @@ ggsrun
 
 <a name="v152"></a>
 * v1.5.2 (November 4, 2018)
-    1. When files are downloaded from a folder, you can download Google Docs files with the mimeType you want. For example, when you download files from the folder, if ``-e txt`` is used, Google Docs are downloaded as the text file. When ``-e pdf`` is used, they are downloaded as the PDF file. Of course, there are mimeType which cannot be converted.
+    1. About [downloading folders](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#downloadfilesfromfolder), when files are downloaded from a folder, you can download Google Docs files with the mimeType you want. For example, when you download files from the folder, if ``-e txt`` is used, Google Docs are downloaded as the text file. When ``-e pdf`` is used, they are downloaded as the PDF file. Of course, there are mimeType which cannot be converted.
         - ``$ ggsrun d -f [folderName] -e txt -j``
-    1. When files are uploaded from your local PC, the files got to be able to be converted to Google Docs. For this, new option of ``--convertto``, ``-c`` is added. For example, when a text file is uploaded, if you use ``-c doc``, the text file is uploaded as Google Document.
+    1. About [uploading files](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#uploadfiles), when files are uploaded from your local PC, the files got to be able to be converted to Google Docs. For this, new option of ``--convertto``, ``-c`` is added. For example, when a text file is uploaded, if you use ``-c doc``, the text file is uploaded as Google Document.
         - ``$ ggsrun u -f [fileName] -c doc -j``
 
 
