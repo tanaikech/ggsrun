@@ -25,8 +25,8 @@ Features of "ggsrun" are as follows.
 1. **[Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.](help/README.md#downloadfiles)**
 1. **[Downloads files from Google Drive and Uploads files to Google Drive.](help/README.md#uploadfiles)** <sup><font color="Red">Updated! (v1.4.1)</font></sup>
 1. **[Downloads standalone script and bound script.](help/README.md#downloadfiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
-1. **[Downloads all files and folders in a specific folder.](help/README.md#downloadfilesfromfolder)** <sup><font color="Red">Updated! (v1.5.0)</font></sup>
-1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#uploadfiles)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
+1. **[Downloads all files and folders in a specific folder.](help/README.md#downloadfilesfromfolder)** <sup><font color="Red">Updated! (v1.5.2)</font></sup>
+1. **[Upload script files and create project as standalone script and container-bound script.](help/README.md#uploadfiles)** <sup><font color="Red">Updated! (v1.5.2)</font></sup>
 1. **[Update project.](help/README.md#updateproject)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](help/README.md#revisionfile)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Rearranges scripts in project.](help/README.md#rearrangescripts)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>

@@ -349,7 +349,7 @@ If following result is shown, installing ggsrun is finished. Enjoy developing GA
 If a following error occurs,
 
 ```
-$ ./ggsrun.exe e2 -s sample.gs
+$ ./ggsrun e2 -s sample.gs
 Error: Status Code: 404.
 {
   "error": {
@@ -378,10 +378,10 @@ When you use GAS, you have ever seen [a message of "Authorization required"](htt
 ~~~
 $ ggsrun e1 -help
 NAME:
-   ggsrun.exe exe1 - Updates project and Executes the function in the project.
+   ggsrun exe1 - Updates project and Executes the function in the project.
 
 USAGE:
-   ggsrun.exe exe1 [command options] [arguments...]
+   ggsrun exe1 [command options] [arguments...]
 
 DESCRIPTION:
    In this mode, an access token is required.
@@ -399,10 +399,10 @@ OPTIONS:
 ~~~
 $ ggsrun e2 -help
 NAME:
-   ggsrun.exe exe2 - Uploads GAS and Executes the script using Execution API.
+   ggsrun exe2 - Uploads GAS and Executes the script using Execution API.
 
 USAGE:
-   ggsrun.exe exe2 [command options] [arguments...]
+   ggsrun exe2 [command options] [arguments...]
 
 DESCRIPTION:
    In this mode, an access token is required.
@@ -479,10 +479,10 @@ If following result is shown when you run above, install of ggsrun for Web Apps 
 ~~~
 $ ggsrun w --help
 NAME:
-   ggsrun.exe webapps - Uploads GAS and Executes the script without OAuth using Web Apps.
+   ggsrun webapps - Uploads GAS and Executes the script without OAuth using Web Apps.
 
 USAGE:
-   ggsrun.exe webapps [command options] [arguments...]
+   ggsrun webapps [command options] [arguments...]
 
 DESCRIPTION:
    In this mode, an access token is NOT required.
@@ -939,6 +939,8 @@ $ ggsrun d -i folderid
 - About the folder, you can download from not only the folders in your Google Drive, but also the shared folders in other Google Drive. When you want to download the files from the shared folder, please use the folder ID of the shared folder.
 - When the files and folders are downloaded, the folder structure in Google Drive is also created to the working directory on the local PC.
 - When the project of the standalone script script type is downloaded, it is created as a zip file. In the zip file, all scripts are included.
+- When files are downloaded from a folder, you can download Google Docs files with the mimeType you want. For example, when you download files from the folder, if ``-e txt`` is used, Google Docs are downloaded as the text file. When ``-e pdf`` is used, they are downloaded as the PDF file. Of course, there are mimeType which cannot be converted.
+    - ``$ ggsrun d -f [folderName] -e txt -j``
 
 #### Sample:
 ![](images/downloadFolder_sample.png)
@@ -1000,7 +1002,7 @@ Now downloading 'Text1.txt' (bytes)... 50000000 / 50000000
     "File was downloaded as 'Slides1.pptx'. Size was 31733 bytes.",
     "File was downloaded as 'Spreadsheet5.xlsx'. Size was 3595 bytes.",
     "StandaloneProject1.gs has 4 scripts.",
-    "4 scripts in the project were saved as 'StandaloneProject1.gs.zip'.",
+    "4 scripts in the project were saved as 'StandaloneProject1.zip'.",
     "File was downloaded as 'Text1.txt'. Size was 50000000 bytes.",
     "There were 10 files and 6 folders in the folder."
   ],
@@ -1028,6 +1030,12 @@ $ ggsrun u -f filename
 ~~~
 
 At this time, you can upload files to the specific folder using option ``-p [parent folder ID]``. When Microsoft Word, Excel and Powerpoint files are uploaded, they are automatically converted to Google Docs. If you don't want to convert them, please use option ``--nc``.
+
+When files are uploaded from your local PC, the files got to be able to be converted to Google Docs. For this, new option of ``--convertto``, ``-c`` is added. For example, when a text file is uploaded, if you use ``-c doc``, the text file is uploaded as Google Document. ``-c doc``, ``-c sheet`` and ``-c slide`` convert to Google document, spreadsheet and slides, respectively.
+
+~~~bash
+$ ggsrun u -f filename -c sheet
+~~~
 
 <a name="ResumableUpload"></a>
 **Run :** [Resumable upload](https://developers.google.com/drive/v3/web/resumable-upload)
@@ -1086,10 +1094,10 @@ When this sample command runs, a new Spreadsheet is created and the script files
 ~~~
 $ ggsrun u -h
 NAME:
-   ggsrun.exe upload - Uploads files to Google Drive.
+   ggsrun upload - Uploads files to Google Drive.
 
 USAGE:
-   ggsrun.exe upload [command options] [arguments...]
+   ggsrun upload [command options] [arguments...]
 
 DESCRIPTION:
    In this mode, an access token is required.
@@ -1102,6 +1110,8 @@ OPTIONS:
    --projectname value, --pn value    Upload several GAS scripts as a project.
    --googledocname value, --gn value  Filename of Google Docs which is created.
    --projecttype value, --pt value    You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default. (default: "standalone")
+   --chunksize value, --chunk value   You can also set the maximum chunk size for the resumable upload. This unit is MB. (default: 100)
+   --convertto value, -c value        When you want to upload the file by converting, use this. '-c doc', '-c sheet' and '-c slide' convert to Google document, spreadsheet and slides, respectively. But there are files which cannot be converted. Please be careful this.
    --noconvert, --nc                  If you don't want to convert file to Google Apps format.
    --jsonparser, -j                   Display results by JSON parser
 ~~~
@@ -1134,10 +1144,10 @@ In the case of ``ggsrun ls -j``, a statistical table is retrieved. But in the me
 ~~~
 $ ggsrun ls -h
 NAME:
-   ggsrun.exe filelist - Outputs a file list on Google Drive.
+   ggsrun filelist - Outputs a file list on Google Drive.
 
 USAGE:
-   ggsrun.exe filelist [command options] [arguments...]
+   ggsrun filelist [command options] [arguments...]
 
 DESCRIPTION:
    In this mode, an access token is required.

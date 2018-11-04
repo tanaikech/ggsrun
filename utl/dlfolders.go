@@ -68,16 +68,30 @@ func mime2ext(mime string) string {
 
 // downloadFilesFromFolder : Download file using API key.
 func (p *FileInf) downloadFilesFromFolder(f fileS) error {
-	temp := []string{p.Workdir, p.SaveName, p.FileName, p.FileSize, p.MimeType}
+	temp := []string{p.Workdir, p.SaveName, p.FileName, p.FileSize, p.MimeType, p.WantExt}
 	p.Workdir = f.Path
 	ext := filepath.Ext(f.Name)
 	if ext == "" {
-		f.Name += mime2ext(f.MimeType)
+		f.Name += func() string {
+			if f.MimeType != "application/vnd.google-apps.script" {
+				if f.OutMimeType == "" {
+					return mime2ext(f.MimeType)
+				}
+				return mime2ext(f.OutMimeType)
+			}
+			return ""
+		}()
 	}
 	p.SaveName = f.Name
 	p.FileName = f.Name
 	p.FileSize = f.Size
 	p.MimeType = f.MimeType
+	p.WantExt = func() string {
+		if f.MimeType == "application/vnd.google-apps.script" {
+			return ""
+		}
+		return p.WantExt
+	}()
 	p.Zip = true
 	durl := func() string {
 		if f.OutMimeType == "" {
@@ -89,8 +103,8 @@ func (p *FileInf) downloadFilesFromFolder(f fileS) error {
 		return driveapiurl + f.ID + "/export?mimeType=" + f.OutMimeType
 	}()
 	p.writeFile(durl)
-	p.Workdir, p.SaveName, p.FileName, p.FileSize, p.MimeType = func(e []string) (string, string, string, string, string) {
-		return e[0], e[1], e[2], e[3], e[4]
+	p.Workdir, p.SaveName, p.FileName, p.FileSize, p.MimeType, p.WantExt = func(e []string) (string, string, string, string, string, string) {
+		return e[0], e[1], e[2], e[3], e[4], e[5]
 	}(temp)
 	return nil
 }
@@ -217,7 +231,16 @@ func (p *FileInf) dupChkFoldersFiles(fileList *fileListDl) {
 				}
 				if extt != "" {
 					if google2ms(file.MimeType) != "" {
-						cmime := extToMime(extt)
+						cmime := func() string {
+							if (extt == "txt" || extt == "text") && file.MimeType == "application/vnd.google-apps.spreadsheet" {
+								return extToMime("csv")
+							} else if extt == "zip" && file.MimeType == "application/vnd.google-apps.presentation" {
+								return extToMime("pptx")
+							} else if extt == "zip" && file.MimeType == "application/vnd.google-apps.script" {
+								return ""
+							}
+							return extToMime(extt)
+						}()
 						if cmime != "" {
 							fileList.FileList[i].Files[j].OutMimeType = cmime
 						} else {

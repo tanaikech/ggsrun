@@ -59,6 +59,7 @@ type FileInf struct {
 	Accesstoken     string    `json:"-"`
 	BoundScriptName string    `json:"-"`
 	ChunkSize       int64     `json:"-"`
+	ConvertTo       string    `json:"-"`
 	DlMime          string    `json:"-"`
 	GoogleDocName   string    `json:"-"`
 	OverWrite       bool      `json:"-"`
@@ -393,7 +394,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	}
 	res, err := r.FetchAPIRaw()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error 2: %v. ", err)
+		fmt.Fprintf(os.Stderr, "Error 2: %v.", err)
 		os.Exit(1)
 	}
 	var body []byte
@@ -759,11 +760,22 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 				Name:    filepath.Base(elm),
 				Parents: []string{c.String("parentfolderid")},
 				MimeType: func(flag bool) string {
-					var r string
 					if !flag {
-						r = extToGMime(filepath.Ext(elm))
+						convto := strings.ToLower(p.ConvertTo)
+						switch {
+						case convto == "":
+							return extToGMime(filepath.Ext(elm))
+						case convto == "document" || convto == "doc" || convto == "docs":
+							return "application/vnd.google-apps.document"
+						case convto == "spreadsheet" || convto == "sheet" || convto == "spread":
+							return "application/vnd.google-apps.spreadsheet"
+						case convto == "slides" || convto == "slide" || convto == "presentation":
+							return "application/vnd.google-apps.presentation"
+						default:
+							return extToGMime(convto)
+						}
 					}
-					return r
+					return ""
 				}(c.Bool("noconvert")),
 			}
 			if metadata.MimeType == "application/vnd.google-apps.script" {

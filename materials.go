@@ -413,6 +413,7 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 			return ret
 		}(c.String("projecttype")),
 		GoogleDocName: c.String("googledocname"),
+		ConvertTo:     c.String("convertto"),
 	}
 	return p
 }

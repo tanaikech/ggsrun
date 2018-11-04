@@ -15,7 +15,7 @@ func main() {
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
 	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.5.1"
+	app.Version = "1.5.2"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -229,6 +229,10 @@ func main() {
 					Name:  "chunksize, chunk",
 					Usage: "You can also set the maximum chunk size for the resumable upload. This unit is MB.",
 					Value: 100,
+				},
+				cli.StringFlag{
+					Name:  "convertto, c",
+					Usage: "When you want to upload the file by converting, use this. '-c doc', '-c sheet' and '-c slide' convert to Google document, spreadsheet and slides, respectively. But there are files which cannot be converted. Please be careful this.",
 				},
 				cli.BoolFlag{
 					Name:  "noconvert, nc",

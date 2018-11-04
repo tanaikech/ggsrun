@@ -35,7 +35,8 @@ const (
     "mp3":   "audio/mp3",
     "wav":   "audio/wav",
     "mp4":   "video/mp4",
-    "zip":   "application/zip"
+    "zip":   "application/zip",
+    "py":    "text/x-python"
     }`
 
 	googlemimetypes = `{
@@ -248,6 +249,7 @@ const (
 
 	mimeVsEx = `{
         "application/vnd.google-apps.script": ".gs",
+        "application/vnd.google-apps.script+json": ".gs",
         "text/csv": ".csv",
         "text/html": ".html",
         "text/plain": ".txt",
@@ -258,6 +260,9 @@ const (
         "application/vnd.google-apps.document": ".docx",
         "application/vnd.google-apps.spreadsheet": ".xlsx",
         "application/vnd.google-apps.presentation": ".pptx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
         "application/pdf": ".pdf",
         "application/postscript": ".ps",
         "image/gif": ".gif",
