@@ -371,7 +371,10 @@ func (p *FileInf) getOwner() bool {
 		Accesstoken: p.Accesstoken,
 		Dtime:       30,
 	}
-	res, _ := r.FetchAPI()
+	res, err := r.FetchAPI()
+	if err != nil {
+		p.errHandlingFromFetch(res)
+	}
 	ag := &aboutGet{}
 	json.Unmarshal(res, &ag)
 	for _, e := range p.Owners {

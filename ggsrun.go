@@ -14,8 +14,8 @@ func main() {
 	app.Name = appname
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
-	app.Usage = "Executes Google Apps Script (GAS) on Google and Feeds Back Results."
-	app.Version = "1.5.2"
+	app.Usage = "This is an application of Google Drive and Google Apps Script (GAS)."
+	app.Version = "1.6.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -336,6 +336,31 @@ func main() {
 				cli.BoolFlag{
 					Name:  "file, f",
 					Usage: "Output all file list to a JSON file.",
+				},
+				cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Display results by JSON parser",
+				},
+			},
+		},
+		{
+			Name:        "searchfiles",
+			Aliases:     []string{"sf"},
+			Usage:       "Search files on Google Drive using search query and regex.",
+			Description: "In this mode, an access token is required.",
+			Action:      searchFilesByQueryAndRegex,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "query, q",
+					Usage: "Search query. You can see the detail at https://developers.google.com/drive/api/v3/search-parameters",
+				},
+				cli.StringFlag{
+					Name:  "fields, f",
+					Usage: "Fields for retrieving files.",
+				},
+				cli.StringFlag{
+					Name:  "regex, r",
+					Usage: "Retrieve files using regex. Regex is used for the filename.",
 				},
 				cli.BoolFlag{
 					Name:  "jsonparser, j",

@@ -4,7 +4,7 @@ ggsrun
 [![Build Status](https://travis-ci.org/tanaikech/ggsrun.svg?branch=master)](https://travis-ci.org/tanaikech/ggsrun)
 [![MIT License](http://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENCE)
 
-<a name="TOP"></a>
+<a name="top"></a>
 # Table of Contents
 - [Overview](#Overview)
 - [Description](#Description)
@@ -29,16 +29,17 @@ ggsrun
     - Upload Files
     - Show File List
     - Search Files
+    - Seach Files using Query and Regex
     - Update Project
     - Retrieve Revision Files and Versions of Projects
     - Rearrange Script in Project
     - Modify Manifests
-- [Applications](#Applications)
+- [Applications](#applications)
     - For Sublime Text
     - For CoffeeScript
     - Create Triggers
     - Link to Various Resources
-- [Appendix](#Appendix)
+- [Appendix](#appendix)
     - Scopes
     - Format of Data to GAS
     - Access Log
@@ -82,6 +83,7 @@ Features of "ggsrun" are as follows.
 
 1. **[Modifies Manifests in project.](#modifymanifests)**
 
+1. **[Seach files in Google Drive using search query and regex](#searchfilesusingregex)**
 
 You can see the release page [here](https://github.com/tanaikech/ggsrun/releases).
 
@@ -212,7 +214,7 @@ Use go get.
 $ go get -u github.com/tanaikech/ggsrun
 ~~~
 
-<a name="Setup_ggsrun_Server"></a>
+<a name="setupggsrunserver"></a>
 ## 2. Setup ggsrun Server (at Google side)
 This is a common setup for Google Apps Script API(Execution API) and Web Apps.
 
@@ -268,7 +270,7 @@ By installing this, you can use command ``exe1`` and ``exe2``. To use command ``
     - -> **Enable "Google Drive API"**
     - -> You can enable it at [this URL](https://console.cloud.google.com/apis/api/drive.googleapis.com/).
 
-<a name="GetClientID"></a>
+<a name="getclientid"></a>
 #### 3. <u>Get Client ID, Client Secret</u>
 1. On "API  APIs&services"
     - Click "Credentials" at left side.
@@ -310,7 +312,7 @@ export GGSRUN_CFG_PATH=~/ggsrun/
 
 When you want to run ``$ ggsrun auth`` to authorize, please run under a directory with ``client_secret.json``. ``ggsrun.cfg`` is created to the current working directory.
 
-<a name="Runggsrun"></a>
+<a name="runggsrun"></a>
 #### 5. <u>Run ggsrun as a test</u>
 Please create ``sample.gs`` with following script.
 
@@ -595,7 +597,7 @@ $ ggsrun e2 -r -s sample.gs
 >>> 2
 ~~~
 
-<a name="ExecutesGASwithValuesandRetrievesFeedbackedValues"></a>
+<a name="executesgaswithvaluesandretrievesfeedbackedvalues"></a>
 ## 2. Executes GAS with Values and Retrieves Feedbacked Values
 ### 1. Gives a number and executes GAS
 At the current version, the number of values which can give to function is only 1. So if you want to give several values to function, please use array and JSON.
@@ -729,7 +731,7 @@ Please use ``\"`` for the JSON keys.
 }
 ~~~
 
-<a name="ForDebug"></a>
+<a name="fordebug"></a>
 ## 3. For Debug
 You know ``Logger.log()`` can be used for a simple debug in GAS. In the of ggsrun, when ``Logger.log()`` is used in a script, the result of it cannot be seen, because the log cannot be output by API. So I prepared a function instead of ``Logger.log()`` for ggsrun. That is ``Log()``. You can use it in your GAS script for using ggsrun. The sample script is as follows.
 
@@ -1116,7 +1118,7 @@ OPTIONS:
    --jsonparser, -j                   Display results by JSON parser
 ~~~
 
-<a name="ShowFileList"></a>
+<a name="showfilelist"></a>
 ## 8. Show File List
 ggsrun can retrieve file list on Google Drive. The list also includes folders.
 
@@ -1160,7 +1162,7 @@ OPTIONS:
    --jsonparser, -j                  Display results by JSON parser
 ~~~
 
-<a name="SearchFiles"></a>
+<a name="searchfiles"></a>
 ## 9. Search Files
 ggsrun can search files on Google Drive.
 
@@ -1404,10 +1406,38 @@ Awesome points of Manifests that I think are below.
 
 In this demonstration, Advanced Google Services are modified by modifying the manifests.
 
+<a name="searchfilesusingregex"></a>
+## 14. Seach Files using Query and Regex
+Although at ggsrun, files can be searched by filename and file ID, searching files using [search query](https://developers.google.com/drive/api/v3/search-parameters) and regex couldn't be done. From version 1.6.0, files got to be able to be searched using the search query and regex.
 
+The flow of this function is as follows.
+
+1. Retrieve all files in Google Drive using the search query and fields.
+1. Retrieve files from the retrieved files using regex.
+    - Regex is used to the filename.
+
+The command is as follows.
+
+~~~bash
+$ ggsrun sf -q "### search query ###" -f "### fields ###" -r "### regex ###"
+~~~
+
+- Search query: [Document](https://developers.google.com/drive/api/v3/search-parameters)
+- Fields: [Document](https://developers.google.com/drive/api/v3/reference/files#resource)
+- Regex: [Document](https://github.com/google/re2/wiki/Syntax)
+
+#### Sample command
+~~~bash
+ggsrun sf \
+  -q "mimeType='application/vnd.google-apps.spreadsheet'" \
+  -f "files(id,name)" \
+  -r "sample\d{1}"
+~~~
+
+This command retrieves files with Google Spreadsheet and the filename of ``sample#`` (``#`` is 0-9.). The file ID and filename of files are returned.
 
 ---
-<a name="Applications"></a>
+<a name="applications"></a>
 # Applications
 <a name="demosublime"></a>
 ## 1. For Sublime Text
@@ -1549,7 +1579,7 @@ When above script is executed, the created csv file is also downloaded, simultan
 
 **And also I have created a GAS library made of CoffeeScript using ggsrun. You can see it [here](https://github.com/tanaikech/CreateImg).**
 
-<a name="CreateTriggers"></a>
+<a name="createtriggers"></a>
 ## 3. Create Triggers
 In this sample, it creates a trigger using ggsrun on the project. Execution API cannot create triggers because of [the limitation](https://developers.google.com/apps-script/guides/rest/api). So it uses Web Apps of the command ``webapps`` to create the trigger. <u>In this case, it supposes the deployment of Web Apps.</u>
 
@@ -1626,7 +1656,7 @@ It returns the function name of ``runByTrigger`` without errors. When it opens t
 
 By this, it was found that the send of functions and the creation of new trigger are possible.
 
-<a name="LinktoVariousResources"></a>
+<a name="linktovariousresources"></a>
 ## 4. Link to Various Resources
 This is also one of my aims that I made ggsrun. As a sample, it introduces a link to Python. For executing GAS, ggsrun can use not only files, but also string scripts. This is a sample for it.
 
@@ -1694,7 +1724,7 @@ The GAS script can be modified by the received values from Google. I think that 
 **I believe other applications. I'm very glad if you tell me when you found it.**
 
 ---
-<a name="Appendix"></a>
+<a name="appendix"></a>
 # Appendix
 ## A1. Scopes
 As the default, 7 scopes are set in ggsrun as follows.
@@ -1811,7 +1841,7 @@ Here, it introduces a Quickstart for ggsrun. So please also check [the detail in
 
 ---
 
-<a name="Q&A"></a>
+<a name="qa"></a>
 # Q&A
 If your GAS script has errors when it executes at Google, it shows "Script Error on GAS side:". At that time, you can check your script. If it shows "Error:" without "GAS", that's the error inside ggsrun.
 
@@ -1819,16 +1849,16 @@ When you executed a GAS script, if an error occurred, please check the strings w
 
 When an error occurs on ggsrun, solutions for most errors will be provided from ggsrun. However, also I think that there are errors I have never known. If you noticed bugs and errors of ggsrun, I'm glad when you tell me them. I would like to modify them. If the errors occur for your scripts when you use ggsrun, I think that modifying the errors will lead to the growth of this tool.
 
-<a name="QA1"></a>
+<a name="qa1"></a>
 #### 1. [Authorization for Google Services](https://developers.google.com/apps-script/guides/services/authorization) for your script
 - When you execute your GAS script, Authorization for Google Services may be required. At that time, only one time, please execute your script on Script Editor with the project installed the ggsrun server. And please auth Authorization for Google Services. After this, you can execute your script using ggsrun.
 
-<a name="QA2"></a>
+<a name="qa2"></a>
 #### 2. In the case that result is ``Script Error on GAS side: Insufficient Permission``
 - Please confirm [Authorization for Google Services](https://developers.google.com/apps-script/guides/services/authorization) for the script you use on Script Editor.
 - Please confirm about API you want to use at [Google API Console](https://console.developers.google.com).
 
-<a name="QA3"></a>
+<a name="qa3"></a>
 #### 3. In the case that a following error occurs
 ```
 Error: Status Code: 404.
@@ -1846,13 +1876,13 @@ Please confirm following settings.
 - Whether for the project installed ggsrun server,  API executable has been deployed as latest version.
 - After deployed API executable, each script in the project has been saved. This is important point!
 
-<a name="QA4"></a>
+<a name="qa4"></a>
 #### 4. In the case that a following error occurs
 "**Script Error on GAS side: Script has attempted to perform an action that is not allowed when invoked through the Google Apps Script Execution API.**"
 
 When it uses ``exe1`` or ``exe2``, there is a case to see the error. That is one of [limitations](https://developers.google.com/apps-script/guides/rest/api#limitations) for ``exe1`` or ``exe2``. So please try to execute the same script using ``webapps``. It might be able to use.
 
-<a name="QA5"></a>
+<a name="qa5"></a>
 #### 5. In the case that a following error occurs
 Please be careful for ``;`` of end of each line of the script.
 When I have been creating sample GAS scripts for ggsrun, following error often occurred.
@@ -1865,11 +1895,11 @@ In such case, please confirm whether ``;`` with end of each line in the script i
 
 <u>When I had been developing applications using CoffeeScript and ggsrun, I have never seen above error yet.</u>
 
-<a name="QA6"></a>
+<a name="qa6"></a>
 #### 6. Library
 You can use various libraries for GAS by ggsrun. But there are one limitation. When you want to use libraries, please add them to the project with server, and execute scripts using ``exe1`` mode. At ``exe2`` mode, additional library cannot be used, because the mode executes on the server script.
 
-<a name="QA7"></a>
+<a name="qa7"></a>
 #### 7. Order of directories for searching
 - About the order of directories for searching ``client_secret.json`` and ``ggsrun.cfg``, at first, files are searched in the current working directory, and next, they are searched in the directory declared by the environment variable of ``GGSRUN_CFG_PATH``.
 - About uploading and downloded files, the current working directory is used as the default.
@@ -1878,4 +1908,4 @@ You can use various libraries for GAS by ggsrun. But there are one limitation. W
 # Update History
 You can see the Update History at **[here](UpdateHistory.md)**.
 
-[TOP](#TOP)
+[TOP](#top)

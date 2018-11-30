@@ -3,6 +3,7 @@
 package utl
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,18 @@ type RequestParams struct {
 	ContentRange  string
 	Accesstoken   string
 	Dtime         int64
+}
+
+// errHandlingFromFetch : Add error messages to Msgar.
+func (p *FileInf) errHandlingFromFetch(body []byte) {
+	var em map[string]interface{}
+	json.Unmarshal(body, &em)
+	erMsgBase1 := em["error"].(map[string]interface{})
+	erMsgBase2 := erMsgBase1["errors"].([]interface{})[0].(map[string]interface{})
+	erCode := erMsgBase1["code"].(float64)
+	erLoc := erMsgBase2["location"].(string)
+	erMsg := erMsgBase2["message"].(string)
+	p.Msgar = append(p.Msgar, fmt.Sprintf("Status code is %d, location is '%s', Error message is '%s'.", int(erCode), erLoc, erMsg))
 }
 
 // FetchAPI : For fetching data to URL.

@@ -31,6 +31,7 @@ Features of "ggsrun" are as follows.
 1. **[Retrieve revision files of Google Docs and retrieve versions of projects.](help/README.md#revisionfile)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Rearranges scripts in project.](help/README.md#rearrangescripts)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Modifies Manifests in project.](help/README.md#modifymanifests)**
+1. **[Seach files in Google Drive using search query and regex](help/README.md#searchfilesusingregex)** <sup><font color="Red">Updated! (v1.6.0)</font></sup>
 
 <a name="howtoinstall"></a>
 # How to Install
@@ -49,13 +50,13 @@ $ go get -u github.com/tanaikech/ggsrun
 ## 2. Basic setting flow
 When you click each link of title, you can see the detail information.
 
-1. [Setup ggsrun Server (at Google side)](help/README.md#Setup_ggsrun_Server)
+1. [Setup ggsrun Server (at Google side)](help/README.md#setupggsrunserver)
     - Create new project and install the server as a library.
     - [Deploy API executable](https://developers.google.com/apps-script/api/how-tos/execute#step_1_deploy_the_script_as_an_api_executable). Choose "Only myself" as "Who has access to the script"
     - [Install the server as a library.](https://developers.google.com/apps-script/guides/libraries#managing_libraries) Script ID of the library is
         - **``115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov``**
     - **<u>After installed the library, please push the save button at the script editor.</u>** This is very important! By this, the library is completely reflected.
-1. [Get Client ID, Client Secret](help/README.md#GetClientID)
+1. [Get Client ID, Client Secret](help/README.md#getclientid)
     - On the Script Editor
         - Resources -> Cloud Platform Project
         - Click the lower part of "This script is currently associated with project:"
@@ -74,7 +75,7 @@ When you click each link of title, you can see the detail information.
         - ``https://console.cloud.google.com/apis/api/drive.googleapis.com/?project=### project ID ###``
 1. [Create configure file for ggsrun](help/README.md#Createconfigurefile)
     - Run ``$ ggsrun auth`` at the directory with ``client_secret.json``.
-1. [Test Run](help/README.md#Runggsrun)
+1. [Test Run](help/README.md#runggsrun)
     - Create a sample script ``function main(){return Beacon()}`` as ``sample.gs``.
     - Run ``$ ggsrun e2 -s sample.gs -i [Script ID] -j``. Script ID is ID of the project installed the server.
 
@@ -95,33 +96,35 @@ Completed!
 
 # How to use ggsrun
 1. [Executes GAS and Retrieves Result Values](help/README.md#executesgasandretrievesresultvalues)
-1. [Executes GAS with Values and Retrieves Feedbacked Values](help/README.md#ExecutesGASwithValuesandRetrievesFeedbackedValues)
-1. [For Debug](help/README.md#ForDebug)
+1. [Executes GAS with Values and Retrieves Feedbacked Values](help/README.md#executesgaswithvaluesandretrievesfeedbackedvalues)
+1. [For Debug](help/README.md#fordebug)
 1. [Executes GAS with Values and Downloads File](help/README.md#executesgaswithvaluesanddownloadsfile)
 1. [Executes Existing Functions on Project](help/README.md#ExecutesExistingFunctionsonProject)
 1. [Download Files](help/README.md#downloadfiles)
 1. [Downloads all files and folders in a specific folder.](help/README.md#downloadfilesfromfolder)
 1. [Upload Files](help/README.md#uploadfiles)
-1. [Show File List](help/README.md#ShowFileList)
-1. [Search Files](help/README.md#SearchFiles)
+1. [Show File List](help/README.md#showfilelist)
+1. [Search Files](help/README.md#searchfiles)
 1. [Update Project](help/README.md#updateproject)
 1. [Retrieve Revision Files and Versions of Projects](help/README.md#revisionfile)
 1. [Rearrange Script in Project](help/README.md#rearrangescripts)
 1. [Modify Manifests](help/README.md#modifymanifests)
+1. [Seach Files using Query and Regex](help/README.md#searchfilesusingregex)
 
 # Applications
 1. [For Sublime Text](help/README.md#demosublime)
 1. [For CoffeeScript](help/README.md#coffeescript)
-1. [Create Triggers](help/README.md#CreateTriggers)
-1. [Link to Python script](help/README.md#LinktoVariousResources)
+1. [Create Triggers](help/README.md#createtriggers)
+1. [Link to Python script](help/README.md#linktovariousresources)
 
-# [Q&A](help/README.md#Q&A)
-1. [Authorization for Google Services for your script](help/README.md#QA1)
-1. [In the case that result is "Script Error on GAS side: Insufficient Permission"](help/README.md#QA2)
-1. [In the case that result is "message": "Requested entity was not found."](help/README.md#QA3)
-1. [In the case that result is "Script Error on GAS side: Script has attempted to perform an action that is not allowed when invoked through the Google Apps Script Execution API."](help/README.md#QA4)
-1. [In the case that result is "Missing ';' before statement."](help/README.md#QA5)
-1. [About library](help/README.md#QA6)
+# [Q&A](help/README.md#qa)
+1. [Authorization for Google Services for your script](help/README.md#qa1)
+1. [In the case that result is "Script Error on GAS side: Insufficient Permission"](help/README.md#qa2)
+1. [In the case that result is "message": "Requested entity was not found."](help/README.md#qa3)
+1. [In the case that result is "Script Error on GAS side: Script has attempted to perform an action that is not allowed when invoked through the Google Apps Script Execution API."](help/README.md#qa4)
+1. [In the case that result is "Missing ';' before statement."](help/README.md#qa5)
+1. [About library](help/README.md#qa6)
+1. [Order of directories for searching](help/README.md#qa7)
 
 ---
 

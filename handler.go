@@ -102,6 +102,17 @@ func showFileList(c *cli.Context) error {
 	return nil
 }
 
+// searchFilesByQueryAndRegex : Search files on Google Drive using search query and regex.
+func searchFilesByQueryAndRegex(c *cli.Context) error {
+	res := defAuthContainer(c).
+		ggsrunIni(c).
+		goauth().
+		defDownloadContainer(c).
+		SearchFiles()
+	dispTransferResult(c, res)
+	return nil
+}
+
 // reAuth : Retrieve tokens again.
 func reAuth(c *cli.Context) error {
 	defAuthContainer(c).

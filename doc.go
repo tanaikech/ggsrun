@@ -30,6 +30,7 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 12. Modifies Manifests in project.
 
+13. Seach files in Google Drive using search query and regex
 
 You can see the release page https://github.com/tanaikech/ggsrun/releases
 

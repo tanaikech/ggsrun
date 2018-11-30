@@ -372,6 +372,9 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 		ShowFileInf:     c.Bool("showfilelist"),
 		Skip:            c.Bool("skip"),
 		Zip:             c.Bool("zip"),
+		SearchQuery:     c.String("query"),
+		SearchFields:    c.String("fields"),
+		SearchRegex:     c.String("regex"),
 	}
 	return p
 }

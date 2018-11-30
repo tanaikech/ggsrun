@@ -47,14 +47,19 @@ type FileInf struct {
 	FileSize          string            `json:"size,omitempty"`
 	WebLink           string            `json:"webContentLink,omitempty"`
 	WebView           string            `json:"webViewLink,omitempty"`
-	CreatedTime       time.Time         `json:"createdTime,omitempty"`
-	ModifiedTime      time.Time         `json:"modifiedTime,omitempty"`
+	CreatedTime       *time.Time        `json:"createdTime,omitempty"`
+	ModifiedTime      *time.Time        `json:"modifiedTime,omitempty"`
 	UppedFiles        []uploadedFile    `json:"uploaded_files,omitempty"`
 	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
 	Owners            []owners          `json:"owners,omitempty"`
 	Msgar             []string          `json:"message,omitempty"`
 	TotalEt           float64           `json:"TotalElapsedTime,omitempty"`
 	FolderTree        *fileListDl       `json:"folderTreeWithFiles,omitempty"`
+	SearchQuery       string            `json:"query,omitempty"`
+	SearchFields      string            `json:"fields,omitempty"`
+	SearchRegex       string            `json:"regex,omitempty"`
+	SearchedFiles     []fileS           `json:"searchedFiles,omitempty"`
+	SearchedResult    string            `json:"searchedResult,omitempty"`
 
 	Accesstoken     string    `json:"-"`
 	BoundScriptName string    `json:"-"`
@@ -125,31 +130,49 @@ type newProject struct {
 
 // fileS : Structure of a file information.
 type fileS struct {
-	ID                string    `json:"id,omitempty"`
-	Name              string    `json:"name,omitempty"`
-	MimeType          string    `json:"mimeType,omitempty"`
-	Parents           []string  `json:"parents,omitempty"`
-	CreatedTime       time.Time `json:"createdTime,omitempty"`
-	ModifiedTime      time.Time `json:"modifiedTime,omitempty"`
-	FullFileExtension string    `json:"fullFileExtension,omitempty"`
-	Size              string    `json:"size,omitempty"`
-	WebLink           string    `json:"webContentLink,omitempty"`
-	WebView           string    `json:"webViewLink,omitempty"`
-	Owners            []owners  `json:"owners,omitempty"`
-	Shared            bool      `json:"shared"`
+	Kind              string     `json:"kind,omitempty"`
+	ID                string     `json:"id,omitempty"`
+	Name              string     `json:"name,omitempty"`
+	MimeType          string     `json:"mimeType,omitempty"`
+	Starred           bool       `json:"starred,omitempty"`
+	Trashed           bool       `json:"trashed,omitempty"`
+	ExplicitlyTrashed bool       `json:"explicitlyTrashed,omitempty"`
+	Parents           []string   `json:"parents,omitempty"`
+	CreatedTime       *time.Time `json:"createdTime,omitempty"`
+	ModifiedTime      *time.Time `json:"modifiedTime,omitempty"`
+	ModifiedByMeTime  *time.Time `json:"modifiedByMeTime,omitempty"`
+	ModifiedByMe      bool       `json:"modifiedByMe,omitempty"`
+	FullFileExtension string     `json:"fullFileExtension,omitempty"`
+	Size              string     `json:"size,omitempty"`
+	Version           string     `json:"version,omitempty"`
+	HasThumbnail      bool       `json:"hasThumbnail,omitempty"`
+	ThumbnailVersion  string     `json:"thumbnailVersion,omitempty"`
+	ViewedByMe        bool       `json:"viewedByMe,omitempty"`
+	WebLink           string     `json:"webContentLink,omitempty"`
+	WebView           string     `json:"webViewLink,omitempty"`
+	Owners            []owners   `json:"owners,omitempty"`
+	Shared            bool       `json:"shared,omitempty"`
 	Permissions       []struct {
-		Kind         string `json:"kind"`
-		ID           string `json:"id"`
-		Type         string `json:"type"`
-		EmailAddress string `json:"emailAddress"`
-		Role         string `json:"role"`
-		DisplayName  string `json:"displayName"`
-		PhotoLink    string `json:"photoLink"`
-		Deleted      bool   `json:"deleted"`
+		Kind         string `json:"kind,omitempty"`
+		ID           string `json:"id,omitempty"`
+		Type         string `json:"type,omitempty"`
+		EmailAddress string `json:"emailAddress,omitempty"`
+		Role         string `json:"role,omitempty"`
+		DisplayName  string `json:"displayName,omitempty"`
+		PhotoLink    string `json:"photoLink,omitempty"`
+		Deleted      bool   `json:"deleted,omitempty"`
 	} `json:"permissions,omitempty"`
-	Path              string            `json:"path,omitempty"`
-	OutMimeType       string            `json:"outMimeType,omitempty"`
-	LastModifyingUser *lastmodifieduser `json:"lastModifyingUser,omitempty"`
+	OwnedByMe                    bool              `json:"ownedByMe,omitempty"`
+	ViewersCanCopyContent        bool              `json:"viewersCanCopyContent,omitempty"`
+	CopyRequiresWriterPermission bool              `json:"copyRequiresWriterPermission,omitempty"`
+	WritersCanShare              bool              `json:"writersCanShare,omitempty"`
+	PermissionIds                []string          `json:"permissionIds,omitempty"`
+	FolderColorRgb               string            `json:"folderColorRgb,omitempty"`
+	QuotaBytesUsed               string            `json:"quotaBytesUsed,omitempty"`
+	IsAppAuthorized              bool              `json:"isAppAuthorized,omitempty"`
+	Path                         string            `json:"path,omitempty"`
+	OutMimeType                  string            `json:"outMimeType,omitempty"`
+	LastModifyingUser            *lastmodifieduser `json:"lastModifyingUser,omitempty"`
 }
 
 // fileListSt : File list.
@@ -167,10 +190,7 @@ type fileUploaderMeta struct {
 
 // uploadedFile : For uploading files.
 type uploadedFile struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	MimeType string   `json:"mimeType"`
-	Parents  []string `json:"parents,omitempty"`
+	fileS
 }
 
 //dispDup : For duplicating values.
@@ -482,9 +502,9 @@ func (p *FileInf) deleteFile(id string) {
 		Accesstoken: p.Accesstoken,
 		Dtime:       30,
 	}
-	_, err := r.FetchAPI()
+	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	return
@@ -632,7 +652,7 @@ func defFormat(mime string) (string, string) {
 // scriptUploader : For uploading scripts.
 func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *FileInf {
 	tokenparams := url.Values{}
-	tokenparams.Set("fields", "id,mimeType,name,parents")
+	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 	part := make(textproto.MIMEHeader)
@@ -667,7 +687,7 @@ func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *Fi
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v.\n%v\n", err, string(body))
+		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -702,7 +722,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 		}
 	}
 	tokenparams := url.Values{}
-	tokenparams.Set("fields", "id,mimeType,name,parents")
+	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 	part := make(textproto.MIMEHeader)
@@ -739,7 +759,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n%v\n", err, string(body))
+		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -1077,12 +1097,14 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 
 // GetListLoop : Loop for retrieving file list.
 func (p *FileInf) GetListLoop(q, fields string) fileListSt {
+	var err error
+	var body []byte
 	var fm fileListSt
 	var fl fileListSt
 	var dmy fileListSt
 	fm.NextPageToken = ""
 	for {
-		body, err := p.getList(fm.NextPageToken, q, fields)
+		body, err = p.getList(fm.NextPageToken, q, fields)
 		json.Unmarshal(body, &fl)
 		fm.NextPageToken = fl.NextPageToken
 		fm.Files = append(fm.Files, fl.Files...)
@@ -1091,6 +1113,9 @@ func (p *FileInf) GetListLoop(q, fields string) fileListSt {
 		if len(fm.NextPageToken) == 0 || err != nil {
 			break
 		}
+	}
+	if err != nil {
+		p.errHandlingFromFetch(body)
 	}
 	return fm
 }

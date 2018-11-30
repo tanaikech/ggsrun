@@ -134,6 +134,11 @@ ggsrun
     1. About [uploading files](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#uploadfiles), when files are uploaded from your local PC, the files got to be able to be converted to Google Docs. For this, new option of ``--convertto``, ``-c`` is added. For example, when a text file is uploaded, if you use ``-c doc``, the text file is uploaded as Google Document.
         - ``$ ggsrun u -f [fileName] -c doc -j``
 
+<a name="v160"></a>
+* v1.6.0 (November 30, 2018)
+    1. Although at ggsrun, files can be searched by filename and file ID, searching files using search query and regex couldn't be done. From version 1.6.0, files got to be able to be searched using the search query and regex.
+        - ``$ ggsrun sf -q "### search query ###" -f "### fields ###" -r "### regex ###"``
+    1. Some modifications.
 
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
 
