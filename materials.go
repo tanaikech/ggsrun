@@ -44,13 +44,14 @@ const (
 
 // InitVal : Initial values
 type InitVal struct {
-	pstart  time.Time
-	workdir string
-	cfgdir  string
-	usedDir string // "work" for working directory or "env" for directory declared by the environment variable.
-	update  bool
-	log     bool
-	Port    int
+	pstart            time.Time
+	workdir           string
+	cfgdir            string
+	usedDir           string // "work" for working directory or "env" for directory declared by the environment variable.
+	update            bool
+	log               bool
+	Port              int
+	useServiceAccount string
 }
 
 // ResMsg : Response message also included errors
@@ -301,6 +302,9 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 		"https://www.googleapis.com/auth/spreadsheets",
 		"https://www.googleapis.com/auth/script.projects",
 	}
+
+	// Use Service Account
+	a.useServiceAccount = c.String("serviceaccount")
 	return a
 }
 
@@ -351,11 +355,12 @@ func defExecutionContainerWebApps() *ExecutionContainer {
 // DefDownloadContainer : Struct container for downloading files
 func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 	p := &utl.FileInf{
-		Msgar:       a.Msg,
-		Accesstoken: a.GgsrunCfg.Accesstoken,
-		Workdir:     a.InitVal.workdir,
-		PstartTime:  a.InitVal.pstart,
-		FileID:      c.String("fileid"),
+		Msgar:             a.Msg,
+		Accesstoken:       a.GgsrunCfg.Accesstoken,
+		Workdir:           a.InitVal.workdir,
+		PstartTime:        a.InitVal.pstart,
+		UseServiceAccount: a.InitVal.useServiceAccount,
+		FileID:            c.String("fileid"),
 		ProjectID: func(c *cli.Context) string {
 			id := c.String("projectid")
 			if c.String("fileid") != "" && c.String("projectid") != "" {
@@ -375,6 +380,12 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 		SearchQuery:     c.String("query"),
 		SearchFields:    c.String("fields"),
 		SearchRegex:     c.String("regex"),
+		InputtedMimeType: func(mime string) []string {
+			if mime != "" {
+				return regexp.MustCompile(`\s*,\s*`).Split(mime, -1)
+			}
+			return nil
+		}(c.String("mimetype")),
 	}
 	return p
 }
@@ -382,10 +393,11 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 // DefUploadContainer : Struct container for uploading files
 func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 	p := &utl.FileInf{
-		Msgar:       a.Msg,
-		Accesstoken: a.GgsrunCfg.Accesstoken,
-		Workdir:     a.InitVal.workdir,
-		PstartTime:  a.InitVal.pstart,
+		Msgar:             a.Msg,
+		Accesstoken:       a.GgsrunCfg.Accesstoken,
+		Workdir:           a.InitVal.workdir,
+		PstartTime:        a.InitVal.pstart,
+		UseServiceAccount: a.InitVal.useServiceAccount,
 		ChunkSize: func(chnk int64) int64 {
 			if chnk < 1 {
 				return 1048576
@@ -468,4 +480,21 @@ func (e *ExecutionContainer) adaptProjectForAppsScriptApi() *ExecutionContainer 
 		e.Project.Files[i].LastModifyUser = nil
 	}
 	return e
+}
+
+// defPermissionsContainer : Struct container for managing permissions
+func (a *AuthContainer) defPermissionsContainer(c *cli.Context) *utl.FileInf {
+	p := a.defDownloadContainer(c)
+	p.PermissionInfo.FileID = c.String("fileid")
+	p.PermissionInfo.PermissionID = c.String("permissionid")
+	p.PermissionInfo.Role = c.String("role")
+	p.PermissionInfo.Type = c.String("type")
+	p.PermissionInfo.Emailaddress = c.String("emailaddress")
+	p.PermissionInfo.Transferownership = c.Bool("transferownership")
+	p.PermissionInfo.CreateObject = c.String("createbyobject")
+	p.PermissionInfo.DeleteObject = c.String("deletebyobject")
+	p.PermissionInfo.UpdateObject = c.String("updatebyobject")
+	p.PermissionInfo.Create = c.Bool("create")
+	p.PermissionInfo.Delete = c.Bool("delete")
+	return p
 }

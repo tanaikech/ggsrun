@@ -265,8 +265,19 @@ func (p *FileInf) getFilesFromFolder(folderTree *folderTree) *fileListDl {
 	f.SearchedFolder.CreatedTime = p.CreatedTime
 	f.SearchedFolder.ModifiedTime = p.ModifiedTime
 	f.FolderTree = folderTree
+	var mType string
+	if len(p.InputtedMimeType) > 0 {
+		for i, e := range p.InputtedMimeType {
+			if i == 0 {
+				mType = " and (mimeType='" + e + "'"
+				continue
+			}
+			mType += " or mimeType='" + e + "'"
+		}
+		mType += ")"
+	}
 	for i, id := range folderTree.Folders {
-		q := "'" + id + "' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false"
+		q := "'" + id + "' in parents and mimeType != 'application/vnd.google-apps.folder' and trashed=false" + mType
 		fields := "files(createdTime,description,id,mimeType,modifiedTime,name,owners,parents,permissions,shared,size,webContentLink,webViewLink),nextPageToken"
 		fm := p.GetListLoop(q, fields)
 		var fe fileListEle
@@ -388,10 +399,13 @@ func (p *FileInf) getOwner() bool {
 // DlFolders : Main method for downloading folders
 func (p *FileInf) DlFolders() error {
 	if p.Progress {
-		fmt.Printf("Files are downloaded from a folder '%s'.\n", p.FileName)
+		if p.ShowFileInf {
+			fmt.Printf("File finformation is retrieved from a folder '%s'.\n", p.FileName)
+		} else {
+			fmt.Printf("Files are downloaded from a folder '%s'.\n", p.FileName)
+		}
 		fmt.Println("Getting values to download.")
 	}
-	p.Msgar = append(p.Msgar, fmt.Sprintf("Files were downloaded from folder '%s'.", p.FileName))
 	folT := &folderTree{}
 	if p.getOwner() {
 		q := "mimeType='application/vnd.google-apps.folder' and trashed=false"
@@ -407,8 +421,10 @@ func (p *FileInf) DlFolders() error {
 	p.dupChkFoldersFiles(fileList)
 	if p.ShowFileInf {
 		p.FolderTree = fileList
+		p.Msgar = append(p.Msgar, fmt.Sprintf("File list in folder '%s' was retrieved.", p.FileName))
 		return nil
 	}
+	p.Msgar = append(p.Msgar, fmt.Sprintf("Files were downloaded from folder '%s'.", p.FileName))
 	dlres := p.initDownload(fileList)
 	if dlres != nil {
 		return dlres

@@ -34,6 +34,10 @@ ggsrun
     - Retrieve Revision Files and Versions of Projects
     - Rearrange Script in Project
     - Modify Manifests
+    - Seach Files using Query and Regex
+    - Manage Permissions
+    - Get Drive Information
+    - Use Service Account
 - [Applications](#applications)
     - For Sublime Text
     - For CoffeeScript
@@ -84,6 +88,12 @@ Features of "ggsrun" are as follows.
 1. **[Modifies Manifests in project.](#modifymanifests)**
 
 1. **[Seach files in Google Drive using search query and regex](#searchfilesusingregex)**
+
+1. **[Manage Permissions of files](#managepermissions)**
+
+1. **[Get Drive Information.](#getdriveinformation)**
+
+1. **[ggsrun got to be able to be used by not only OAuth2, but also Service Account.](#useserviceaccount)**
 
 You can see the release page [here](https://github.com/tanaikech/ggsrun/releases).
 
@@ -920,7 +930,7 @@ $ ggsrun d --deletefile [fileId]
 
 <a name="downloadfilesfromfolder"></a>
 ### 6-1. Download All Files and Folders in Specific Folder
-From version 1.5.0, ggsrun got to be able to download all files and folders in the specific folder in Google Drive. The same folder structure of Google Drive is created to the local PC.
+From version 1.5.0, ggsrun got to be able to download all files and folders in the specific folder in Google Drive. The same folder structure of Google Drive is created to the local PC. In this function, when the folder is shared by other account, ggsrun can also download all files with the folder structure from the shared folder.
 
 **Run :**
 
@@ -1191,8 +1201,38 @@ Result includes file name, file id, modified time and URL.
 
 > **Search of scripts :** You can search standalone scripts using filename and fileId. But the container-bound scripts cannot be searched by filename, while it can be searched by fileId. Because parentId cannot be retrieved using Apps Script API yet. About this, I reported about this to [Google Issue Tracker](https://issuetracker.google.com/issues/71941200).
 
+<a name="searchfilesusingregex"></a>
+## 10. Seach Files using Query and Regex
+Although at ggsrun, files can be searched by filename and file ID, searching files using [search query](https://developers.google.com/drive/api/v3/search-parameters) and regex couldn't be done. From version 1.6.0, files got to be able to be searched using the search query and regex.
+
+The flow of this function is as follows.
+
+1. Retrieve all files in Google Drive using the search query and fields.
+1. Retrieve files from the retrieved files using regex.
+    - Regex is used to the filename.
+
+The command is as follows.
+
+~~~bash
+$ ggsrun sf -q "### search query ###" -f "### fields ###" -r "### regex ###"
+~~~
+
+- Search query: [Document](https://developers.google.com/drive/api/v3/search-parameters)
+- Fields: [Document](https://developers.google.com/drive/api/v3/reference/files#resource)
+- Regex: [Document](https://github.com/google/re2/wiki/Syntax)
+
+#### Sample command
+~~~bash
+ggsrun sf \
+  -q "mimeType='application/vnd.google-apps.spreadsheet'" \
+  -f "files(id,name)" \
+  -r "sample\d{1}"
+~~~
+
+This command retrieves files with Google Spreadsheet and the filename of ``sample#`` (``#`` is 0-9.). The file ID and filename of files are returned.
+
 <a name="updateproject"></a>
-## 10. Update Project
+## 11. Update Project
 It updates existing project on Google Drive. You can update standalone script and container-bound script.
 
 **Run :**
@@ -1221,7 +1261,7 @@ In this demonstration, create new Spreadsheet and upload 5 files as new project 
 
 
 <a name="revisionfile"></a>
-## 11. Retrieve Revision Files and Versions of Projects
+## 12. Retrieve Revision Files and Versions of Projects
 It retrieves revisions for files on Google Drive and retrieves versions for projects.
 
 **Display revision and version ID list for file ID :**
@@ -1272,7 +1312,7 @@ $ ggsrun r -i [File ID] -cv [description of version]
 
 
 <a name="rearrangescripts"></a>
-## 12. Rearrange Script in Project
+## 13. Rearrange Script in Project
 Have you ever thought about rearranging Google Apps Scripts in a project which can be seen at the script editor? I also have thought about it. Finally, I could find the workaround to do it. From ggsrun with v1.3.2, scripts in a project can be rearranged. And also, from v1.4.0, it gets to be able to rearrange both standalone script and container-bound script.
 
 If you want to rearrange using a GUI application, please check [RearrangeScripts](https://github.com/tanaikech/RearrangeScripts).
@@ -1336,7 +1376,7 @@ In this demonstration, scripts in a project is intaractively rearranged. After r
 If you want to use add-on created by Google Apps Script. Please check [here](https://github.com/tanaikech/RearrangeScripts).
 
 <a name="modifymanifests"></a>
-## 13. Modify Manifests
+## 14. Modify Manifests
 [At October 24, 2017, "Manifests" which is new function for controlling the properties of Google Apps Script was added (GAS).](https://developers.google.com/apps-script/) You can see the detail of "Manifests" [here](https://developers.google.com/apps-script/concepts/manifests). The manifests can be seen as the following flow.
 
 - On the script editor.
@@ -1406,35 +1446,150 @@ Awesome points of Manifests that I think are below.
 
 In this demonstration, Advanced Google Services are modified by modifying the manifests.
 
-<a name="searchfilesusingregex"></a>
-## 14. Seach Files using Query and Regex
-Although at ggsrun, files can be searched by filename and file ID, searching files using [search query](https://developers.google.com/drive/api/v3/search-parameters) and regex couldn't be done. From version 1.6.0, files got to be able to be searched using the search query and regex.
+<a name="managepermissions"></a>
+## 15. Manage Permissions
+In the current stage, ggsrun can get, create and delete permissions.
 
-The flow of this function is as follows.
-
-1. Retrieve all files in Google Drive using the search query and fields.
-1. Retrieve files from the retrieved files using regex.
-    - Regex is used to the filename.
-
-The command is as follows.
-
+##### Get permission list
 ~~~bash
-$ ggsrun sf -q "### search query ###" -f "### fields ###" -r "### regex ###"
+$ ggsrun p -fi ### fileId ###
 ~~~
 
-- Search query: [Document](https://developers.google.com/drive/api/v3/search-parameters)
-- Fields: [Document](https://developers.google.com/drive/api/v3/reference/files#resource)
-- Regex: [Document](https://github.com/google/re2/wiki/Syntax)
-
-#### Sample command
+##### Get permissions
 ~~~bash
-ggsrun sf \
-  -q "mimeType='application/vnd.google-apps.spreadsheet'" \
-  -f "files(id,name)" \
-  -r "sample\d{1}"
+$ ggsrun p -fi "### fileId ###" -pi "### permissionId ###"
 ~~~
 
-This command retrieves files with Google Spreadsheet and the filename of ``sample#`` (``#`` is 0-9.). The file ID and filename of files are returned.
+##### Create permissions
+~~~bash
+$ ggsrun p -c -fi "### fileId ###" -role writer -type user -email "### email ###"
+~~~
+
+##### Delete permissions
+~~~bash
+$ ggsrun p -d -fi "### fileId ###" -pi "### permissionId ###"
+~~~
+
+
+<a name="getdriveinformation"></a>
+## 16. Get Drive Information
+When a Service Account is created, new storage of Google Drive (15 GB for free account) is given. This storage quota is different from that of own account. So it is required to know the drive information.
+
+**For OAuth 2** : In this command, you can retrieve the drive information of own account.
+
+~~~bash
+$ ggsrun di
+~~~
+
+**For Service Account** : In this command, you can retrieve the drive information of Service account.
+
+~~~bash
+$ ggsrun di -sa credentials.json
+~~~
+
+#### Returned value
+Default fields are ``storageQuota,user``. Of course, you can modify fields using the option of ``^f``.
+
+~~~
+{
+  "storageQuota": {
+    "limit": "#####",
+    "usage": "#####",
+    "usageInDrive": "#####",
+    "usageInDriveTrash": "#####"
+  },
+  "user": {
+    "displayName": "#####",
+    "emailAddress": "#####",
+    "kind": "drive#user",
+    "me": true,
+    "permissionId": "#####",
+    "photoLink": "#####" // When service account is used, this property is not included.
+  }
+}
+~~~
+
+
+<a name="useserviceaccount"></a>
+## 17. Use Service Account
+From version 1.7.0, ggsrun got to be able to access to Google Drive using Service Account. About Service Account, please check [here](https://developers.google.com/identity/protocols/OAuth2ServiceAccount).
+
+- When OAuth2 is used, you can see the files and folders in own Google Drive.
+- When Service Account is used, you can see them in Google Drive for Service Account.
+
+Namely, the Drive for OAuth2 is different from that for Service Account. Please be careful this. And there are several limitations for using Service Account.
+
+1. [Service Account cannot use Google Apps Script API.](https://developers.google.com/apps-script/api/concepts/)
+1. When Service Account is used, scripts cannot be also uploaded, downloaded and updated using Drive API.
+
+By above, scripts cannot be uploaded, downloaded, updated and executed using Service Account.
+
+On the other hand, what Service Account can do with ggsrun is as follows.
+
+### Options for Service Account
+Basically, when you use Service Account, please add an option of ``-sa credentials.json``. ``-sa`` and ``credentials.json`` are the option for using Service Account and JSON file including credentials retrieved by creating Service Account, respectively.
+
+#### 1. Get file list of Google Drive
+
+~~~bash
+$ ggsrun ls -sa credentials.json -s
+~~~
+
+or
+
+~~~bash
+$ ggsrun d -sa credentials.json -i root -l
+~~~
+
+By this, the metadata of all files in Google Drive of Service Account can be retrieved.
+
+
+#### 2. Download files
+~~~bash
+$ ggsrun d -sa credentials.json -f sample.txt
+~~~
+
+#### 3. Upload files
+~~~bash
+$ ggsrun u -sa credentials.json -f sample.txt
+~~~
+
+#### 4. Search files
+~~~bash
+$ ggsrun sf -sa credentials.json -q "name contains 'sample'"
+~~~
+
+#### 5. Manage permissions of files
+When Service Account is used, the management of permissions of files is important. So I added this. In the current stage, ggsrun can get, create and delete permissions.
+
+##### Get permission list
+~~~bash
+$ ggsrun p -sa credentials.json -fi ### fileId ###
+~~~
+
+##### Get permissions
+~~~bash
+$ ggsrun p -sa credentials.json -fi "### fileId ###" -pi "### permissionId ###"
+~~~
+
+##### Create permissions
+~~~bash
+$ ggsrun p -sa credentials.json -c -fi "### fileId ###" -role writer -type user -email "### email ###"
+~~~
+
+##### Delete permissions
+~~~bash
+$ ggsrun p -sa credentials.json -d -fi "### fileId ###" -pi "### permissionId ###"
+~~~
+
+#### 6. Get Drive information
+When a Service Account is created, new storage of Google Drive (15 GB for free account) is given. This storage quota is different from that of own account. So it is required to know the drive information.
+
+~~~bash
+$ ggsrun di -sa credentials.json
+~~~
+
+If the command of ``$ ggsrun di`` is run, the drive information with OAuth2 (own account) can be retrieved.
 
 ---
 <a name="applications"></a>

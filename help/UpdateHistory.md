@@ -111,6 +111,7 @@ ggsrun
             - This means that a file with filename is uploaded by each chunk of 10 MB.
 
 <a name="v150"></a>
+
 * v1.5.0 (October 27, 2018)
     1. [From this version, ggsrun got to be able to download all files and folders in the specific folder in Google Drive.](README.md#downloadfilesfromfolder) When all files are downloaded from a folder, the same folder structure of Google Drive is created to the local PC.
         - ``$ ggsrun d -f folderName or folderId``
@@ -123,11 +124,13 @@ ggsrun
     1. Some modifications.
 
 <a name="v151"></a>
+
 * v1.5.1 (November 2, 2018)
     1. Removed a bug.
         - When a file information was retrieved, createdTime and modifiedTime couldn't be seen and the information was incomplete.
 
 <a name="v152"></a>
+
 * v1.5.2 (November 4, 2018)
     1. About [downloading folders](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#downloadfilesfromfolder), when files are downloaded from a folder, you can download Google Docs files with the mimeType you want. For example, when you download files from the folder, if ``-e txt`` is used, Google Docs are downloaded as the text file. When ``-e pdf`` is used, they are downloaded as the PDF file. Of course, there are mimeType which cannot be converted.
         - ``$ ggsrun d -f [folderName] -e txt -j``
@@ -135,12 +138,22 @@ ggsrun
         - ``$ ggsrun u -f [fileName] -c doc -j``
 
 <a name="v160"></a>
+
 * v1.6.0 (November 30, 2018)
     1. Although at ggsrun, files can be searched by filename and file ID, searching files using search query and regex couldn't be done. From version 1.6.0, files got to be able to be searched using the search query and regex.
         - ``$ ggsrun sf -q "### search query ###" -f "### fields ###" -r "### regex ###"``
     1. Some modifications.
 
+<a name="v170"></a>
+
+* v1.7.0 (December 27, 2018)
+    1. [Manage permissions of files.](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#managepermissions)
+    1. [Get Drive Information.](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#getdriveinformation) By this, you can know the storage quotas.
+    1. [**ggsrun got to be able to be used by not only OAuth2, but also Service Account. By this, using ggsrun, Google Drive for Service Account got to be able to be managed.**](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#useserviceaccount)
+    1. Some modifications.
+
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
+
 
 ## Server
 * v1.0.0 (April 24, 2017)

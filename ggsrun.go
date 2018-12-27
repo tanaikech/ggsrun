@@ -14,8 +14,8 @@ func main() {
 	app.Name = appname
 	app.Author = "Tanaike [ https://github.com/tanaikech/ggsrun ] "
 	app.Email = "tanaike@hotmail.com"
-	app.Usage = "This is an application of Google Drive and Google Apps Script (GAS)."
-	app.Version = "1.6.0"
+	app.Usage = "This is a CLI application for managing Google Drive and Google Apps Script (GAS)."
+	app.Version = "1.7.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -159,6 +159,10 @@ func main() {
 					Name:  "extension, e",
 					Usage: "Extension (File format of downloaded file)",
 				},
+				cli.StringFlag{
+					Name:  "mimetype, m",
+					Usage: "mimeType (You can retrieve only files with the specific mimeType, when files are downloaded from a folder.) ex. '-m \"mimeType1,mimeType2\"'",
+				},
 				cli.BoolFlag{
 					Name:  "rawdata, r",
 					Usage: "Save a project with GAS scripts as raw data (JSON data).",
@@ -186,6 +190,10 @@ func main() {
 				cli.BoolFlag{
 					Name:  "jsonparser, j",
 					Usage: "Display results by JSON parser",
+				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
 				},
 			},
 		},
@@ -241,6 +249,10 @@ func main() {
 				cli.BoolFlag{
 					Name:  "jsonparser, j",
 					Usage: "Display results by JSON parser",
+				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
 				},
 			},
 		},
@@ -312,6 +324,10 @@ func main() {
 					Name:  "jsonparser, j",
 					Usage: "Display results by JSON parser",
 				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+				},
 			},
 		},
 		{
@@ -341,6 +357,10 @@ func main() {
 					Name:  "jsonparser, j",
 					Usage: "Display results by JSON parser",
 				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+				},
 			},
 		},
 		{
@@ -365,6 +385,81 @@ func main() {
 				cli.BoolFlag{
 					Name:  "jsonparser, j",
 					Usage: "Display results by JSON parser",
+				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+				},
+			},
+		},
+		{
+			Name:        "permissions",
+			Aliases:     []string{"p"},
+			Usage:       "Manage file permissions.",
+			Description: "In this mode, an access token is required.",
+			Action:      managePermissions,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "fileid, fi",
+					Usage: "Value is file ID. This value is required.",
+				},
+				cli.StringFlag{
+					Name:  "permissionid, pi",
+					Usage: "Value is permission ID. This ID can be retrieved by retrieving permission list.",
+				},
+				cli.BoolFlag{
+					Name:  "create, c",
+					Usage: "Create new permissions.",
+				},
+				cli.BoolFlag{
+					Name:  "delete, d",
+					Usage: "Delete permissions. fileId and permissionId are required.",
+				},
+				cli.StringFlag{
+					Name:  "role",
+					Usage: "The role granted by this permission. While new values may be supported in the future, the following are currently allowed: owner, organizer, fileOrganizer, writer, commenter, reader",
+				},
+				cli.StringFlag{
+					Name:  "type",
+					Usage: "The type of the grantee. Valid values are: user, group, domain, anyone",
+				},
+				cli.StringFlag{
+					Name:  "emailaddress, email",
+					Usage: "The email address of the user or group to which this permission refers.",
+				},
+				cli.BoolFlag{
+					Name:  "transferownership, transfer",
+					Usage: "Whether to transfer ownership to the specified user and downgrade the current owner to a writer. This parameter is required as an acknowledgement of the side effect. (Default: false)",
+				},
+				cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Display results by JSON parser",
+				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+				},
+			},
+		},
+		{
+			Name:        "driveinformation",
+			Aliases:     []string{"di"},
+			Usage:       "Get drive information.",
+			Description: "In this mode, an access token is required.",
+			Action:      getDriveInformation,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "fields, f",
+					Usage: "Fields for retrieving files.",
+					Value: "storageQuota,user",
+				},
+				cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Display results by JSON parser",
+				},
+				cli.StringFlag{
+					Name:  "serviceaccount, sa",
+					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
 				},
 			},
 		},

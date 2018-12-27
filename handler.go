@@ -113,6 +113,28 @@ func searchFilesByQueryAndRegex(c *cli.Context) error {
 	return nil
 }
 
+// managePermissions : Manage permissions.
+func managePermissions(c *cli.Context) error {
+	res := defAuthContainer(c).
+		ggsrunIni(c).
+		goauth().
+		defPermissionsContainer(c).
+		ManagePermissions()
+	dispTransferResult(c, res)
+	return nil
+}
+
+// getDriveInformation : Get drive information.
+func getDriveInformation(c *cli.Context) error {
+	res := defAuthContainer(c).
+		ggsrunIni(c).
+		goauth().
+		defDownloadContainer(c).
+		GetDriveInformation()
+	dispTransferResult(c, res)
+	return nil
+}
+
 // reAuth : Retrieve tokens again.
 func reAuth(c *cli.Context) error {
 	defAuthContainer(c).

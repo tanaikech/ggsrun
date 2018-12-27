@@ -30,7 +30,13 @@ Will you want to develop GAS on your local PC? Generally, when we develop GAS, w
 
 12. Modifies Manifests in project.
 
-13. Seach files in Google Drive using search query and regex
+13. Seach files in Google Drive using search query and regex.
+
+14. Manage Permissions of files.
+
+15. Get Drive Information.
+
+16. ggsrun got to be able to be used by not only OAuth2, but also Service Account from v1.7.0.
 
 You can see the release page https://github.com/tanaikech/ggsrun/releases
 

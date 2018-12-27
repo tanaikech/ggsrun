@@ -7,7 +7,7 @@ ggsrun
 
 <a name="Overview"></a>
 # Overview
-This is a CLI tool to execute Google Apps Script (GAS) on a terminal.
+This is a CLI tool to execute Google Apps Script (GAS) on a terminal. Also this CLI tool can be used for managing files in Google Drive for OAuth2 and Service Account.
 
 <a name="Demo"></a>
 # Demo
@@ -15,7 +15,7 @@ This is a CLI tool to execute Google Apps Script (GAS) on a terminal.
 
 <a name="Description"></a>
 # Description
-Will you want to develop GAS on your local PC? Generally, when we develop GAS, we have to login to Google using own browser and develop it on the Script Editor. Recently, I have wanted to have more convenient local-environment for developing GAS. So I created this "ggsrun". The main work is to execute GAS on local terminal and retrieve the results from Google.
+Will you want to develop GAS on your local PC? Generally, when we develop GAS, we have to login to Google using own browser and develop it on the Script Editor. Recently, I have wanted to have more convenient local-environment for developing GAS. So I created this "ggsrun". The main work is to execute GAS on local terminal and retrieve the results from Google. Furthermore, this tool can be also used for managing files in own Google Drive (OAuth2) and Google Drive for Service Account.
 
 Features of "ggsrun" are as follows.
 
@@ -32,6 +32,9 @@ Features of "ggsrun" are as follows.
 1. **[Rearranges scripts in project.](help/README.md#rearrangescripts)** <sup><font color="Red">Updated! (v1.4.0)</font></sup>
 1. **[Modifies Manifests in project.](help/README.md#modifymanifests)**
 1. **[Seach files in Google Drive using search query and regex](help/README.md#searchfilesusingregex)** <sup><font color="Red">Updated! (v1.6.0)</font></sup>
+1. **[Manage Permissions of files](help/README.md#managepermissions)** <sup><font color="Red">Updated! (v1.7.0)</font></sup>
+1. **[Get Drive Information.](help/README.md#getdriveinformation)** <sup><font color="Red">Updated! (v1.7.0)</font></sup>
+1. **[ggsrun got to be able to be used by not only OAuth2, but also Service Account.](help/README.md#useserviceaccount)** <sup><font color="Red">Updated! (v1.7.0)</font></sup>
 
 <a name="howtoinstall"></a>
 # How to Install
@@ -94,6 +97,11 @@ Please reauthorize to include a new scope to the access token as follows.
 
 Completed!
 
+<a name="from170"></a>
+# From version 1.7.0, ggsrun can access to Google Drive using Service Account. <sup><font color="Red">Updated! (v1.7.0)</font></sup>
+ggsrun can access to Google Drive using [Service Account](https://developers.google.com/identity/protocols/OAuth2ServiceAccount). When OAuth2 is used, you can see the files and folders in own Google Drive. When Service Account is used, you can see them in Google Drive for Service Account. Namely, the Drive for OAuth2 is different from that for Service Account. Please be careful this. And when Service Account is used, there are what it can do and what it can't do. About them, please read [here](help/README.md#useserviceaccount).
+
+
 # How to use ggsrun
 1. [Executes GAS and Retrieves Result Values](help/README.md#executesgasandretrievesresultvalues)
 1. [Executes GAS with Values and Retrieves Feedbacked Values](help/README.md#executesgaswithvaluesandretrievesfeedbackedvalues)
@@ -110,6 +118,9 @@ Completed!
 1. [Rearrange Script in Project](help/README.md#rearrangescripts)
 1. [Modify Manifests](help/README.md#modifymanifests)
 1. [Seach Files using Query and Regex](help/README.md#searchfilesusingregex)
+1. [Manage Permissions of files](#managepermissions)
+1. [Get Drive Information.](#getdriveinformation)
+1. [ggsrun got to be able to be used by not only OAuth2, but also Service Account.](#useserviceaccount)
 
 # Applications
 1. [For Sublime Text](help/README.md#demosublime)

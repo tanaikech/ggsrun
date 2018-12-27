@@ -24,6 +24,7 @@ import (
 )
 
 const (
+	driveapiv3          = "https://www.googleapis.com/drive/v3"
 	lurl                = "https://www.googleapis.com/drive/v3/files?"
 	driveapiurl         = "https://www.googleapis.com/drive/v3/files/"
 	driveapiurlv2       = "https://www.googleapis.com/drive/v2/files/"
@@ -60,27 +61,31 @@ type FileInf struct {
 	SearchRegex       string            `json:"regex,omitempty"`
 	SearchedFiles     []fileS           `json:"searchedFiles,omitempty"`
 	SearchedResult    string            `json:"searchedResult,omitempty"`
+	InputtedMimeType  []string          `json:"inputtedMimeType,omitempty"`
+	ReturnedResult    interface{}       `json:"returnedResult,omitempty"`
 
-	Accesstoken     string    `json:"-"`
-	BoundScriptName string    `json:"-"`
-	ChunkSize       int64     `json:"-"`
-	ConvertTo       string    `json:"-"`
-	DlMime          string    `json:"-"`
-	GoogleDocName   string    `json:"-"`
-	OverWrite       bool      `json:"-"`
-	Progress        bool      `json:"-"`
-	ProjectType     string    `json:"-"`
-	PstartTime      time.Time `json:"-"`
-	RawProject      bool      `json:"-"`
-	SearchByName    string    `json:"-"`
-	SearchByID      string    `json:"-"`
-	ShowFileInf     bool      `json:"-"`
-	Size            int64     `json:"-"`
-	Skip            bool      `json:"-"`
-	WantExt         string    `json:"-"`
-	WantName        string    `json:"-"`
-	Workdir         string    `json:"-"`
-	Zip             bool      `json:"-"`
+	Accesstoken       string        `json:"-"`
+	BoundScriptName   string        `json:"-"`
+	ChunkSize         int64         `json:"-"`
+	ConvertTo         string        `json:"-"`
+	DlMime            string        `json:"-"`
+	GoogleDocName     string        `json:"-"`
+	OverWrite         bool          `json:"-"`
+	PermissionInfo    permissionInf `json:"-"`
+	Progress          bool          `json:"-"`
+	ProjectType       string        `json:"-"`
+	PstartTime        time.Time     `json:"-"`
+	RawProject        bool          `json:"-"`
+	SearchByName      string        `json:"-"`
+	SearchByID        string        `json:"-"`
+	ShowFileInf       bool          `json:"-"`
+	Size              int64         `json:"-"`
+	Skip              bool          `json:"-"`
+	UseServiceAccount string        `json:"-"`
+	WantExt           string        `json:"-"`
+	WantName          string        `json:"-"`
+	Workdir           string        `json:"-"`
+	Zip               bool          `json:"-"`
 }
 
 // owners : Owners of file
@@ -799,6 +804,9 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 				}(c.Bool("noconvert")),
 			}
 			if metadata.MimeType == "application/vnd.google-apps.script" {
+				if p.UseServiceAccount != "" {
+					return p.whenServiceAccountIsUsed()
+				}
 				var pr project
 				filedata := &filea{
 					Name:   metadata.Name,
@@ -827,6 +835,9 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 			}
 		}
 	} else {
+		if p.UseServiceAccount != "" {
+			return p.whenServiceAccountIsUsed()
+		}
 		if p.ParentID == "" {
 			if p.ProjectType == "standalone" {
 				metadata := &fileUploaderMeta{
@@ -1141,4 +1152,27 @@ func (p *FileInf) getList(ptoken, q, fields string) ([]byte, error) {
 	}
 	body, err := r.FetchAPI()
 	return body, err
+}
+
+// whenServiceAccountIsUsed : When ServiceAccount is used, there are some limitations.
+func (p *FileInf) whenServiceAccountIsUsed() *FileInf {
+	p.Msgar = append(p.Msgar, fmt.Sprintf("Warning: In the current stage, script files cannot be uploaded and downloaded by Service Account yet."))
+	return p
+}
+
+// saveResponse : Save response from API.
+func (p *FileInf) saveResponse(body []byte) {
+	var rm interface{}
+	json.Unmarshal(body, &rm)
+	p.ReturnedResult = rm
+}
+
+// reqAndGetRawResponse : Request and retrieve raw resource.
+func (p *FileInf) reqAndGetRawResponse(r *RequestParams) {
+	res, err := r.FetchAPI()
+	if err != nil {
+		p.errHandlingFromFetch(res)
+		return
+	}
+	p.saveResponse(res)
 }

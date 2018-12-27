@@ -19,10 +19,19 @@ import (
 	"time"
 
 	"github.com/tanaikech/ggsrun/utl"
+	gettokenbyserviceaccount "github.com/tanaikech/go-gettokenbyserviceaccount"
 )
 
 // Goauth :
 func (a *AuthContainer) goauth() *AuthContainer {
+	if a.useServiceAccount != "" {
+		if err := a.getAtFromSa(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			os.Exit(1)
+		}
+		a.Msg = append(a.Msg, "Service Account was used.")
+		return a
+	}
 	if len(a.GgsrunCfg.Clientid) > 0 &&
 		len(a.GgsrunCfg.Clientsecret) > 0 &&
 		len(a.GgsrunCfg.Refreshtoken) > 0 {
@@ -37,6 +46,7 @@ func (a *AuthContainer) goauth() *AuthContainer {
 	} else {
 		a.readClientSecret().getNewAccesstoken().makecfgfile()
 	}
+	a.Msg = append(a.Msg, "Access Token was was used.")
 	return a
 }
 
@@ -262,4 +272,24 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	a.GgsrunCfg.Accesstoken = a.Atoken.Accesstoken
 	a.GgsrunCfg.Expiresin = a.chkAtoken() - 360 // 6 minutes as adjustment time
 	return a
+}
+
+// getAtFromSa : Retrieve access token from Service Account
+func (a *AuthContainer) getAtFromSa() error {
+	credentialsData, err := ioutil.ReadFile(a.useServiceAccount)
+	if err != nil {
+		return err
+	}
+	para := struct {
+		PrivateKey  string `json:"private_key"`
+		ClientEmail string `json:"client_email"`
+	}{}
+	json.Unmarshal(credentialsData, &para)
+	scopes := strings.Join(a.Scopes, " ")
+	res, err := gettokenbyserviceaccount.Do(para.PrivateKey, para.ClientEmail, scopes)
+	if err != nil {
+		return err
+	}
+	a.GgsrunCfg.Accesstoken = res.AccessToken
+	return nil
 }
