@@ -51,19 +51,29 @@ func (f *zipFileHeads) doFilesZip(comment string) *bytes.Buffer {
 // zipComment : Add information of project to zip file as a comment.
 func (p *FileInf) zipComment() string {
 	commentStruct := struct {
-		Name                   string `json:"projectName"`
-		ID                     string `json:"fileId"`
-		CreatedTime            string `json:"cretedTime"`
-		ModifiedTime           string `json:"modifiedTime"`
-		OwnerName              string `json:"ownerName"`
-		OwnerEmail             string `json:"ownerEmail"`
-		LastModifyingUserName  string `json:"lastModifyingUserName"`
-		LastModifyingUserEmail string `json:"lastModifyingUserEmail"`
+		Name                   string `json:"projectName,omitempty"`
+		ID                     string `json:"fileId,omitempty"`
+		CreatedTime            string `json:"cretedTime,omitempty"`
+		ModifiedTime           string `json:"modifiedTime,omitempty"`
+		OwnerName              string `json:"ownerName,omitempty"`
+		OwnerEmail             string `json:"ownerEmail,omitempty"`
+		LastModifyingUserName  string `json:"lastModifyingUserName,omitempty"`
+		LastModifyingUserEmail string `json:"lastModifyingUserEmail,omitempty"`
 	}{
 		p.FileName,
 		p.FileID,
-		p.CreatedTime.In(time.Local).Format("20060102 15:04:05 MST"),
-		p.ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+		func() string {
+			if p.CreatedTime != nil {
+				return p.CreatedTime.In(time.Local).Format("20060102 15:04:05 MST")
+			}
+			return ""
+		}(),
+		func() string {
+			if p.CreatedTime != nil {
+				return p.ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST")
+			}
+			return ""
+		}(),
 		p.Owners[0].Name,
 		p.Owners[0].Email,
 		p.LastModifyingUser.Name,

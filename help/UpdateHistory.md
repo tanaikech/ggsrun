@@ -152,6 +152,12 @@ ggsrun
     1. [**ggsrun got to be able to be used by not only OAuth2, but also Service Account. By this, using ggsrun, Google Drive for Service Account got to be able to be managed.**](https://github.com/tanaikech/ggsrun/blob/master/help/README.md#useserviceaccount)
     1. Some modifications.
 
+<a name="v171"></a>
+
+* v1.7.1 (December 30, 2018)
+    1. A bug was removed.
+        - When a project is downloaded and zipped, there was a case that "createdTime" and "modifiedTime" of the project cannot be retrieved by Apps Script API. This was modified.
+
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
 
 

@@ -1530,7 +1530,6 @@ On the other hand, what Service Account can do with ggsrun is as follows.
 Basically, when you use Service Account, please add an option of ``-sa credentials.json``. ``-sa`` and ``credentials.json`` are the option for using Service Account and JSON file including credentials retrieved by creating Service Account, respectively.
 
 #### 1. Get file list of Google Drive
-
 ~~~bash
 $ ggsrun ls -sa credentials.json -s
 ~~~
@@ -1541,7 +1540,7 @@ or
 $ ggsrun d -sa credentials.json -i root -l
 ~~~
 
-By this, the metadata of all files in Google Drive of Service Account can be retrieved.
+**By this, the metadata of all files and folders in Google Drive of Service Account can be retrieved.**
 
 
 #### 2. Download files
