@@ -53,7 +53,7 @@ $ go get -u github.com/tanaikech/ggsrun
 ## 2. Basic setting flow
 When you click each link of title, you can see the detail information.
 
-> **IMPORTANT: Please check this.
+> **IMPORTANT:** Please check this.
 > Starting on or after April 8, 2019, the Google Cloud Platform Console won't be able to access the default GCP projects created for new Apps Script projects. Older, existing scripts may have default GCP projects that are still accessible, however. If you have a new script and require access to its GCP project from the Google Cloud Platform Console, you must use a standard GCP project.
 
 > [Ref: Default Cloud Platform projects](https://developers.google.com/apps-script/guides/cloud-platform-projects#default_cloud_platform_projects)
