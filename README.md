@@ -53,6 +53,13 @@ $ go get -u github.com/tanaikech/ggsrun
 ## 2. Basic setting flow
 When you click each link of title, you can see the detail information.
 
+> **IMPORTANT: Please check this.
+> Starting on or after April 8, 2019, the Google Cloud Platform Console won't be able to access the default GCP projects created for new Apps Script projects. Older, existing scripts may have default GCP projects that are still accessible, however. If you have a new script and require access to its GCP project from the Google Cloud Platform Console, you must use a standard GCP project.
+
+> [Ref: Default Cloud Platform projects](https://developers.google.com/apps-script/guides/cloud-platform-projects#default_cloud_platform_projects)
+
+> By above changing, at first, please check the reference link.
+
 1. [Setup ggsrun Server (at Google side)](help/README.md#setupggsrunserver)
     - Create new project and install the server as a library.
     - [Deploy API executable](https://developers.google.com/apps-script/api/how-tos/execute#step_1_deploy_the_script_as_an_api_executable). Choose "Only myself" as "Who has access to the script"

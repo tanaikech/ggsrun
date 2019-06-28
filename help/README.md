@@ -229,6 +229,12 @@ $ go get -u github.com/tanaikech/ggsrun
 This is a common setup for Google Apps Script API(Execution API) and Web Apps.
 
 #### 1. <u>Create project</u>
+
+> **IMPORTANT: Please check this.
+> Starting on or after April 8, 2019, the Google Cloud Platform Console won't be able to access the default GCP projects created for new Apps Script projects. Older, existing scripts may have default GCP projects that are still accessible, however. If you have a new script and require access to its GCP project from the Google Cloud Platform Console, you must use a standard GCP project.
+
+> [Ref: Default Cloud Platform projects](https://developers.google.com/apps-script/guides/cloud-platform-projects#default_cloud_platform_projects)
+
 On Google Drive, a project can be created as a standalone script or a container-bound script. The project can have several script in it. Please create a project, and then open the Script Editor. If a standalone script is created, you can use all functions on ggsrun. If a container-bound script is created, you cannot use command ``exe1``.
 
 - Open the project. And please operate follows using click.
