@@ -50,15 +50,18 @@ $ go get -u github.com/tanaikech/ggsrun
 ~~~
 
 <a name="BasicSettingFlow"></a>
+## Before Basic setting flow
+**IMPORTANT: Please check this.**
+
+At April 8, 2019, the specification of Google Apps Script Project was changed. By this, when new GAS project is created after April 8, 2019, in order to use Goole API (Google Apps Script API and Drive API which can be used by ggsrun.), the GAS project is required to link to Cloud Platform Project. When you use the GAS project creted after April 8, 2019, at first, please do [this flow](https://gist.github.com/tanaikech/e945c10917fac34a9d5d58cad768832c).
+
+After the GAS project was linked to Cloud Platform Project by above flow, please do "Basic setting flow" at the next section.
+
+- [Ref1: Default Cloud Platform projects](https://developers.google.com/apps-script/guides/cloud-platform-projects#default_cloud_platform_projects)
+- [Ref2: Linking Cloud Platform Project to Google Apps Script Project](https://gist.github.com/tanaikech/e945c10917fac34a9d5d58cad768832c)
+
 ## 2. Basic setting flow
 When you click each link of title, you can see the detail information.
-
-> **IMPORTANT:** Please check this.
-> Starting on or after April 8, 2019, the Google Cloud Platform Console won't be able to access the default GCP projects created for new Apps Script projects. Older, existing scripts may have default GCP projects that are still accessible, however. If you have a new script and require access to its GCP project from the Google Cloud Platform Console, you must use a standard GCP project.
-
-> [Ref: Default Cloud Platform projects](https://developers.google.com/apps-script/guides/cloud-platform-projects#default_cloud_platform_projects)
-
-> By above changing, at first, please check the reference link.
 
 1. [Setup ggsrun Server (at Google side)](help/README.md#setupggsrunserver)
     - Create new project and install the server as a library.
