@@ -419,7 +419,12 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	}
 	res, err := r.FetchAPIRaw()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error 2: %v.", err)
+		errmsg, er := ioutil.ReadAll(res.Body)
+		if er != nil {
+			os.Exit(1)
+		}
+		defer res.Body.Close()
+		fmt.Fprintf(os.Stderr, "Error 2: %v. %s", err, errmsg)
 		os.Exit(1)
 	}
 	var body []byte

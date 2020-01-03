@@ -102,7 +102,7 @@ func (r *RequestParams) FetchAPIRaw() (*http.Response, error) {
 		} else {
 			er = "Status Code: " + strconv.Itoa(res.StatusCode)
 		}
-		return nil, errors.New(er)
+		return res, errors.New(er)
 	}
 	return res, err
 }
