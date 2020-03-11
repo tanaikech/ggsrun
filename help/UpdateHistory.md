@@ -1,6 +1,6 @@
 # ggsrun
 
-<a name="TOP"></a>
+<a name="top"></a>
 
 # Update History
 
@@ -157,13 +157,19 @@
   1. A bug was removed.
      - When a project is downloaded and zipped, there was a case that "createdTime" and "modifiedTime" of the project cannot be retrieved by Apps Script API. This was modified.
 
-**You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
-
 <a name="v173"></a>
 
 - v1.7.3 (January 3, 2020)
 
   1. It seems that the specification of `github.com/urfave/cli` was changed by the update of [https://github.com/urfave/cli](https://github.com/urfave/cli). By this, when `go get -u github.com/tanaikech/ggsrun` is run, an error occurred. So this error was removed.
+
+<a name="v174"></a>
+
+- v1.7.4 (March 11, 2020)
+
+  1. Recently, I noticed that new Google Apps Script project of the standalone script type cannot be created by the create method of Drive API. From now, in order to create the standalone Google Apps Script project, only Google Apps Script API is required to be used. [Ref](https://gist.github.com/tanaikech/0609f2cd989c28d6bd49d211b70b453d) By this, I updated ggsrun. So the command for creating new GAS project is not changed.
+
+     - `$ ggsrun u -p ###folderId### -f sample.gs -pn sampleGASProjectName`
 
 ## Server
 
@@ -171,4 +177,6 @@
 
   Initial release.
 
-[TOP](#TOP)
+**You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
+
+[TOP](#top)

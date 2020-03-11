@@ -29,6 +29,7 @@ const (
 	driveapiurl         = "https://www.googleapis.com/drive/v3/files/"
 	driveapiurlv2       = "https://www.googleapis.com/drive/v2/files/"
 	uploadurl           = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&"
+	updateurl           = "https://www.googleapis.com/upload/drive/v3/files/"
 	lengthOfProjectId   = 57
 	maxSizeForMultipart = 5242880
 )
@@ -659,52 +660,55 @@ func defFormat(mime string) (string, string) {
 	return dmime, ext
 }
 
-// scriptUploader : For uploading scripts.
-func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *FileInf {
-	tokenparams := url.Values{}
-	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-	part := make(textproto.MIMEHeader)
-	part.Set("Content-Type", "application/json")
-	data, err := w.CreatePart(part)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	re, _ := json.Marshal(metadata)
-	if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	data, err = w.CreatePart(part)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	w.Close()
-	r := &RequestParams{
-		Method:      "POST",
-		APIURL:      uploadurl + tokenparams.Encode(),
-		Data:        &b,
-		Contenttype: w.FormDataContentType(),
-		Accesstoken: p.Accesstoken,
-		Dtime:       30,
-	}
-	body, err := r.FetchAPI()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
-		os.Exit(1)
-	}
-	var uf uploadedFile
-	json.Unmarshal(body, &uf)
-	p.UppedFiles = append(p.UppedFiles, uf)
-	return p
-}
+// scriptUploader : For uploading scripts with Drive API.
+// At March 9th, 2020, I confirmed that this method had already been deprecated.
+// https://gist.github.com/tanaikech/0609f2cd989c28d6bd49d211b70b453d
+// I hope for reactivating this.
+// func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *FileInf {
+// 	tokenparams := url.Values{}
+// 	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
+// 	var b bytes.Buffer
+// 	w := multipart.NewWriter(&b)
+// 	part := make(textproto.MIMEHeader)
+// 	part.Set("Content-Type", "application/json")
+// 	data, err := w.CreatePart(part)
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	re, _ := json.Marshal(metadata)
+// 	if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	data, err = w.CreatePart(part)
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	w.Close()
+// 	r := &RequestParams{
+// 		Method:      "POST",
+// 		APIURL:      uploadurl + tokenparams.Encode(),
+// 		Data:        &b,
+// 		Contenttype: w.FormDataContentType(),
+// 		Accesstoken: p.Accesstoken,
+// 		Dtime:       30,
+// 	}
+// 	body, err := r.FetchAPI()
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
+// 		os.Exit(1)
+// 	}
+// 	var uf uploadedFile
+// 	json.Unmarshal(body, &uf)
+// 	p.UppedFiles = append(p.UppedFiles, uf)
+// 	return p
+// }
 
 // fileUploader : For uploading files.
 func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *FileInf {
@@ -778,6 +782,66 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	return p
 }
 
+// fileUpdater : Update a file metadata and file content.
+func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{}, pr []byte) *FileInf {
+	var urlStr string
+	r := &RequestParams{
+		Method:      "PATCH",
+		Accesstoken: p.Accesstoken,
+		Dtime:       30,
+	}
+	if query == nil {
+		query = url.Values{}
+	}
+	query.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
+	if (metadata != nil && pr != nil) || (metadata == nil && pr != nil) {
+		var b bytes.Buffer
+		w := multipart.NewWriter(&b)
+		part := make(textproto.MIMEHeader)
+		part.Set("Content-Type", "application/json")
+		data, err := w.CreatePart(part)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		re, _ := json.Marshal(metadata)
+		if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		data, err = w.CreatePart(part)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			os.Exit(1)
+		}
+		urlStr = updateurl + p.FileID + "?uploadType=multipart&" + query.Encode()
+		r.Data = &b
+		r.Contenttype = w.FormDataContentType()
+		w.Close()
+	} else if metadata != nil && pr == nil {
+		urlStr = driveapiurl + p.FileID + "?" + query.Encode()
+		meta, _ := json.Marshal(metadata)
+		r.Data = bytes.NewBuffer(meta)
+		r.Contenttype = "application/json"
+	} else if metadata == nil && pr == nil {
+		urlStr = driveapiurl + p.FileID + "?" + query.Encode()
+	}
+	r.APIURL = urlStr
+	body, err := r.FetchAPI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
+		os.Exit(1)
+	}
+	var uf uploadedFile
+	json.Unmarshal(body, &uf)
+	p.UppedFiles = append(p.UppedFiles, uf)
+	return p
+}
+
 // Uploader : Main method for uploading
 // "$ ggsrun u -f t1.gs,t2.gs" or "$ ggsrun u -f "t1.gs, t2.gs""
 // Upload type is automatically selected by the file size.
@@ -812,21 +876,8 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 				if p.UseServiceAccount != "" {
 					return p.whenServiceAccountIsUsed()
 				}
-				var pr project
-				filedata := &filea{
-					Name:   metadata.Name,
-					Type:   "server_js",
-					Source: ConvGasToUpload(elm),
-				}
-				pr.Files = append(pr.Files, *filedata)
-				pre, _ := json.Marshal(pr)
-				upmeta, _ := json.Marshal(metadata)
-				var u map[string]interface{}
-				json.Unmarshal(upmeta, &u)
-				if len(c.String("parentfolderid")) == 0 {
-					delete(u, "parents")
-				}
-				_ = p.scriptUploader(u, pre)
+				c.Set("projectname", metadata.Name)
+				p.createProjectMain(c)
 				p.Msgar = append(p.Msgar, fmt.Sprintf("Uploaded %s as %s. ", filepath.Base(elm), metadata.Name))
 			} else {
 				upmeta, _ := json.Marshal(metadata)
@@ -845,20 +896,7 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 		}
 		if p.ParentID == "" {
 			if p.ProjectType == "standalone" {
-				metadata := &fileUploaderMeta{
-					Name:     c.String("projectname"),
-					Parents:  []string{c.String("parentfolderid")},
-					MimeType: "application/vnd.google-apps.script",
-				}
-				upmeta, _ := json.Marshal(metadata)
-				var u map[string]interface{}
-				json.Unmarshal(upmeta, &u)
-				if len(c.String("parentfolderid")) == 0 {
-					delete(u, "parents")
-				}
-				pre := p.createProject(c.String("timezone"))
-				_ = p.scriptUploader(u, pre)
-				p.createdprojectresult(len(p.UpFilename), metadata.Name)
+				p.createProjectMain(c)
 			} else {
 				parentId := p.createGoogleDocs(c)
 				p.createProjectInGoogleDocs(c, parentId)
@@ -876,18 +914,44 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 	return p
 }
 
-// createProjectInGoogleDocs : Create new project as a bound script.
-func (p *FileInf) createProjectInGoogleDocs(c *cli.Context, parentId string) {
-	metadata := &newProject{
-		ParentId: parentId,
-		Title:    c.String("projectname"),
-	}
+// createNewProject : Create new project.
+func (p *FileInf) createNewProject(c *cli.Context, metadata *newProject) {
 	meta, _ := json.Marshal(metadata)
 	asi := p.boundScriptCreator(meta)
+	p.FileID = asi.ScriptId
 	manifests := p.getBoundScript(asi.ScriptId).getManifests(c.String("timezone"))
 	pre := p.createProjectForAppsScriptApi(asi.ScriptId).setManifests(manifests)
 	_ = p.ProjectUpdateByAppsScriptApi(pre)
 	p.createdprojectresult(len(p.UpFilename), metadata.Title)
+}
+
+// createProjectAsStandalone : Create new project as a standalone script type.
+func (p *FileInf) createProjectAsStandalone(c *cli.Context) {
+	metadata := &newProject{
+		Title: c.String("projectname"),
+	}
+	p.createNewProject(c, metadata)
+}
+
+// createProjectInGoogleDocs : Create new project as a bound script type.
+func (p *FileInf) createProjectInGoogleDocs(c *cli.Context, parentID string) {
+	metadata := &newProject{
+		ParentId: parentID,
+		Title:    c.String("projectname"),
+	}
+	p.createNewProject(c, metadata)
+}
+
+// createProjectMain : Main method for creating new GAS project.
+func (p *FileInf) createProjectMain(c *cli.Context) {
+	p.createProjectAsStandalone(c)
+	p.createdprojectresult(len(p.UpFilename), c.String("projectname"))
+	if c.String("parentfolderid") != "" {
+		query := url.Values{}
+		query.Set("addParents", c.String("parentfolderid"))
+		query.Set("removeParents", "root")
+		p.fileUpdater(query, nil, nil)
+	}
 }
 
 // createGoogleDocs : Create new Google Docs (spreadsheet, document, slide and form)
