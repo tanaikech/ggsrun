@@ -38,6 +38,9 @@ Features of "ggsrun" are as follows.
 
 <a name="howtoinstall"></a>
 # How to Install
+
+December 28, 2021: If you want to simply test ggsrun, you can also use [this method](https://gist.github.com/tanaikech/695f7016b04e4c4156ad928e9482ead9).
+
 ## 1. Get ggsrun
 Download an executable file of ggsrun from [the release page](https://github.com/tanaikech/ggsrun/releases) and import to a directory with path.
 
