@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tanaikech/ggsrun/utl"
+	"ggsrun/utl"
+
 	"github.com/urfave/cli"
 )
 
@@ -49,21 +50,21 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 }
 
 // projectUpdateForBoundScript : Update bound-script project
-func (e *ExecutionContainer) projectUpdateForBoundScript() *ExecutionContainer {
-	p := e.convExecutionContainerToFileInf()
-	var pr *utl.ProjectForAppsScriptApi
-	var pp *utl.FilesForAppsScriptApi
-	pr.ScriptId = e.Project.ScriptId
-	for _, f := range e.Project.Files {
-		pp.Name = f.Name
-		pp.Type = f.Type
-		pp.Source = f.Source
-		pr.Files = append(pr.Files, *pp)
-	}
-	_ = p.ProjectUpdateByAppsScriptApi(pr)
-	e.Msg = append(e.Msg, "Project was updated.")
-	return e
-}
+// func (e *ExecutionContainer) projectUpdateForBoundScript() *ExecutionContainer {
+// 	p := e.convExecutionContainerToFileInf()
+// 	var pr *utl.ProjectForAppsScriptApi
+// 	var pp *utl.FilesForAppsScriptApi
+// 	pr.ScriptId = e.Project.ScriptId
+// 	for _, f := range e.Project.Files {
+// 		pp.Name = f.Name
+// 		pp.Type = f.Type
+// 		pp.Source = f.Source
+// 		pr.Files = append(pr.Files, *pp)
+// 	}
+// 	_ = p.ProjectUpdateByAppsScriptApi(pr)
+// 	e.Msg = append(e.Msg, "Project was updated.")
+// 	return e
+// }
 
 // ProjectMaker : Recreates the project using uploaded scripts.
 func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
@@ -101,8 +102,7 @@ func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
 
 // filesInProjectRemover : Remove files in project.
 func (e *ExecutionContainer) filesInProjectRemover() *ExecutionContainer {
-	temp := &Project{}
-	temp = e.Project
+	temp := e.Project
 	var outr []string
 	for _, elm := range e.UpFiles {
 		res, removed := removeEle(temp, elm)

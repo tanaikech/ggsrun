@@ -171,6 +171,12 @@
 
      - `$ ggsrun u -p ###folderId### -f sample.gs -pn sampleGASProjectName`
 
+<a name="v200"></a>
+
+- v2.0.0 (February 25, 2022)
+
+  1. Modified using the latest libraries. The specification of ggsrun is not changed.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)

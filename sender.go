@@ -6,11 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math"
-	"mime/multipart"
-	"net/textproto"
 	"net/url"
 	"os"
 	"path"
@@ -20,7 +17,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tanaikech/ggsrun/utl"
+	"ggsrun/utl"
+
 	"github.com/urfave/cli"
 )
 
@@ -117,8 +115,8 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 func (e *e1para) MarshalJSON() ([]byte, error) {
 	var outd string
 	if len(e.Parameters) > 0 {
-		if regexp.MustCompile("^[+-]?[0-9]*[\\.]?[0-9]+$").Match([]byte(e.Parameters[0].(string))) ||
-			regexp.MustCompile("^\\[|\\]$").Match([]byte(e.Parameters[0].(string))) ||
+		if regexp.MustCompile(`^[+-]?[0-9]*[\.]?[0-9]+$`).Match([]byte(e.Parameters[0].(string))) ||
+			regexp.MustCompile(`^\[|\]$`).Match([]byte(e.Parameters[0].(string))) ||
 			regexp.MustCompile("^{|}$").Match([]byte(e.Parameters[0].(string))) {
 			outd = fmt.Sprintf("{\"devMode\":%t, \"parameters\":%v, \"function\":%q}", e.DevMode, e.Parameters, e.Function)
 		} else if regexp.MustCompile("([a-zA-Z]|[0-9].*[a-zA-Z]|[a-zA-Z].*[0-9])").Match([]byte(e.Parameters[0].(string))) {
@@ -174,7 +172,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 		dat = fmt.Sprintf("{detailmessage: %s}", e.FeedBackData.Error.Detailes[0].ErrorMessage)
 		e.Msg = append(e.Msg, dat)
 	}
-	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000
+	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
 	e.FeedBackData.Response.Result.Uapi = eapir1
 	e.Msg = append(e.Msg, fmt.Sprintf("Function '%s()' was run.", e.Param.Function))
 	return e
@@ -208,7 +206,7 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 		e.Msg = append(e.Msg, dat)
 		return e
 	}
-	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000
+	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
 	e.FeedBackData.Response.Result.Uapi = eapir2
 	dlfileinf, _ := json.Marshal(e.FeedBackData.Response.Result.Result)
 	var rs map[string]interface{}
@@ -256,51 +254,51 @@ func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionConta
 }
 
 // ProjectUpdate : In this method, the project is updated using Drive API.
-func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
-	script, _ := json.Marshal(e.Project)
-	metadata, _ := json.Marshal(&ProjectUpdaterMeta{MimeType: "application/vnd.google-apps.script"})
-	tokenparams := url.Values{}
-	tokenparams.Set("fields", "id,mimeType,name,parents")
-	var b bytes.Buffer
-	w := multipart.NewWriter(&b)
-	part := make(textproto.MIMEHeader)
-	part.Set("Content-Type", "application/json")
-	data, err := w.CreatePart(part)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	if _, err = io.Copy(data, bytes.NewReader(metadata)); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	data, err = w.CreatePart(part)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	if _, err = io.Copy(data, bytes.NewReader(script)); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-		os.Exit(1)
-	}
-	w.Close()
-	r := &utl.RequestParams{
-		Method:      "PATCH",
-		APIURL:      uploadurl + e.GgsrunCfg.Scriptid + "?uploadType=multipart&" + tokenparams.Encode(),
-		Data:        &b,
-		Contenttype: w.FormDataContentType(),
-		Accesstoken: e.GgsrunCfg.Accesstoken,
-		Dtime:       10,
-	}
-	res, err := r.FetchAPI()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Project cannot be updated.\n- Reason 1: If you try to execute your script, may your project be not a stand alone script? 'e1' command cannot be used to the stand alone script. Even if your script is a bound script, you can download a project using '-b' option.\n- Reason 2: If you try to update your project, scripts and json data that you uploaded may be wrong format.\n\n%v\n", string(res))
-		os.Exit(1)
-	}
-	e.Msg = append(e.Msg, "Project was updated.")
-	_ = res
-	return e
-}
+// func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
+// 	script, _ := json.Marshal(e.Project)
+// 	metadata, _ := json.Marshal(&ProjectUpdaterMeta{MimeType: "application/vnd.google-apps.script"})
+// 	tokenparams := url.Values{}
+// 	tokenparams.Set("fields", "id,mimeType,name,parents")
+// 	var b bytes.Buffer
+// 	w := multipart.NewWriter(&b)
+// 	part := make(textproto.MIMEHeader)
+// 	part.Set("Content-Type", "application/json")
+// 	data, err := w.CreatePart(part)
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	if _, err = io.Copy(data, bytes.NewReader(metadata)); err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	data, err = w.CreatePart(part)
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	if _, err = io.Copy(data, bytes.NewReader(script)); err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+// 		os.Exit(1)
+// 	}
+// 	w.Close()
+// 	r := &utl.RequestParams{
+// 		Method:      "PATCH",
+// 		APIURL:      uploadurl + e.GgsrunCfg.Scriptid + "?uploadType=multipart&" + tokenparams.Encode(),
+// 		Data:        &b,
+// 		Contenttype: w.FormDataContentType(),
+// 		Accesstoken: e.GgsrunCfg.Accesstoken,
+// 		Dtime:       10,
+// 	}
+// 	res, err := r.FetchAPI()
+// 	if err != nil {
+// 		fmt.Fprintf(os.Stderr, "Error: Project cannot be updated.\n- Reason 1: If you try to execute your script, may your project be not a stand alone script? 'e1' command cannot be used to the stand alone script. Even if your script is a bound script, you can download a project using '-b' option.\n- Reason 2: If you try to update your project, scripts and json data that you uploaded may be wrong format.\n\n%v\n", string(res))
+// 		os.Exit(1)
+// 	}
+// 	e.Msg = append(e.Msg, "Project was updated.")
+// 	_ = res
+// 	return e
+// }
 
 // projectUpdate2 : In this method, the project is updated using Apps Script API.
 func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
@@ -383,7 +381,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 		os.Exit(1)
 	}
 	json.Unmarshal(body, &e.FeedBackData.Response.Result)
-	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000
+	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
 	e.FeedBackData.Response.Result.Uapi = wapps
 	dlfileinf, _ := json.Marshal(e.FeedBackData.Response.Result.Result)
 	var rs map[string]interface{}

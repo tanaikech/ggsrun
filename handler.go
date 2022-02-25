@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tanaikech/ggsrun/utl"
+	"ggsrun/utl"
+
 	"github.com/urfave/cli"
 )
 

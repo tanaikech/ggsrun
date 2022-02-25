@@ -18,7 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tanaikech/ggsrun/utl"
+	"ggsrun/utl"
+
 	gettokenbyserviceaccount "github.com/tanaikech/go-gettokenbyserviceaccount"
 )
 
@@ -149,7 +150,7 @@ func (a *AuthContainer) chkRedirectURI() bool {
 func (a *AuthContainer) getCode() (string, error) {
 	p := a.InitVal.Port
 	if !a.chkRedirectURI() {
-		return "", fmt.Errorf("Go manual mode")
+		return "", fmt.Errorf("go manual mode")
 	}
 	fmt.Printf("\n### This is a automatic input mode.\n### Please follow opened browser, login Google and click authentication.\n### It will move to a manual mode if you wait for 30 seconds under this situation.\n")
 	a.Cs.Cid.Redirecturis = append(a.Cs.Cid.Redirecturis, "http://localhost:"+strconv.Itoa(p)+"/")
@@ -175,7 +176,7 @@ func (a *AuthContainer) getCode() (string, error) {
 			code := r.URL.Query().Get("code")
 			if len(code) == 0 {
 				fmt.Fprintf(w, `<html><head><title>ggsrun status</title></head><body><p>Erorr.</p></body></html>`)
-				s.Response <- authCode{Err: fmt.Errorf("Not found code")}
+				s.Response <- authCode{Err: fmt.Errorf("not found code")}
 				return
 			}
 			fmt.Fprintf(w, `<html><head><title>ggsrun status</title></head><body><p>The authentication was done. Please close this page.</p></body></html>`)
@@ -194,7 +195,7 @@ func (a *AuthContainer) getCode() (string, error) {
 		<-s.End
 		Listener.Close()
 		s.Response <- authCode{Err: err}
-		return
+		// return
 	}(p)
 	<-s.Start
 	var cmd *exec.Cmd
@@ -206,19 +207,19 @@ func (a *AuthContainer) getCode() (string, error) {
 	case "windows":
 		cmd = exec.Command("cmd", "/c", "start", strings.Replace(codeurl, "&", `^&`, -1))
 	default:
-		return "", fmt.Errorf("Go manual mode")
+		return "", fmt.Errorf("go manual mode")
 	}
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("Go manual mode")
+		return "", fmt.Errorf("go manual mode")
 	}
 	var result authCode
 	select {
 	case result = <-s.Response:
 	case <-time.After(time.Duration(30) * time.Second): // After 30 s, move to manual mode.
-		return "", fmt.Errorf("Go manual mode")
+		return "", fmt.Errorf("go manual mode")
 	}
 	if result.Err != nil {
-		return "", fmt.Errorf("Go manual mode")
+		return "", fmt.Errorf("go manual mode")
 	}
 	return result.Code, nil
 }

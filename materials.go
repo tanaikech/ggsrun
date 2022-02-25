@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tanaikech/ggsrun/utl"
+	"ggsrun/utl"
+
 	"github.com/urfave/cli"
 )
 
@@ -437,7 +438,8 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 func (e *ExecutionContainer) dispUpdateProjectContainer() *utl.FileInf {
 	p := &utl.FileInf{
 		Msgar:   e.Msg,
-		TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
+		TotalEt: math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000,
+		// TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
 	}
 	return p
 }
@@ -470,17 +472,17 @@ func (e *ExecutionContainer) convExecutionContainerToFileInf() *utl.FileInf {
 }
 
 // adaptProjectForAppsScriptApi : Adapt project for Apps Script Api
-func (e *ExecutionContainer) adaptProjectForAppsScriptApi() *ExecutionContainer {
-	// e.Project.ScriptId = ""
-	for i, f := range e.Project.Files {
-		e.Project.Files[i].Type = strings.ToLower(f.Type)
-		e.Project.Files[i].CreateTime = ""
-		e.Project.Files[i].UpdateTime = ""
-		e.Project.Files[i].Creator = nil
-		e.Project.Files[i].LastModifyUser = nil
-	}
-	return e
-}
+// func (e *ExecutionContainer) adaptProjectForAppsScriptApi() *ExecutionContainer {
+// 	// e.Project.ScriptId = ""
+// 	for i, f := range e.Project.Files {
+// 		e.Project.Files[i].Type = strings.ToLower(f.Type)
+// 		e.Project.Files[i].CreateTime = ""
+// 		e.Project.Files[i].UpdateTime = ""
+// 		e.Project.Files[i].Creator = nil
+// 		e.Project.Files[i].LastModifyUser = nil
+// 	}
+// 	return e
+// }
 
 // defPermissionsContainer : Struct container for managing permissions
 func (a *AuthContainer) defPermissionsContainer(c *cli.Context) *utl.FileInf {

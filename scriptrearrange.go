@@ -16,8 +16,7 @@ import (
 
 // rearrangeByTerminal : Rearranging scripts in a project using go-rearrange.
 func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
-	var baseProject Project
-	baseProject = *e.Project
+	baseProject := *e.Project
 	var scripts []string
 	for _, f := range e.Project.Files {
 		scripts = append(scripts, f.Name)
@@ -51,8 +50,7 @@ func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 
 // rearrange : Rearranging scripts in a project using a configuration file.
 func (e *ExecutionContainer) rearrangeByFile(data []string) *ExecutionContainer {
-	var baseProject Project
-	baseProject = *e.Project
+	baseProject := *e.Project
 	var temp []string
 	dupChk := map[string]bool{}
 	for _, e := range data {
