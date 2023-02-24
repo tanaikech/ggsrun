@@ -177,6 +177,12 @@
 
   1. Modified using the latest libraries. The specification of ggsrun is not changed.
 
+<a name="v201"></a>
+
+- v2.0.1 (February 24, 2023)
+
+  1. Modified go.mod, go.sum.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)

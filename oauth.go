@@ -287,7 +287,7 @@ func (a *AuthContainer) getAtFromSa() error {
 	}{}
 	json.Unmarshal(credentialsData, &para)
 	scopes := strings.Join(a.Scopes, " ")
-	res, err := gettokenbyserviceaccount.Do(para.PrivateKey, para.ClientEmail, scopes)
+	res, err := gettokenbyserviceaccount.Do(para.PrivateKey, para.ClientEmail, "", scopes)
 	if err != nil {
 		return err
 	}
