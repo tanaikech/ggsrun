@@ -183,6 +183,12 @@
 
   1. Modified go.mod, go.sum.
 
+<a name="v202"></a>
+
+- v2.0.2 (April 5, 2023)
+
+  1. Rebuild with the latest version.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)

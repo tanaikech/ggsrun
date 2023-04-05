@@ -1,9 +1,9 @@
 module ggsrun
 
-go 1.18
+go 1.20
 
 require (
-	github.com/briandowns/spinner v1.21.0
+	github.com/briandowns/spinner v1.23.0
 	github.com/tanaikech/go-gettokenbyserviceaccount v0.0.0-20221117011049-06dff9508ba8
 	github.com/tanaikech/go-rearrange v1.0.2
 	github.com/urfave/cli v1.22.12
