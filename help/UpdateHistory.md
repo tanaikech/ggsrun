@@ -189,6 +189,12 @@
 
   1. Rebuild with the latest version.
 
+<a name="v203"></a>
+
+- v2.0.3 (June 14, 2025)
+
+  1. Rebuild with go1.24.4.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)
