@@ -456,7 +456,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 		}
 		defer res.Body.Close()
 		var er dlError
-		json.Unmarshal(body, &er)
+		err = json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
 			pterm.Error.Printf("%s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID)
 			if er.Error.Message == "Request had insufficient authentication scopes." {
@@ -536,7 +536,6 @@ func (p *FileInf) deleteFile(id string) {
 		pterm.Error.Printf("%s\n%s\n", err, body)
 		os.Exit(1)
 	}
-	return
 }
 
 // nameToID : Convert filename to file ID

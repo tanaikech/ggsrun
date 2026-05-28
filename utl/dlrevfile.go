@@ -62,7 +62,7 @@ func (p *FileInf) GetRevisionList(c *cli.Context) *FileInf {
 			p.getRevFromExGoogleDocs(c)
 		}
 	}
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
 
@@ -210,7 +210,7 @@ func (p *FileInf) downloadRevisionFile() {
 		dURLq = driveapiurl + p.FileID + "/revisions/" + p.RevisionID + "?alt=media"
 	}
 	p.writeFile(dURLq)
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 }
 
 // getRevFromExGoogleDocs : Display revision IDs from files except for Google Docs.
