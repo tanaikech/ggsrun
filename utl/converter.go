@@ -115,14 +115,14 @@ func ConvGasToRun(c *cli.Context) string {
 		}
 		st := string(mem)
 		if len(senddata) > 0 {
-			if regexp.MustCompile("^[+-]?[0-9]*[\\.]?[0-9]+$").Match([]byte(senddata)) {
+			if regexp.MustCompile(`^[+-]?[0-9]*[\.]?[0-9]+$`).Match([]byte(senddata)) {
 				st += "var defdata=" + senddata + ";"
-			} else if regexp.MustCompile("^\\[|\\]$").Match([]byte(senddata)) || regexp.MustCompile("^{|}$").Match([]byte(senddata)) {
+			} else if regexp.MustCompile(`^\[|\]$`).Match([]byte(senddata)) || regexp.MustCompile(`^{|}$`).Match([]byte(senddata)) {
 				dat := strings.Replace(strings.TrimSpace(senddata), "\"", "\\\"", -1)
 				senddata = strings.Replace(dat, "'", "\\'", -1)
 				st += "var defdata=" + senddata + ";"
 			} else {
-				if regexp.MustCompile("^\"|\"$").Match([]byte(senddata)) || regexp.MustCompile("^\\'|\\'$").Match([]byte(senddata)) {
+				if regexp.MustCompile(`^"|"$`).Match([]byte(senddata)) || regexp.MustCompile(`^\'|\'$`).Match([]byte(senddata)) {
 					dat := strings.Replace(strings.TrimSpace(senddata), "\"", "\\\"", -1)
 					senddata = strings.Replace(dat, "'", "\\'", -1)
 					st += "var defdata=" + senddata + ";"
@@ -172,14 +172,14 @@ func ConvStringToRun(c *cli.Context, stringscript string) string {
 		}
 		st := string(mem)
 		if len(senddata) > 0 {
-			if regexp.MustCompile("^[+-]?[0-9]*[\\.]?[0-9]+$").Match([]byte(senddata)) {
+			if regexp.MustCompile(`^[+-]?[0-9]*[\.]?[0-9]+$`).Match([]byte(senddata)) {
 				st += "var defdata=" + senddata + ";"
-			} else if regexp.MustCompile("^\\[|\\]$").Match([]byte(senddata)) || regexp.MustCompile("^{|}$").Match([]byte(senddata)) {
+			} else if regexp.MustCompile(`^\[|\]$`).Match([]byte(senddata)) || regexp.MustCompile(`^{|}$`).Match([]byte(senddata)) {
 				dat := strings.Replace(strings.TrimSpace(senddata), "\"", "\\\"", -1)
 				senddata = strings.Replace(dat, "'", "\\'", -1)
 				st += "var defdata=" + senddata + ";"
 			} else {
-				if regexp.MustCompile("^\"|\"$").Match([]byte(senddata)) || regexp.MustCompile("^\\'|\\'$").Match([]byte(senddata)) {
+				if regexp.MustCompile(`^"|"$`).Match([]byte(senddata)) || regexp.MustCompile(`^\'|\'$`).Match([]byte(senddata)) {
 					dat := strings.Replace(strings.TrimSpace(senddata), "\"", "\\\"", -1)
 					senddata = strings.Replace(dat, "'", "\\'", -1)
 					st += "var defdata=" + senddata + ";"
