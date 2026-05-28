@@ -3,16 +3,12 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,6 +16,8 @@ import (
 
 	"ggsrun/utl"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	gettokenbyserviceaccount "github.com/tanaikech/go-gettokenbyserviceaccount"
 )
 
@@ -27,7 +25,7 @@ import (
 func (a *AuthContainer) goauth() *AuthContainer {
 	if a.useServiceAccount != "" {
 		if err := a.getAtFromSa(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			pterm.Error.Println(err)
 			os.Exit(1)
 		}
 		a.Msg = append(a.Msg, "Service Account was used.")
@@ -56,19 +54,32 @@ func (a *AuthContainer) reAuth() {
 	a.readClientSecret().getNewAccesstoken().makecfgfile()
 }
 
-// makecfgfile :
+// makecfgfile : Generates and saves ggsrun.cfg to the strictly resolved path
 func (a *AuthContainer) makecfgfile() {
-	btok, _ := json.MarshalIndent(a.GgsrunCfg, "", "\t")
-	var path string
-	if a.InitVal.usedDir == "work" {
-		path = a.InitVal.workdir
-	} else if a.InitVal.usedDir == "env" {
-		path = a.InitVal.cfgdir
-	} else {
-		fmt.Fprintf(os.Stderr, "Error: directory. '%s'\n", a.InitVal.usedDir)
-		os.Exit(1)
+	cfgPath := a.resolveConfigFile()
+
+	if a.InitVal.isAuthCmd {
+		if _, err := os.Stat(cfgPath); err == nil {
+			pterm.Warning.Printf("Configuration file already exists at '%s'.\n", cfgPath)
+			fmt.Print("### Do you want to overwrite it? [y/N]: ")
+			var ans string
+			fmt.Scanln(&ans)
+			if strings.ToLower(strings.TrimSpace(ans)) != "y" {
+				pterm.Info.Println("Aborted saving configuration.")
+				return
+			}
+		}
 	}
-	ioutil.WriteFile(filepath.Join(path, cfgFile), btok, 0777)
+
+	btok, _ := json.MarshalIndent(a.GgsrunCfg, "", "\t")
+	err := os.WriteFile(cfgPath, btok, 0600)
+	if err != nil {
+		pterm.Error.Printf("Could not securely write configuration to '%s'. %v\n", cfgPath, err)
+	} else {
+		if a.InitVal.isAuthCmd {
+			pterm.Success.Printf("Successfully provisioned configuration file at: %s\n", cfgPath)
+		}
+	}
 }
 
 // getAtoken : Retrieves accesstoken from refreshtoken.
@@ -89,8 +100,8 @@ func (a *AuthContainer) getAtoken() *AuthContainer {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. %s\n", err, body)
-		fmt.Println("Hint: If you use old ggsrun.cfg, please remove it and run 'ggsrun auth'. Then try again.")
+		pterm.Error.Printf("%v. %s\n", err, body)
+		pterm.Info.Println("Hint: Try clearing your existing config manually or invoke 'ggsrun auth'.")
 		os.Exit(1)
 	}
 	json.Unmarshal(body, &a.Atoken)
@@ -111,7 +122,7 @@ func (a *AuthContainer) chkAtoken() int64 {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		os.Exit(1)
 	}
 	json.Unmarshal(body, &a.ChkAt)
@@ -138,30 +149,20 @@ func (e *ExecutionContainer) chkAtoken() *ChkAt {
 	return &c
 }
 
-func (a *AuthContainer) chkRedirectURI() bool {
-	for _, e := range a.Cs.Cid.Redirecturis {
-		if strings.Contains(e, "localhost") {
-			return true
-		}
-	}
-	return false
-}
-
 func (a *AuthContainer) getCode() (string, error) {
 	p := a.InitVal.Port
-	if !a.chkRedirectURI() {
-		return "", fmt.Errorf("go manual mode")
-	}
-	fmt.Printf("\n### This is a automatic input mode.\n### Please follow opened browser, login Google and click authentication.\n### It will move to a manual mode if you wait for 30 seconds under this situation.\n")
-	a.Cs.Cid.Redirecturis = append(a.Cs.Cid.Redirecturis, "http://localhost:"+strconv.Itoa(p)+"/")
+	redirectURI := "http://localhost:" + strconv.Itoa(p) + "/"
+	a.Cs.Cid.Redirecturis = []string{redirectURI}
+
 	codepara := url.Values{}
 	codepara.Set("client_id", a.Cs.Cid.ClientID)
-	codepara.Set("redirect_uri", a.Cs.Cid.Redirecturis[len(a.Cs.Cid.Redirecturis)-1])
+	codepara.Set("redirect_uri", redirectURI)
 	codepara.Set("scope", strings.Join(a.GgsrunCfg.Scopes, " "))
 	codepara.Set("response_type", "code")
 	codepara.Set("approval_prompt", "force")
 	codepara.Set("access_type", "offline")
 	codeurl := oauthurl + "auth?" + codepara.Encode()
+
 	s := &serverInfToGetCode{
 		Response: make(chan authCode, 1),
 		Start:    make(chan bool, 1),
@@ -175,82 +176,70 @@ func (a *AuthContainer) getCode() (string, error) {
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			code := r.URL.Query().Get("code")
 			if len(code) == 0 {
-				fmt.Fprintf(w, `<html><head><title>ggsrun status</title></head><body><p>Erorr.</p></body></html>`)
+				fmt.Fprintf(w, `<html><head><title>ggsrun Auth Error</title></head><body style="font-family: sans-serif; text-align: center; margin-top: 50px;"><h2>Authentication Error</h2><p>No code found in request.</p></body></html>`)
 				s.Response <- authCode{Err: fmt.Errorf("not found code")}
 				return
 			}
-			fmt.Fprintf(w, `<html><head><title>ggsrun status</title></head><body><p>The authentication was done. Please close this page.</p></body></html>`)
+			fmt.Fprintf(w, `<html><head><title>ggsrun Auth Success</title></head><body style="font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #f0fdf4;"><h2>Authentication Successful!</h2><p>You can safely close this window and return to your terminal.</p></body></html>`)
 			s.Response <- authCode{Code: code}
 		})
-		var err error
 		Listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
 		if err != nil {
 			s.Response <- authCode{Err: err}
 			return
 		}
-		server := http.Server{}
-		server.Handler = mux
+		server := http.Server{Handler: mux}
 		go server.Serve(Listener)
 		s.Start <- true
 		<-s.End
 		Listener.Close()
-		s.Response <- authCode{Err: err}
-		// return
 	}(p)
+
 	<-s.Start
+
+	pterm.Info.Println("Launching browser for automatic authentication...")
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", strings.Replace(codeurl, "&", `\&`, -1))
+		cmd = exec.Command("open", codeurl)
 	case "linux":
-		cmd = exec.Command("xdg-open", strings.Replace(codeurl, "&", `\&`, -1))
+		cmd = exec.Command("xdg-open", codeurl)
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", strings.Replace(codeurl, "&", `^&`, -1))
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", codeurl)
 	default:
-		return "", fmt.Errorf("go manual mode")
+		cmd = exec.Command("xdg-open", codeurl)
 	}
+
 	if err := cmd.Start(); err != nil {
-		return "", fmt.Errorf("go manual mode")
+		pterm.Warning.Printf("Could not open browser automatically. Please open this URL manually:\n%s\n", codeurl)
 	}
+
 	var result authCode
 	select {
 	case result = <-s.Response:
-	case <-time.After(time.Duration(30) * time.Second): // After 30 s, move to manual mode.
-		return "", fmt.Errorf("go manual mode")
+	case <-time.After(120 * time.Second):
+		return "", fmt.Errorf("timeout waiting for authorization code")
 	}
+
 	if result.Err != nil {
-		return "", fmt.Errorf("go manual mode")
+		return "", result.Err
 	}
 	return result.Code, nil
 }
 
 // getNewAccesstoken : Retrieve accesstoken when there is no refreshtoken.
 func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
-	var code string
-	var err error
-	fmt.Printf("\n### Since %s is not found, the authorization process is launched.", cfgFile)
-	code, err = a.getCode()
+	pterm.Info.Println("Authorization process initiated...")
+	code, err := a.getCode()
 	if err != nil {
-		codepara := url.Values{}
-		codepara.Set("client_id", a.Cs.Cid.ClientID)
-		codepara.Set("redirect_uri", a.Cs.Cid.Redirecturis[0])
-		codepara.Set("scope", strings.Join(a.GgsrunCfg.Scopes, " "))
-		codepara.Set("response_type", "code")
-		codepara.Set("approval_prompt", "force")
-		codepara.Set("access_type", "offline")
-		codeurl := oauthurl + "auth?" + codepara.Encode()
-		fmt.Printf("\n### This is a manual input mode.\n### Please input code retrieved by importing following URL to your browser.\n\n"+
-			"[URL]==> %v\n"+
-			"[CODE]==>", codeurl)
-		if _, err := fmt.Scan(&code); err != nil {
-			log.Fatalf("Error: %v.\n", err)
-		}
-		a.Cs.Cid.Redirecturis = append(a.Cs.Cid.Redirecturis, a.Cs.Cid.Redirecturis[0])
+		pterm.Error.Printf("Error during authorization flow: %v\n", err)
+		os.Exit(1)
 	}
+
 	tokenparams := url.Values{}
 	tokenparams.Set("client_id", a.Cs.Cid.ClientID)
 	tokenparams.Set("client_secret", a.Cs.Cid.Clientsecret)
-	tokenparams.Set("redirect_uri", a.Cs.Cid.Redirecturis[len(a.Cs.Cid.Redirecturis)-1])
+	tokenparams.Set("redirect_uri", a.Cs.Cid.Redirecturis[0])
 	tokenparams.Set("code", code)
 	tokenparams.Set("grant_type", "authorization_code")
 	r := &utl.RequestParams{
@@ -263,7 +252,7 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: [ %v ] - Code is wrong. ", err)
+		pterm.Error.Printf("[ %v ] - Authorization token issuance failed. ", err)
 		os.Exit(1)
 	}
 	json.Unmarshal(body, &a.Atoken)
@@ -277,7 +266,7 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 
 // getAtFromSa : Retrieve access token from Service Account
 func (a *AuthContainer) getAtFromSa() error {
-	credentialsData, err := ioutil.ReadFile(a.useServiceAccount)
+	credentialsData, err := os.ReadFile(a.useServiceAccount)
 	if err != nil {
 		return err
 	}

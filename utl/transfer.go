@@ -4,10 +4,8 @@ package utl
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"mime/multipart"
 	"net/textproto"
@@ -17,9 +15,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 	"time"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
@@ -199,7 +198,7 @@ type uploadedFile struct {
 	fileS
 }
 
-//dispDup : For duplicating values.
+// dispDup : For duplicating values.
 type dispDup struct {
 	Name         string
 	FileID       string
@@ -211,35 +210,46 @@ type dispDup struct {
 func (p *FileInf) saveScript(data []byte) *FileInf {
 	var f project
 	json.Unmarshal(data, &f)
+
+	// User defined filename takes priority for prefixes
+	baseName := p.FileName
+	if p.WantName != "" {
+		// Strip extension if present to append .json / .zip cleanly
+		baseName = strings.TrimSuffix(p.WantName, filepath.Ext(p.WantName))
+		if baseName == "" {
+			baseName = p.WantName
+		}
+	}
+
 	if p.RawProject {
-		filename := filepath.Join(p.Workdir, p.FileName+".json")
+		filename := filepath.Join(p.Workdir, baseName+".json")
 		if chkFile(filename) && !p.OverWrite {
 			if !p.Skip {
-				fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", filename)
+				pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", filename)
 				os.Exit(1)
 			} else {
 				if p.Progress {
-					fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", filename)
+					pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", filename)
 				}
 				p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", filename))
 			}
 		} else {
-			p.SaveName = p.FileName + ".json"
-			p.Msgar = append(p.Msgar, fmt.Sprintf("Saved project as a JSON file '%s.json'.", p.FileName))
+			p.SaveName = baseName + ".json"
+			p.Msgar = append(p.Msgar, fmt.Sprintf("Saved project as a JSON file '%s'.", p.SaveName))
 			btok, _ := json.MarshalIndent(f, "", "\t")
-			ioutil.WriteFile(filename, btok, 0777)
+			os.WriteFile(filename, btok, 0777)
 		}
 	} else {
 		p.SaveName = ""
 		if len(f.Files) == 1 {
-			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d script.", p.FileName, len(f.Files)))
+			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d script.", baseName, len(f.Files)))
 		} else {
-			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", p.FileName, len(f.Files)))
+			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", baseName, len(f.Files)))
 		}
 		zh := &zipFileHeads{}
 		for _, e := range f.Files {
 			eType := strings.ToLower(e.Type)
-			saveName := p.FileName + "_" + e.Name + "." + func(ex, ty string) string {
+			saveName := baseName + "_" + e.Name + "." + func(ex, ty string) string {
 				var eext string
 				if len(ex) > 0 {
 					eext = ex
@@ -267,23 +277,23 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 		}
 		if p.Zip {
 			buf := zh.doFilesZip(p.zipComment())
-			zn := p.FileName + ".zip"
+			zn := baseName + ".zip"
 			zipFileName := filepath.Join(p.Workdir, zn)
 			if chkFile(zipFileName) && !p.OverWrite {
 				if !p.Skip {
-					fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", zipFileName)
+					pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", zipFileName)
 					os.Exit(1)
 				} else {
 					if p.Progress {
-						fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.FileName)
+						pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", baseName)
 					}
-					p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", p.FileName))
+					p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", baseName))
 				}
 			} else {
 				if p.Progress {
-					fmt.Printf("Project file '%s' is downloaded.\n", p.FileName)
+					pterm.Success.Printf("Project file '%s' is downloaded.\n", baseName)
 				}
-				ioutil.WriteFile(zipFileName, buf.Bytes(), 0777)
+				os.WriteFile(zipFileName, buf.Bytes(), 0777)
 				p.Msgar = append(p.Msgar, fmt.Sprintf("%d scripts in the project were saved as '%s'.", len(zh.Files), zn))
 			}
 		} else {
@@ -291,19 +301,19 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 				scriptFileName := filepath.Join(p.Workdir, e.Name)
 				if chkFile(scriptFileName) && !p.OverWrite {
 					if !p.Skip {
-						fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", scriptFileName)
+						pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", scriptFileName)
 						os.Exit(1)
 					} else {
 						if p.Progress {
-							fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", scriptFileName)
+							pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", scriptFileName)
 						}
 						p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", scriptFileName))
 					}
 				} else {
 					if p.Progress {
-						fmt.Printf("Script '%s' is downloaded.\n", e.Name)
+						pterm.Info.Printf("Script '%s' is downloaded.\n", e.Name)
 					}
-					ioutil.WriteFile(scriptFileName, e.Body, 0777)
+					os.WriteFile(scriptFileName, e.Body, 0777)
 					p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", e.Name))
 				}
 			}
@@ -323,10 +333,10 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	if p.MimeType == "application/vnd.google-apps.folder" {
 		err := p.DlFolders()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s", err)
+			pterm.Error.Printf("%s", err)
 			os.Exit(1)
 		}
-		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+		p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
 	ext := strings.ToLower(p.WantExt)
@@ -341,12 +351,16 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 		if gm["exportFormats"].(map[string]interface{})[p.MimeType] != nil {
 			for _, e := range gm["exportFormats"].(map[string]interface{})[p.MimeType].([]interface{}) {
 				if e == p.DlMime {
-					p.SaveName = p.FileName + "." + ext
+					if p.WantName != "" {
+						p.SaveName = p.WantName
+					} else {
+						p.SaveName = p.FileName + "." + ext
+					}
 				}
 			}
 			if len(p.SaveName) == 0 {
 				dispRes, _ := json.MarshalIndent(gm["exportFormats"], "", "  ")
-				fmt.Fprintf(os.Stderr, "Error: Bad extension or No extension. It supports as follows.\n%s ", string(dispRes))
+				pterm.Error.Printf("Bad extension or No extension. It supports as follows.\n%s ", string(dispRes))
 				os.Exit(1)
 			}
 			if p.MimeType == "application/vnd.google-apps.script" {
@@ -357,7 +371,11 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 				p.writeFile(driveapiurl + p.FileID + "/export?mimeType=" + p.DlMime)
 			}
 		} else {
-			p.SaveName = p.FileName
+			if p.WantName != "" {
+				p.SaveName = p.WantName
+			} else {
+				p.SaveName = p.FileName
+			}
 			p.writeFile(driveapiurl + p.FileID + "?alt=media")
 		}
 	} else if c.String("deletefile") != "" {
@@ -366,7 +384,7 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	} else {
 		p.Msgar = append(p.Msgar, "Error: Please input File Name or File ID. Please check HELP using 'ggsrun d --help'.")
 	}
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
 
@@ -384,9 +402,9 @@ func (c *chunks) Read(dat []byte) (int, error) {
 	c.cChunk += int64(n)
 	if err == nil {
 		if c.End == 0 {
-			fmt.Printf("\rNow downloading '%s' (bytes)... %d", c.FileName, c.cChunk)
+			pterm.Printo(fmt.Sprintf("Now downloading '%s' (bytes)... %d", c.FileName, c.cChunk))
 		} else {
-			fmt.Printf("\rNow downloading '%s' (bytes)... %d / %d", c.FileName, c.cChunk, c.End)
+			pterm.Printo(fmt.Sprintf("Now downloading '%s' (bytes)... %d / %d", c.FileName, c.cChunk, c.End))
 		}
 	}
 	return n, err
@@ -407,7 +425,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 		return 0, fmt.Errorf("%s", err)
 	}(strconv.ParseInt(p.FileSize, 10, 64))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error 1: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		os.Exit(1)
 	}
 	r := &RequestParams{
@@ -420,27 +438,27 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	}
 	res, err := r.FetchAPIRaw()
 	if err != nil {
-		errmsg, er := ioutil.ReadAll(res.Body)
+		errmsg, er := io.ReadAll(res.Body)
 		if er != nil {
 			os.Exit(1)
 		}
 		defer res.Body.Close()
-		fmt.Fprintf(os.Stderr, "Error 2: %v. %s", err, errmsg)
+		pterm.Error.Printf("%v. %s", err, errmsg)
 		os.Exit(1)
 	}
 	var body []byte
 	var dFileName string
 	if p.MimeType == "application/vnd.google-apps.script" {
-		body, err = ioutil.ReadAll(res.Body)
+		body, err = io.ReadAll(res.Body)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error 3: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		defer res.Body.Close()
 		var er dlError
 		json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
-			fmt.Print(fmt.Sprintf("Error: %s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID))
+			pterm.Error.Printf("%s. (Status code is %d)\nFileID: %s\n", er.Error.Message, er.Error.Code, p.FileID)
 			if er.Error.Message == "Request had insufficient authentication scopes." {
 				DispScopeError1()
 			}
@@ -451,18 +469,18 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	dFileName = filepath.Join(p.Workdir, p.SaveName)
 	if chkFile(dFileName) && !p.OverWrite {
 		if !p.Skip {
-			fmt.Fprintf(os.Stderr, "Error: '%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", dFileName)
+			pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", dFileName)
 			os.Exit(1)
 		} else {
 			if p.Progress {
-				fmt.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.SaveName)
+				pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.SaveName)
 			}
 			p.Msgar = append(p.Msgar, fmt.Sprintf("File of '%s' was not saved and skipped, because the file is duplicated.", p.SaveName))
 		}
 	} else {
 		file, err := os.Create(dFileName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error 4: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		if p.Progress {
@@ -482,12 +500,12 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 			_, err = io.Copy(file, res.Body)
 		}
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error 5: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		fileInfo, err := file.Stat()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error 6: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		if p.Progress {
@@ -515,7 +533,7 @@ func (p *FileInf) deleteFile(id string) {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
+		pterm.Error.Printf("%s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	return
@@ -561,13 +579,13 @@ func (p *FileInf) ChkBoundOrStandalone(fileId string) ([]byte, error, bool) {
 	if err != nil && len(fileId) == lengthOfProjectId {
 		return body, err, false
 	} else if err != nil && len(fileId) < lengthOfProjectId {
-		fmt.Fprintf(os.Stderr, "Error: File ID '%s' Not found. %v .", fileId, err)
+		pterm.Error.Printf("File ID '%s' Not found. %v .", fileId, err)
 		os.Exit(1)
 	}
 	var er dlError
 	json.Unmarshal(body, &er)
 	if err != nil || er.Error.Code-300 >= 0 {
-		fmt.Fprintf(os.Stderr, fmt.Sprintf("Error: %s Status code is %d. ", er.Error.Message, er.Error.Code))
+		pterm.Error.Printf("%s Status code is %d. ", er.Error.Message, er.Error.Code)
 		os.Exit(1)
 	}
 	return body, err, true
@@ -584,7 +602,7 @@ func (p *FileInf) GetFileinf() *FileInf {
 	} else if len(p.WantName) > 0 {
 		finf, err := p.nameToID(p.WantName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		var fl fileListSt
@@ -602,7 +620,7 @@ func (p *FileInf) GetFileinf() *FileInf {
 			p.ModifiedTime = fl.Files[0].ModifiedTime
 			p.LastModifyingUser = fl.Files[0].LastModifyingUser
 		} else if len(fl.Files) > 1 {
-			fmt.Printf("# %d files were found. Please download them using File ID.\n", len(fl.Files))
+			pterm.Warning.Printf("# %d files were found. Please download them using File ID.\n", len(fl.Files))
 			for i := range fl.Files {
 				dd := &dispDup{
 					Name:         fl.Files[i].Name,
@@ -615,7 +633,7 @@ func (p *FileInf) GetFileinf() *FileInf {
 			}
 			os.Exit(1)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. ", p.WantName)
+			pterm.Error.Printf("File name '%s' is not found. ", p.WantName)
 			os.Exit(1)
 		}
 	}
@@ -660,56 +678,6 @@ func defFormat(mime string) (string, string) {
 	return dmime, ext
 }
 
-// scriptUploader : For uploading scripts with Drive API.
-// At March 9th, 2020, I confirmed that this method had already been deprecated.
-// https://gist.github.com/tanaikech/0609f2cd989c28d6bd49d211b70b453d
-// I hope for reactivating this.
-// func (p *FileInf) scriptUploader(metadata map[string]interface{}, pr []byte) *FileInf {
-// 	tokenparams := url.Values{}
-// 	tokenparams.Set("fields", "createdTime,fullFileExtension,id,mimeType,modifiedTime,name,parents,size,webContentLink,webViewLink,lastModifyingUser(displayName,emailAddress),owners(displayName,emailAddress,permissionId)")
-// 	var b bytes.Buffer
-// 	w := multipart.NewWriter(&b)
-// 	part := make(textproto.MIMEHeader)
-// 	part.Set("Content-Type", "application/json")
-// 	data, err := w.CreatePart(part)
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	re, _ := json.Marshal(metadata)
-// 	if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	data, err = w.CreatePart(part)
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	w.Close()
-// 	r := &RequestParams{
-// 		Method:      "POST",
-// 		APIURL:      uploadurl + tokenparams.Encode(),
-// 		Data:        &b,
-// 		Contenttype: w.FormDataContentType(),
-// 		Accesstoken: p.Accesstoken,
-// 		Dtime:       30,
-// 	}
-// 	body, err := r.FetchAPI()
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
-// 		os.Exit(1)
-// 	}
-// 	var uf uploadedFile
-// 	json.Unmarshal(body, &uf)
-// 	p.UppedFiles = append(p.UppedFiles, uf)
-// 	return p
-// }
-
 // fileUploader : For uploading files.
 func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *FileInf {
 	var err error
@@ -717,13 +685,13 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	if file != "" {
 		fs, err = os.Open(file)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v.\n", err)
+			pterm.Error.Printf("%v.\n", err)
 			os.Exit(1)
 		}
 		defer fs.Close()
 		fstatus, err := fs.Stat()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v.\n", err)
+			pterm.Error.Printf("%v.\n", err)
 			os.Exit(1)
 		}
 		if fstatus.Size() > maxSizeForMultipart {
@@ -743,22 +711,22 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	part.Set("Content-Type", "application/json")
 	data, err := w.CreatePart(part)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		os.Exit(1)
 	}
 	re, _ := json.Marshal(metadata)
 	if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		os.Exit(1)
 	}
 	if file != "" {
 		data, err = w.CreateFormFile("file", file)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		if _, err = io.Copy(data, fs); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 	}
@@ -773,7 +741,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
+		pterm.Error.Printf("%s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -801,21 +769,21 @@ func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{},
 		part.Set("Content-Type", "application/json")
 		data, err := w.CreatePart(part)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		re, _ := json.Marshal(metadata)
 		if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		data, err = w.CreatePart(part)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		urlStr = updateurl + p.FileID + "?uploadType=multipart&" + query.Encode()
@@ -833,7 +801,7 @@ func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{},
 	r.APIURL = urlStr
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %s\n%s\n", err, body)
+		pterm.Error.Printf("%s\n%s\n", err, body)
 		os.Exit(1)
 	}
 	var uf uploadedFile
@@ -843,8 +811,6 @@ func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{},
 }
 
 // Uploader : Main method for uploading
-// "$ ggsrun u -f t1.gs,t2.gs" or "$ ggsrun u -f "t1.gs, t2.gs""
-// Upload type is automatically selected by the file size.
 func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 	if c.String("projectname") == "" && len(p.UpFilename) == 0 {
 		p.Msgar = append(p.Msgar, "Error: No options. Please check HELP using 'ggsrun u --help'.")
@@ -905,12 +871,12 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 			if c.String("projectname") != "" {
 				p.createProjectInGoogleDocs(c, p.ParentID)
 			} else {
-				fmt.Fprintf(os.Stderr, "Error: No project name. Please input project name using '--projectname' or '-pn' and try again.\n")
+				pterm.Error.Println("No project name. Please input project name using '--projectname' or '-pn' and try again.")
 				os.Exit(1)
 			}
 		}
 	}
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
 
@@ -954,7 +920,7 @@ func (p *FileInf) createProjectMain(c *cli.Context) {
 	}
 }
 
-// createGoogleDocs : Create new Google Docs (spreadsheet, document, slide and form)
+// createGoogleDocs : Create new Google Docs
 func (p *FileInf) createGoogleDocs(c *cli.Context) string {
 	metadata := &fileUploaderMeta{
 		Name: func(c *cli.Context) string {
@@ -1015,7 +981,7 @@ func (p *FileInf) createProject(timeZone string) []byte {
 			}
 		}
 		if len(pr.Files) == 0 {
-			fmt.Fprintf(os.Stderr, "Error: Inputted files cannot be used for GAS project.\n")
+			pterm.Error.Println("Inputted files cannot be used for GAS project.")
 			os.Exit(1)
 		}
 	} else {
@@ -1071,7 +1037,7 @@ func extToGMime(ext string) string {
 	json.Unmarshal([]byte(extVsmime), &fm)
 	st, _ := fm[strings.Replace(strings.ToLower(ext), ".", "", 1)].(string)
 	if len(st) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: Extension of '%s' cannot be uploaded. ", ext)
+		pterm.Error.Printf("Extension of '%s' cannot be uploaded. ", ext)
 		os.Exit(1)
 	}
 	var gm map[string]interface{}
@@ -1085,7 +1051,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		p.SearchByName = c.String("searchbyname")
 		body, err := p.nameToID(p.SearchByName)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+			pterm.Error.Printf("%v. ", err)
 			os.Exit(1)
 		}
 		var fl fileListSt
@@ -1106,16 +1072,16 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 				fmt.Printf("{\n  Name: \"%s\",\n  ID: \"%s\",\n  ModifiedTime: \"%s\",\n  URL: \"%s\"\n}\n",
 					fl.Files[i].Name,
 					fl.Files[i].ID,
-					fl.Files[i].ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+					fl.Files[i].ModifiedTime.In(time.Local).Format("2006/01/02 15:04:05 MST"),
 					fl.Files[i].WebView,
 				)
 			}
 			os.Exit(1)
 		} else {
-			fmt.Fprintf(os.Stderr, "Error: File name '%s' is not found. How about trying this using file ID, again?", p.SearchByName)
+			pterm.Error.Printf("File name '%s' is not found. How about trying this using file ID, again?", p.SearchByName)
 			os.Exit(1)
 		}
-		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+		p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
 	if len(c.String("searchbyid")) > 0 {
@@ -1125,7 +1091,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		} else {
 			p.getBoundScriptInf(p.SearchByID)
 		}
-		p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+		p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 		return p
 	}
 	q := "trashed=false"
@@ -1140,12 +1106,9 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		}
 	}
 	p.Msgar = append(p.Msgar, fmt.Sprintf("Total: %d, File: %d, Folder: %d", len(fm.Files), len(fil), len(fol)))
-	p.Msgar = append(p.Msgar, fmt.Sprintf("If you want a file list, please use option '-s' or '-f'. The file name is automatically given."))
+	p.Msgar = append(p.Msgar, "If you want a file list, please use option '-s' or '-f'. The file name is automatically given.")
 	if c.Bool("stdout") {
-		buffer := &bytes.Buffer{}
-		w := new(tabwriter.Writer)
-		w.Init(buffer, 0, 4, 1, ' ', 0)
-		fmt.Fprintf(w, "\n%s\t%s\t%s\t%s\t%s\n", "# FileName", "# FileID", "# ModifiedTime", "# CreatedTime", "# Type")
+		tableData := pterm.TableData{{"FileName", "FileID", "ModifiedTime", "CreatedTime", "Type"}}
 		var ftype string
 		for i := range fm.Files {
 			if strings.Contains(fm.Files[i].MimeType, "folder") {
@@ -1153,25 +1116,23 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 			} else {
 				ftype = "File"
 			}
-			fmt.Fprintf(
-				w, "%s\t%s\t%s\t%s\t%s\n",
+			tableData = append(tableData, []string{
 				fm.Files[i].Name,
 				fm.Files[i].ID,
-				fm.Files[i].ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST"),
-				fm.Files[i].CreatedTime.In(time.Local).Format("20060102 15:04:05 MST"),
+				fm.Files[i].ModifiedTime.In(time.Local).Format("2006/01/02 15:04:05"),
+				fm.Files[i].CreatedTime.In(time.Local).Format("2006/01/02 15:04:05"),
 				ftype,
-			)
+			})
 		}
-		w.Flush()
-		fmt.Printf("%s\n", buffer)
+		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	}
 	if c.Bool("file") {
 		filename := filepath.Join(p.Workdir, p.PstartTime.Format("Files_20060102_150405")+".json")
 		p.Msgar = append(p.Msgar, fmt.Sprintf("Saved a JSON file as %s.", filename))
 		btok, _ := json.MarshalIndent(fm, "", "\t")
-		ioutil.WriteFile(filename, btok, 0777)
+		os.WriteFile(filename, btok, 0777)
 	}
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
 
@@ -1225,7 +1186,7 @@ func (p *FileInf) getList(ptoken, q, fields string) ([]byte, error) {
 
 // whenServiceAccountIsUsed : When ServiceAccount is used, there are some limitations.
 func (p *FileInf) whenServiceAccountIsUsed() *FileInf {
-	p.Msgar = append(p.Msgar, fmt.Sprintf("Warning: In the current stage, script files cannot be uploaded and downloaded by Service Account yet."))
+	p.Msgar = append(p.Msgar, "Warning: In the current stage, script files cannot be uploaded and downloaded by Service Account yet.")
 	return p
 }
 

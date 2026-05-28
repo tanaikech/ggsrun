@@ -4,9 +4,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math"
 	"net/url"
 	"os"
@@ -19,6 +17,8 @@ import (
 
 	"ggsrun/utl"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
@@ -40,7 +40,7 @@ func (e *ExecutionContainer) exe2Function(c *cli.Context) *ExecutionContainer {
 		btof := "function main(e){return new ggsrun(e, null, null).nodocsdownloader()}"
 		return e.executionAPIwithServer(utl.ConvStringToRun(c, btof)).esenderForExe2(c).byteSliceConverter()
 	} else if c.Bool("convert") && len(c.String("value")) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No File ID. Please set it using '-v [ File ID ]'. ")
+		pterm.Error.Println("No File ID. Please set it using '-v [ File ID ]'.")
 		os.Exit(1)
 	}
 	if len(c.String("stringscript")) > 0 {
@@ -62,7 +62,7 @@ func (e *ExecutionContainer) executionAPIwithoutServer(c *cli.Context) *Executio
 // executionAPIwithServer :
 func (e *ExecutionContainer) executionAPIwithServer(sendscript string) *ExecutionContainer {
 	if len(sendscript) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No script. Please set GAS script using '-s'. ")
+		pterm.Error.Println("No script. Please set GAS script using '-s'.")
 		os.Exit(1)
 	}
 	if len(e.Param.Function) == 0 {
@@ -85,28 +85,28 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 		json.Unmarshal(body, &e.FeedBackData)
 		if e.FeedBackData.Error.Status == "UNAUTHENTICATED" {
 			if len(e.chkAtoken().Error) > 0 {
-				fmt.Printf("Invalid Access token. Please retrieve it again using command '%s auth'.\nCurrent access token is '%s'.\n", appname, e.GgsrunCfg.Accesstoken)
+				pterm.Error.Printf("Invalid Access token. Please retrieve it again using command '%s auth'.\nCurrent access token is '%s'.\n", appname, e.GgsrunCfg.Accesstoken)
 				os.Exit(1)
 			}
-			fmt.Printf("Authorization Error: Please check SCOPEs of your GAS script and server using GAS Script Editor.\nIf the SCOPEs have changed, modify them in '%s' and delete a line of 'refresh_token', then, execute '%s' again. You can retrieve new access token with modified SCOPEs.\n", cfgFile, appname)
+			pterm.Error.Printf("Authorization Error: Please check SCOPEs of your GAS script and server using GAS Script Editor.\nIf the SCOPEs have changed, modify them in '%s' and delete a line of 'refresh_token', then, execute '%s' again. You can retrieve new access token with modified SCOPEs.\n", cfgFile, appname)
 			os.Exit(1)
 		}
 		if e.FeedBackData.Error.Message == "PERMISSION_DENIED" &&
 			e.FeedBackData.Error.Code == 403 {
-			fmt.Printf("Error: Please check Execution API at Developer console.\nIf Execution API is unable, please enable it. Or please check 'client_secret.json'. It might be that that is not for the project with Execution API.\n")
+			pterm.Error.Println("Please check Execution API at Developer console.\nIf Execution API is unable, please enable it. Or please check 'client_secret.json'. It might be that that is not for the project with Execution API.")
 			os.Exit(1)
 		}
 		if e.FeedBackData.Error.Message == "Requested entity was not found." &&
 			e.FeedBackData.Error.Code == 404 {
-			fmt.Printf("Error: Please check the deployment of API executable and/or the ggsrun server.\n - If you use command 'e1', please deploy API executable again. If you use command 'e2', please check both again.\n - After deployed API executable, please save each scripts on the project again. This is very important point!\n - When you use the server as library, please confirm server.\n - Also you can use 'Logger.log(ggsrunif.Beacon())' at Google Apps Script Editor to confirm server condition.\n - Also, please check the script ID.")
+			pterm.Error.Println("Please check the deployment of API executable and/or the ggsrun server.\n - If you use command 'e1', please deploy API executable again. If you use command 'e2', please check both again.\n - After deployed API executable, please save each scripts on the project again. This is very important point!\n - When you use the server as library, please confirm server.\n - Also you can use 'Logger.log(ggsrunif.Beacon())' at Google Apps Script Editor to confirm server condition.\n - Also, please check the script ID.")
 			os.Exit(1)
 		}
-		if e.FeedBackData.Error.Detailes[0].ErrorMessage == "The script completed but the returned value is not a supported return type." &&
+		if len(e.FeedBackData.Error.Detailes) > 0 && e.FeedBackData.Error.Detailes[0].ErrorMessage == "The script completed but the returned value is not a supported return type." &&
 			e.FeedBackData.Error.Code == 500 {
-			fmt.Printf("Error: %s\n", e.FeedBackData.Error.Detailes[0].ErrorMessage)
+			pterm.Error.Printf("%s\n", e.FeedBackData.Error.Detailes[0].ErrorMessage)
 			os.Exit(1)
 		}
-		fmt.Fprintf(os.Stderr, "Error: %s.\n%s", err, body)
+		pterm.Error.Printf("%s.\n%s\n", err, body)
 		os.Exit(1)
 	}
 }
@@ -141,7 +141,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	}
 	re, _ := json.Marshal(epara)
 	if len(re) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: Format of values is wrong. Double and single quotates have to be escaped.\n - Inputted value was  %s\n", c.String("value"))
+		pterm.Error.Printf("Format of values is wrong. Double and single quotates have to be escaped.\n - Inputted value was  %s\n", c.String("value"))
 		os.Exit(1)
 	}
 	r := &utl.RequestParams{
@@ -157,7 +157,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	json.Unmarshal(body, &e.FeedBackData)
 	var dat string
 	if len(e.FeedBackData.Error.Message) > 0 {
-		if len(e.FeedBackData.Error.Detailes[0].ScriptStackTraceElements) > 0 {
+		if len(e.FeedBackData.Error.Detailes) > 0 && len(e.FeedBackData.Error.Detailes[0].ScriptStackTraceElements) > 0 {
 			dat = fmt.Sprintf("{code: %d, message: %s, function: %s, linenumber: %d}", e.FeedBackData.Error.Code, e.FeedBackData.Error.Message, e.FeedBackData.Error.Detailes[0].ScriptStackTraceElements[0].Function, e.FeedBackData.Error.Detailes[0].ScriptStackTraceElements[0].LineNumber)
 		} else {
 			dat = fmt.Sprintf("{code: %d, message: %s}", e.FeedBackData.Error.Code, e.FeedBackData.Error.Message)
@@ -166,7 +166,9 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	} else {
 		var rs map[string]interface{}
 		json.Unmarshal(body, &rs)
-		e.FeedBackData.Response.Result.Result = rs["response"].(map[string]interface{})["result"]
+		if resp, ok := rs["response"].(map[string]interface{}); ok {
+			e.FeedBackData.Response.Result.Result = resp["result"]
+		}
 	}
 	if len(e.FeedBackData.Error.Detailes) > 0 {
 		dat = fmt.Sprintf("{detailmessage: %s}", e.FeedBackData.Error.Detailes[0].ErrorMessage)
@@ -253,53 +255,6 @@ func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionConta
 	return e
 }
 
-// ProjectUpdate : In this method, the project is updated using Drive API.
-// func (e *ExecutionContainer) projectUpdate() *ExecutionContainer {
-// 	script, _ := json.Marshal(e.Project)
-// 	metadata, _ := json.Marshal(&ProjectUpdaterMeta{MimeType: "application/vnd.google-apps.script"})
-// 	tokenparams := url.Values{}
-// 	tokenparams.Set("fields", "id,mimeType,name,parents")
-// 	var b bytes.Buffer
-// 	w := multipart.NewWriter(&b)
-// 	part := make(textproto.MIMEHeader)
-// 	part.Set("Content-Type", "application/json")
-// 	data, err := w.CreatePart(part)
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	if _, err = io.Copy(data, bytes.NewReader(metadata)); err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	data, err = w.CreatePart(part)
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	if _, err = io.Copy(data, bytes.NewReader(script)); err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
-// 		os.Exit(1)
-// 	}
-// 	w.Close()
-// 	r := &utl.RequestParams{
-// 		Method:      "PATCH",
-// 		APIURL:      uploadurl + e.GgsrunCfg.Scriptid + "?uploadType=multipart&" + tokenparams.Encode(),
-// 		Data:        &b,
-// 		Contenttype: w.FormDataContentType(),
-// 		Accesstoken: e.GgsrunCfg.Accesstoken,
-// 		Dtime:       10,
-// 	}
-// 	res, err := r.FetchAPI()
-// 	if err != nil {
-// 		fmt.Fprintf(os.Stderr, "Error: Project cannot be updated.\n- Reason 1: If you try to execute your script, may your project be not a stand alone script? 'e1' command cannot be used to the stand alone script. Even if your script is a bound script, you can download a project using '-b' option.\n- Reason 2: If you try to update your project, scripts and json data that you uploaded may be wrong format.\n\n%v\n", string(res))
-// 		os.Exit(1)
-// 	}
-// 	e.Msg = append(e.Msg, "Project was updated.")
-// 	_ = res
-// 	return e
-// }
-
 // projectUpdate2 : In this method, the project is updated using Apps Script API.
 func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
 	script, _ := json.Marshal(e.Project)
@@ -316,16 +271,15 @@ func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		utl.DispScopeError2(res)
 		os.Exit(1)
 	}
 	e.Msg = append(e.Msg, "Project was updated.")
-	_ = res // Now, no results are returned.
 	return e
 }
 
-// ProjectBackup : Download and backup project (Apps Script API v1)
+// projectBackup : Download and backup project (Apps Script API v1)
 func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	tokenparams := url.Values{}
 	tokenparams.Set("fields", "files,scriptId")
@@ -341,8 +295,8 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v.\n%v\n\n", err, string(res))
-		fmt.Fprintf(os.Stderr, "One of reasons of error :\n Was the inputted project ID correct?.\n")
+		pterm.Error.Printf("%v.\n%v\n\n", err, string(res))
+		pterm.Warning.Println("One of reasons of error :\n Was the inputted project ID correct?")
 		utl.DispScopeError2(res)
 		os.Exit(1)
 	}
@@ -350,17 +304,17 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	if c.Bool("backup") {
 		btok, _ := json.MarshalIndent(e.Project, "", "\t")
 		filename := e.InitVal.pstart.Format("20060102_150405") + ".gs"
-		ioutil.WriteFile(filepath.Join(e.InitVal.workdir, filename), btok, 0777)
+		os.WriteFile(filepath.Join(e.InitVal.workdir, filename), btok, 0777)
 		dat := fmt.Sprintf("Project was saved as '%s'.", filename)
 		e.Msg = append(e.Msg, dat)
 	}
 	return e
 }
 
-// WebAppswithServerForExe3 : Sends GAS to Google and retrieves results.
+// webAppswithServerForExe3 : Sends GAS to Google and retrieves results.
 func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Context) *ExecutionContainer {
 	if len(c.String("url")) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: No URL for Web Apps.")
+		pterm.Error.Println("No URL for Web Apps.")
 		os.Exit(1)
 	}
 	tokenparams := url.Values{}
@@ -377,7 +331,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Please check Web Apps Service and/or URL of it. Web Apps Service might not be deployed. ")
+		pterm.Error.Println("Please check Web Apps Service and/or URL of it. Web Apps Service might not be deployed.")
 		os.Exit(1)
 	}
 	json.Unmarshal(body, &e.FeedBackData.Response.Result)
@@ -398,7 +352,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	return e
 }
 
-// ByteSliceConverter :
+// byteSliceConverter :
 func (e *ExecutionContainer) byteSliceConverter() *ExecutionContainer {
 	if !strings.Contains(fmt.Sprintf("%s", e.FeedBackData.Response.Result.Result), "Error") {
 		var f ByteSliceFile
@@ -408,7 +362,7 @@ func (e *ExecutionContainer) byteSliceConverter() *ExecutionContainer {
 		for n := range f.FileData {
 			c[n] = uint8(f.FileData[n])
 		}
-		ioutil.WriteFile(f.Name, c, 0777)
+		os.WriteFile(f.Name, c, 0777)
 		e.FeedBackData.Response.Result.Result = "### Byte Slice of File ###"
 		e.Msg = append(e.Msg, fmt.Sprintf("File was downloaded as '%s'. MimeType is '%s'.", f.Name, f.MimeType))
 	} else {

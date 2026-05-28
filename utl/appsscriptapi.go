@@ -4,7 +4,6 @@ package utl
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -13,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 )
 
 const (
@@ -103,7 +105,7 @@ func (p *FileInf) getBoundScriptInf(id string) {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: File ID '%s' is not found. ", id)
+		pterm.Error.Printf("File ID '%s' is not found. ", id)
 		DispScopeError2(body)
 		os.Exit(1)
 	}
@@ -142,7 +144,7 @@ func (p *FileInf) getBoundScript(id string) *ProjectForAppsScriptApi {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: File ID '%s' is not found. ", p.SearchByID)
+		pterm.Error.Printf("File ID '%s' is not found. ", p.SearchByID)
 		DispScopeError2(body)
 		os.Exit(1)
 	}
@@ -164,15 +166,16 @@ func (p *FileInf) boundScriptCreator(metadata []byte) *AppsScriptApiInf {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v.\n%v\n\n", err, string(body))
-		fmt.Fprintf(os.Stderr, "One of reasons of error :\n Was the inputted parent ID correct?.\n")
+		pterm.Error.Printf("%v.\n%v\n\n", err, string(body))
+		pterm.Warning.Println("One of reasons of error :\n Was the inputted parent ID correct?")
 		var u map[string]interface{}
 		json.Unmarshal(body, &u)
-		em := u["error"].(map[string]interface{})["message"]
-		if em == "Request had insufficient authentication scopes." {
-			DispScopeError1()
-		} else if em == "Request contains an invalid argument." {
-			fmt.Fprintf(os.Stderr, " - If this error occurs when you try to create project in Google Slides, this may be a bug. https://issuetracker.google.com/issues/72238499\n")
+		if em, ok := u["error"].(map[string]interface{})["message"].(string); ok {
+			if em == "Request had insufficient authentication scopes." {
+				DispScopeError1()
+			} else if em == "Request contains an invalid argument." {
+				pterm.Warning.Println(" - If this error occurs when you try to create project in Google Slides, this may be a bug. https://issuetracker.google.com/issues/72238499")
+			}
 		}
 		os.Exit(1)
 	}
@@ -202,7 +205,7 @@ func (p *FileInf) ProjectUpdateByAppsScriptApi(pr *ProjectForAppsScriptApi) *App
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v. ", err)
+		pterm.Error.Printf("%v. ", err)
 		DispScopeError2(body)
 		os.Exit(1)
 	}
@@ -227,7 +230,7 @@ func (p *FileInf) createProjectForAppsScriptApi(scriptId string) *ProjectForApps
 			}
 		}
 		if len(pr.Files) == 0 {
-			fmt.Fprintf(os.Stderr, "Error: Inputted files cannot be used for GAS project.\n")
+			pterm.Error.Println("Inputted files cannot be used for GAS project.")
 			os.Exit(1)
 		}
 	} else {
@@ -258,7 +261,7 @@ func (pf *ProjectForAppsScriptApi) getManifests(timeZone string) *FilesForAppsSc
 		mf.TimeZone = timeZone
 		umf, err := json.MarshalIndent(mf, "", "  ")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s", err)
+			pterm.Error.Printf("%s\n", err)
 			os.Exit(1)
 		}
 		manifests.Source = string(umf)
@@ -328,7 +331,7 @@ func (p *FileInf) getProjectVersionList(ptoken string) ([]byte, error) {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n%s\n", err, string(body))
+		pterm.Error.Printf("%v\n%s\n", err, string(body))
 		DispScopeError2(body)
 		os.Exit(1)
 	}
@@ -351,7 +354,7 @@ func (p *FileInf) createProjectVersion(description string) {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n%s\n", err, string(body))
+		pterm.Error.Printf("%v\n%s\n", err, string(body))
 		DispScopeError2(body)
 		os.Exit(1)
 	}
@@ -363,17 +366,18 @@ func (p *FileInf) createProjectVersion(description string) {
 
 // DispScopeError1 : Display about new scope of 'https://www.googleapis.com/auth/script.projects'.
 func DispScopeError1() {
-	fmt.Printf("\n\n##########\n")
-	fmt.Fprintf(os.Stderr, "One of reasons of error :\n - Did you add new scope of 'https://www.googleapis.com/auth/script.projects' to 'ggsrun.cfg'? If this scope is not added yet, please add it, and run below.\n\n $ ggsrun auth\n\n By this, the scope is reflected.\n - And please enable Google Apps Script API at 'https://console.cloud.google.com/apis/library/script.googleapis.com/?project=### project ID ###'\n You can see '### project ID ###' in 'client_secret.json'.\n")
-	fmt.Printf("##########\n")
+	pterm.Warning.Println("\n##########")
+	pterm.Error.Println("One of reasons of error :\n - Did you add new scope of 'https://www.googleapis.com/auth/script.projects' to 'ggsrun.cfg'? If this scope is not added yet, please add it, and run below.\n\n $ ggsrun auth\n\n By this, the scope is reflected.\n - And please enable Google Apps Script API at 'https://console.cloud.google.com/apis/library/script.googleapis.com/?project=### project ID ###'\n You can see '### project ID ###' in 'client_secret.json'.")
+	pterm.Warning.Println("##########")
 }
 
 // DispScopeError2 : Display about new scope of 'https://www.googleapis.com/auth/script.projects'.
 func DispScopeError2(body []byte) {
 	var u map[string]interface{}
 	json.Unmarshal(body, &u)
-	em := u["error"].(map[string]interface{})["message"]
-	if em == "Request had insufficient authentication scopes." {
-		DispScopeError1()
+	if errorObj, ok := u["error"].(map[string]interface{}); ok {
+		if em, ok := errorObj["message"].(string); ok && em == "Request had insufficient authentication scopes." {
+			DispScopeError1()
+		}
 	}
 }

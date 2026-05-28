@@ -5,8 +5,28 @@ package main
 import (
 	"os"
 
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
+
+func init() {
+	// Strictly bind TUI and human-readable output to Stderr.
+	// This preserves Stdout for pure JSON and MCP JSON-RPC streams.
+	pterm.SetDefaultOutput(os.Stderr)
+}
+
+func getCommonFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:  "credentials, cred",
+			Usage: "Path to a custom credentials file (e.g., /path/to/client_secret.json). Sets the default ggsrun.cfg location to match.",
+		},
+		&cli.StringFlag{
+			Name:  "config, conf",
+			Usage: "Path to the directory containing ggsrun.cfg. Overrides all other path priorities.",
+		},
+	}
+}
 
 // main : main function
 func main() {
@@ -15,16 +35,16 @@ func main() {
 	app.Authors = []cli.Author{
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
-	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS)."
-	app.Version = "2.0.3"
+	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
+	app.Version = "5.0.0" // Version bumped for concurrent worker enhancements
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
 			Aliases:     []string{"e1"},
-			Usage:       "Updates project and Executes the function in the project.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Updates the GAS project with a local script and executes a specified function.",
+			Description: "Requires an access token. Synchronizes the local script to the Drive project and triggers the execution API.",
 			Action:      exeAPIWithout,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "scriptid, i",
 					Usage: "Script ID of project on Google Drive",
@@ -43,25 +63,25 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "backup, b",
-					Usage: "Backup project with script ID you set as a file.",
+					Usage: "Backup project with script ID you set as a local file.",
 				},
 				&cli.BoolFlag{
 					Name:  "onlyresult, r",
-					Usage: "Display only 'result' in JSON results",
+					Usage: "Display only 'result' field in JSON outputs.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display outputs beautifully formatted by a JSON parser.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "exe2",
 			Aliases:     []string{"e2"},
-			Usage:       "Uploads GAS and Executes the script using Execution API.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Executes a GAS script directly via the Execution API without updating the project files.",
+			Description: "Requires an access token. The script string is uploaded as a payload to the server-side GAS library for execution.",
 			Action:      exeAPIWith,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "scriptid, i",
 					Usage: "Script ID of project on Google Drive",
@@ -72,7 +92,7 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "function, f",
-					Usage: "Function name of server for executing GAS. Default is '" + deffuncserv + "'. If you change the server, use this.",
+					Usage: "Function name of server for executing GAS. Default is '" + deffuncserv + "'.",
 				},
 				&cli.StringFlag{
 					Name:  "value, v",
@@ -80,11 +100,11 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "stringscript, ss",
-					Usage: "GAS script as strings.",
+					Usage: "GAS script provided directly as strings.",
 				},
 				&cli.BoolFlag{
 					Name:  "foldertree, t",
-					Usage: "Display a folder tree on Google Drive as an array.",
+					Usage: "Display a folder tree on Google Drive as a structured array.",
 				},
 				&cli.BoolFlag{
 					Name:  "convert, conv",
@@ -96,24 +116,24 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "onlyresult, r",
-					Usage: "Display only 'result' in JSON results",
+					Usage: "Display only 'result' in JSON outputs.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display outputs beautifully formatted by a JSON parser.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "webapps",
 			Aliases:     []string{"w"},
-			Usage:       "Uploads GAS and Executes the script without OAuth using Web Apps.",
-			Description: "In this mode, an access token is NOT required.",
+			Usage:       "Executes a GAS script anonymously or securely via Web Apps URL.",
+			Description: "No access token is required. Operates directly via POST requests to a deployed Web App.",
 			Action:      webAppsWith,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "url, u",
-					Usage: "URL for using Web Apps.",
+					Usage: "Deployed Web Apps URL.",
 				},
 				&cli.StringFlag{
 					Name:  "scriptfile, s",
@@ -125,357 +145,383 @@ func main() {
 				},
 				&cli.StringFlag{
 					Name:  "password, p",
-					Usage: "Password to use Web Apps (if you have set)",
+					Usage: "Password to authenticate to the Web Apps (if configured).",
 				},
 				&cli.BoolFlag{
 					Name:  "log, l",
-					Usage: "Not record access log. No this option means 'Record log'.",
+					Usage: "Do not record access log. (Omitting this flag means 'Record log').",
 				},
 				&cli.BoolFlag{
 					Name:  "onlyresult, r",
-					Usage: "Display only 'result' in JSON results",
+					Usage: "Display only 'result' in JSON outputs.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display outputs beautifully formatted by a JSON parser.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "download",
 			Aliases:     []string{"d"},
-			Usage:       "Downloads files from Google Drive.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Concurrently downloads files from Google Drive with high-speed parallelism.",
+			Description: "Requires an access token. Supports massive concurrent downloads and progressive bars.",
 			Action:      downloadFiles,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "fileid, i",
-					Usage: "File ID on Google Drive. Using file ID, you can download all files except for bound scripts.",
+					Usage: "File ID on Google Drive. Comma separated for parallel concurrent downloads.",
 				},
 				&cli.StringFlag{
 					Name:  "filename, f",
-					Usage: "File Name on Google Drive",
+					Usage: "File Name to save as locally.",
+				},
+				&cli.IntFlag{
+					Name:  "workers, w",
+					Usage: "Number of concurrent workers for parallel downloads.",
+					Value: 5,
 				},
 				&cli.StringFlag{
 					Name:  "extension, e",
-					Usage: "Extension (File format of downloaded file)",
+					Usage: "Extension format for exported files (e.g., pdf, xlsx).",
 				},
 				&cli.StringFlag{
 					Name:  "mimetype, m",
-					Usage: "mimeType (You can retrieve only files with the specific mimeType, when files are downloaded from a folder.) ex. '-m \"mimeType1,mimeType2\"'",
+					Usage: "mimeType filter for downloading from folders. ex: '-m \"mimeType1,mimeType2\"'",
 				},
 				&cli.BoolFlag{
 					Name:  "rawdata, r",
-					Usage: "Save a project with GAS scripts as raw data (JSON data).",
+					Usage: "Save a GAS project as raw JSON data.",
 				},
 				&cli.BoolFlag{
 					Name:  "zip, z",
-					Usage: "Create a zip file including all scripts of a GAS project. Please use this for downloading a GAS project.",
+					Usage: "Create a zip archive comprising all scripts of a GAS project.",
 				},
 				&cli.StringFlag{
 					Name:  "deletefile",
-					Usage: "Value is file ID. This can delete a file using a file ID on Google Drive.",
+					Usage: "Delete a file permanently using a specified file ID.",
 				},
 				&cli.BoolFlag{
 					Name:  "overwrite, o",
-					Usage: "When filename of downloading file is existing in directory at local PC, overwrite it. At default, it is not overwritten.",
+					Usage: "Overwrite local files if they already exist.",
 				},
 				&cli.BoolFlag{
 					Name:  "skip, s",
-					Usage: "When filename of downloading file is existing in directory at local PC, skip it. At default, it is not overwritten.",
+					Usage: "Skip downloading files if they already exist locally.",
 				},
 				&cli.BoolFlag{
 					Name:  "showfilelist, l",
-					Usage: "When files from a folder are retrieved, file list is returned using this option. When this is used, files are not downloaded.",
+					Usage: "Retrieve list of files instead of downloading them.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "upload",
 			Aliases:     []string{"u"},
-			Usage:       "Uploads files to Google Drive.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Concurrently uploads files to Google Drive using resumable chunking.",
+			Description: "Requires an access token. Accelerates bulk transfers using Go concurrency.",
 			Action:      uploadFiles,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "filename, f",
-					Usage: "File Name on local PC. Please input files you want to upload.",
+					Usage: "Local file paths. Comma separated for concurrent parallel uploads.",
 				},
 				&cli.StringFlag{
 					Name:  "parentfolderid, p",
-					Usage: "Folder ID of parent folder on Google Drive",
+					Usage: "Destination folder ID on Google Drive.",
+				},
+				&cli.IntFlag{
+					Name:  "workers, w",
+					Usage: "Number of concurrent workers for parallel uploads.",
+					Value: 5,
 				},
 				&cli.StringFlag{
 					Name:  "parentid, pid",
-					Usage: "File ID of Google Docs (Spreadsheet, Document, Slide, Form) for creating container bound-script.",
+					Usage: "File ID of a Google Doc/Sheet for creating container-bound scripts.",
 				},
 				&cli.StringFlag{
 					Name:  "timezone, tz",
-					Usage: "Time zone of project. Please use this together with creating new project. When new project is created by API, time zone doesn't become the local time zone. (This might be a bug.) So please input this.",
+					Usage: "Timezone configuration for newly created projects.",
 				},
 				&cli.StringFlag{
 					Name:  "projectname, pn",
-					Usage: "Upload several GAS scripts as a project.",
+					Usage: "Target project name for uploaded GAS scripts.",
 				},
 				&cli.StringFlag{
 					Name:  "googledocname, gn",
-					Usage: "Filename of Google Docs which is created.",
+					Usage: "File name for newly created Google Docs.",
 				},
 				&cli.StringFlag{
 					Name:  "projecttype, pt",
-					Usage: "You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default.",
+					Usage: "Type of bound-script. ('spreadsheet', 'document', 'slide', 'form'). Default is 'standalone'.",
 					Value: "standalone",
 				},
 				&cli.Int64Flag{
 					Name:  "chunksize, chunk",
-					Usage: "You can also set the maximum chunk size for the resumable upload. This unit is MB.",
+					Usage: "Resumable upload chunk size (MB).",
 					Value: 100,
 				},
 				&cli.StringFlag{
 					Name:  "convertto, c",
-					Usage: "When you want to upload the file by converting, use this. '-c doc', '-c sheet' and '-c slide' convert to Google document, spreadsheet and slides, respectively. But there are files which cannot be converted. Please be careful this.",
+					Usage: "Convert files automatically ('doc', 'sheet', 'slide').",
 				},
 				&cli.BoolFlag{
 					Name:  "noconvert, nc",
-					Usage: "If you don't want to convert file to Google Apps format.",
+					Usage: "Bypass Google Apps format conversion.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "updateproject",
 			Aliases:     []string{"ud"},
-			Usage:       "Updates project on Google Drive.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Synchronizes local files to an existing GAS project.",
+			Description: "Updates, adds, or removes files in an active GAS project workspace.",
 			Action:      updateProject,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "filename, f",
-					Usage: "File name. It's source files for updating. When you set files which are not in the project, the files are added to the project. When you set files which are in the project, the files are overwritten to the files with same filename.",
+					Usage: "Local source file names. Overwrites identical remote scripts.",
 				},
 				&cli.BoolFlag{
 					Name:  "deletefiles",
-					Usage: "When you use this bool flag, projectid and filename, they are removed from the project.",
+					Usage: "Delete specified filenames from the remote project.",
 				},
 				&cli.StringFlag{
 					Name:  "projectid, p",
-					Usage: "ID of existing project. It's a destination project for updating.",
+					Usage: "Target destination Project ID.",
 				},
 				&cli.BoolFlag{
 					Name:  "backup, b",
-					Usage: "Backup project with project ID you set as a file.",
+					Usage: "Generate a local backup of the project prior to updating.",
 				},
 				&cli.BoolFlag{
 					Name:  "rearrange, r",
-					Usage: "Interactively rearrange scripts in project using your terminal.",
+					Usage: "Interactively rearrange project scripts via terminal.",
 				},
 				&cli.StringFlag{
 					Name:  "rearrangewithfile, rf",
-					Usage: "Rearrange scripts in project using a file.",
+					Usage: "Apply layout configurations from a specified template file.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "revisionfiles",
 			Aliases:     []string{"r"},
-			Usage:       "Retrieves revision list and files.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Retrieves revision history and downloads specific file revisions.",
+			Description: "Requires an access token. Accesses historical version data of Google Drive documents.",
 			Action:      revisionFiles,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "fileid, i",
-					Usage: "Value is file ID. Display revision ID list.",
+					Usage: "File ID to inspect revisions.",
 				},
 				&cli.StringFlag{
 					Name:  "download, d",
-					Usage: "Value is revision ID. Download revision file using it and file ID.",
+					Usage: "Specific Revision ID to download.",
 				},
 				&cli.StringFlag{
 					Name:  "createversion, cv",
-					Usage: "Create new version of GAS project. Please input the description of version as string.",
+					Usage: "Generate a new version tag with a custom description.",
 				},
 				&cli.StringFlag{
 					Name:  "extension, e",
-					Usage: "Extension (File format of downloaded file)",
+					Usage: "Export extension format.",
 				},
 				&cli.BoolFlag{
 					Name:  "rawdata, r",
-					Usage: "Save a project with GAS scripts as raw data (JSON data).",
+					Usage: "Save a project as raw JSON data.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "filelist",
 			Aliases:     []string{"ls"},
-			Usage:       "Outputs a file list on Google Drive.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Queries and outputs a detailed list of files from Google Drive.",
+			Description: "Performs exhaustive listings mapped by ID or name search.",
 			Action:      showFileList,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "searchbyname, sn",
-					Usage: "Search file using File Name. Output File ID.",
+					Usage: "Search by File Name. Returns matching File IDs.",
 				},
 				&cli.StringFlag{
 					Name:  "searchbyid, si",
-					Usage: "Search file using File ID. Output File Name.",
+					Usage: "Search by File ID. Returns the File Name.",
 				},
 				&cli.BoolFlag{
 					Name:  "stdout, s",
-					Usage: "Output all file list to standard output.",
+					Usage: "Stream file list directly to standard output.",
 				},
 				&cli.BoolFlag{
 					Name:  "file, f",
-					Usage: "Output all file list to a JSON file.",
+					Usage: "Save file list to a local JSON payload file.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "searchfiles",
 			Aliases:     []string{"sf"},
-			Usage:       "Search files on Google Drive using search query and regex.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Searches Google Drive utilizing precise queries and regex matching.",
+			Description: "Advanced Drive metadata retrieval powered by robust regex validation.",
 			Action:      searchFilesByQueryAndRegex,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "query, q",
-					Usage: "Search query. You can see the detail at https://developers.google.com/drive/api/v3/search-parameters",
+					Usage: "Advanced Search Query parameter.",
 				},
 				&cli.StringFlag{
 					Name:  "fields, f",
-					Usage: "Fields for retrieving files.",
+					Usage: "Filter return fields.",
 				},
 				&cli.StringFlag{
 					Name:  "regex, r",
-					Usage: "Retrieve files using regex. Regex is used for the filename.",
+					Usage: "Regex pattern for evaluating filenames natively.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "permissions",
 			Aliases:     []string{"p"},
-			Usage:       "Manage file permissions.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Manages file permissions, ownership transfers, and access roles.",
+			Description: "Modify, audit, or transfer security access to Drive resources.",
 			Action:      managePermissions,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "fileid, fi",
-					Usage: "Value is file ID. This value is required.",
+					Usage: "Required. Target File ID.",
 				},
 				&cli.StringFlag{
 					Name:  "permissionid, pi",
-					Usage: "Value is permission ID. This ID can be retrieved by retrieving permission list.",
+					Usage: "Specific permission ID to manipulate.",
 				},
 				&cli.BoolFlag{
 					Name:  "create, c",
-					Usage: "Create new permissions.",
+					Usage: "Provision new permission access.",
 				},
 				&cli.BoolFlag{
 					Name:  "delete, d",
-					Usage: "Delete permissions. fileId and permissionId are required.",
+					Usage: "Revoke an existing permission token.",
 				},
 				&cli.StringFlag{
 					Name:  "role",
-					Usage: "The role granted by this permission. While new values may be supported in the future, the following are currently allowed: owner, organizer, fileOrganizer, writer, commenter, reader",
+					Usage: "Access role: owner, organizer, fileOrganizer, writer, commenter, reader.",
 				},
 				&cli.StringFlag{
 					Name:  "type",
-					Usage: "The type of the grantee. Valid values are: user, group, domain, anyone",
+					Usage: "Grantee type: user, group, domain, anyone.",
 				},
 				&cli.StringFlag{
 					Name:  "emailaddress, email",
-					Usage: "The email address of the user or group to which this permission refers.",
+					Usage: "Associated email address for permission binding.",
 				},
 				&cli.BoolFlag{
 					Name:  "transferownership, transfer",
-					Usage: "Whether to transfer ownership to the specified user and downgrade the current owner to a writer. This parameter is required as an acknowledgement of the side effect. (Default: false)",
+					Usage: "Forcefully transfer ownership. The current owner is degraded to writer.",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "driveinformation",
 			Aliases:     []string{"di"},
-			Usage:       "Get drive information.",
-			Description: "In this mode, an access token is required.",
+			Usage:       "Retrieves quota and user information for the authenticated Drive.",
+			Description: "Provides raw Drive telemetry and usage metadata.",
 			Action:      getDriveInformation,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.StringFlag{
 					Name:  "fields, f",
-					Usage: "Fields for retrieving files.",
+					Usage: "Fields to interrogate.",
 					Value: "storageQuota,user",
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser",
+					Usage: "Display results by JSON parser.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
-					Usage: "Value is filename and path of credentials.json which was retrieved by creating Service Account.",
+					Usage: "Path to a service account credentials.json file.",
 				},
-			},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "auth",
-			Usage:       "Retrieve access and refresh tokens. If you changed scopes, please use this.",
-			Description: "In this mode, 'client_secret.json' and Scopes are required.",
+			Usage:       "Initiates the OAuth2 authorization flow.",
+			Description: "Automatically launches secure browser auth flow and stores tokens based on hierarchy configuration.",
 			Action:      reAuth,
-			Flags: []cli.Flag{
+			Flags: append([]cli.Flag{
 				&cli.IntFlag{
 					Name:  "port, p",
-					Usage: "Port number of temporal web server for retrieving authorization code.",
+					Usage: "Port binding for temporary OAuth loopback web server.",
 					Value: 8080,
 				},
-			},
+			}, getCommonFlags()...),
+		},
+		{
+			Name:        "status",
+			Aliases:     []string{"st"},
+			Usage:       "Checks authentication status and API connectivity.",
+			Description: "Quick health diagnostic tool for tokens and environment resolution.",
+			Action:      checkStatus,
+			Flags:       getCommonFlags(),
+		},
+		{
+			Name:        "mcp",
+			Aliases:     []string{"m"},
+			Usage:       "Starts ggsrun as an MCP (Model Context Protocol) server for LLM clients.",
+			Description: "Runs a stdio listener providing Drive/GAS tools to an MCP client. Does not require LLM API keys natively.",
+			Action:      runMCP,
+			Flags:       getCommonFlags(),
 		},
 	}
 	app.CommandNotFound = commandNotFound

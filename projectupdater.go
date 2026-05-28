@@ -3,7 +3,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 
 	"ggsrun/utl"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
@@ -48,23 +49,6 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 	}
 	return e.dispUpdateProjectContainer()
 }
-
-// projectUpdateForBoundScript : Update bound-script project
-// func (e *ExecutionContainer) projectUpdateForBoundScript() *ExecutionContainer {
-// 	p := e.convExecutionContainerToFileInf()
-// 	var pr *utl.ProjectForAppsScriptApi
-// 	var pp *utl.FilesForAppsScriptApi
-// 	pr.ScriptId = e.Project.ScriptId
-// 	for _, f := range e.Project.Files {
-// 		pp.Name = f.Name
-// 		pp.Type = f.Type
-// 		pp.Source = f.Source
-// 		pr.Files = append(pr.Files, *pp)
-// 	}
-// 	_ = p.ProjectUpdateByAppsScriptApi(pr)
-// 	e.Msg = append(e.Msg, "Project was updated.")
-// 	return e
-// }
 
 // ProjectMaker : Recreates the project using uploaded scripts.
 func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
@@ -112,7 +96,7 @@ func (e *ExecutionContainer) filesInProjectRemover() *ExecutionContainer {
 		temp = res
 	}
 	if len(temp.Files) == 1 {
-		fmt.Fprintf(os.Stderr, "Error: You cannot remove all files except for 'appsscript.json' in the project.\n")
+		pterm.Error.Println("You cannot remove all files except for 'appsscript.json' in the project.")
 		os.Exit(1)
 	}
 	e.Project = temp
@@ -124,7 +108,7 @@ func (e *ExecutionContainer) filesInProjectRemover() *ExecutionContainer {
 	}
 	e.Msg = append(e.Msg, fmt.Sprintf("Project ID is '%s'.", e.Scriptid))
 	if len(outr) == 0 {
-		fmt.Fprintf(os.Stderr, "[ %s ] were not found in the project. No files were removed from the project.\n", strings.Join(e.UpFiles, ", "))
+		pterm.Warning.Printf("[ %s ] were not found in the project. No files were removed from the project.\n", strings.Join(e.UpFiles, ", "))
 		os.Exit(1)
 	} else {
 		e.Msg = append(e.Msg, fmt.Sprintf("Files of [ %s ] were removed from the project.", strings.Join(outr, ", ")))

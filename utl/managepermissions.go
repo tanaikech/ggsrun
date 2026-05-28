@@ -4,11 +4,13 @@ package utl
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
 	"path"
+
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 )
 
 // permissionInf : Struct for permission information.
@@ -145,7 +147,7 @@ func (p *FileInf) ManagePermissions() *FileInf {
 		err = fmt.Errorf("Invalid options. Please check HELP using $ ggsrun p --help")
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		pterm.Error.Println(err)
 		os.Exit(1)
 	}
 	return p

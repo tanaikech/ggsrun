@@ -1,16 +1,16 @@
-// Package utl (convert.go) :
+// Package utl (converter.go) :
 // This is a convereter to send GAS script to Google.
 package utl
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
@@ -40,14 +40,14 @@ func chkScript(c *cli.Context) (string, error) {
 func ConvGasToPut(c *cli.Context) string {
 	scriptfile, err := chkScript(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
+		pterm.Error.Printf("Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
 		os.Exit(1)
 	}
 	var res string
 	if len(scriptfile) > 0 {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found. ", scriptfile)
+			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
 			os.Exit(1)
 		}
 		defer fp.Close()
@@ -59,7 +59,7 @@ func ConvGasToPut(c *cli.Context) string {
 			scripts = append(scripts, dat)
 		}
 		if s.Err() != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v .", s.Err())
+			pterm.Error.Printf("%v .", s.Err())
 			os.Exit(1)
 		}
 		mem := make([]byte, 0, 100)
@@ -77,7 +77,7 @@ func ConvGasToPut(c *cli.Context) string {
 func ConvGasToRun(c *cli.Context) string {
 	scriptfile, err := chkScript(c)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
+		pterm.Error.Printf("Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
 		os.Exit(1)
 	}
 	senddata := c.String("value")
@@ -85,7 +85,7 @@ func ConvGasToRun(c *cli.Context) string {
 	if len(scriptfile) > 0 {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found. ", scriptfile)
+			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
 			os.Exit(1)
 		}
 		defer fp.Close()
@@ -106,7 +106,7 @@ func ConvGasToRun(c *cli.Context) string {
 			}
 		}
 		if s.Err() != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v .", s.Err())
+			pterm.Error.Printf("%v .", s.Err())
 			os.Exit(1)
 		}
 		mem := make([]byte, 0, 100)
@@ -163,7 +163,7 @@ func ConvStringToRun(c *cli.Context, stringscript string) string {
 			}
 		}
 		if s.Err() != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v .", s.Err())
+			pterm.Error.Printf("%v .", s.Err())
 			os.Exit(1)
 		}
 		mem := make([]byte, 0, 100)
@@ -204,7 +204,7 @@ func ConvGasToUpload(scriptfile string) string {
 	if len(scriptfile) > 0 {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found. ", scriptfile)
+			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
 			os.Exit(1)
 		}
 		defer fp.Close()
@@ -216,7 +216,7 @@ func ConvGasToUpload(scriptfile string) string {
 			scripts = append(scripts, dat)
 		}
 		if s.Err() != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v .", s.Err())
+			pterm.Error.Printf("%v .", s.Err())
 			os.Exit(1)
 		}
 		mem := make([]byte, 0, 100)

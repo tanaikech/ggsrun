@@ -3,10 +3,11 @@
 package utl
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path"
+
+	"github.com/pterm/pterm"
 )
 
 // getDriveInf : Get drive information using Drive API.
@@ -33,7 +34,7 @@ func (p *FileInf) getDriveInf() error {
 // GetDriveInformation : Get Drive Information.
 func (p *FileInf) GetDriveInformation() *FileInf {
 	if err := p.getDriveInf(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		pterm.Error.Println(err)
 		os.Exit(1)
 	}
 	return p

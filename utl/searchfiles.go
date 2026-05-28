@@ -55,6 +55,6 @@ func (p *FileInf) SearchFiles() *FileInf {
 		p.SearchedFiles = fm.Files
 	}
 	p.SearchedResult = fmt.Sprintf("Number of file information is %d.", len(p.SearchedFiles))
-	p.TotalEt = math.Trunc(time.Now().Sub(p.PstartTime).Seconds()*1000) / 1000
+	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }

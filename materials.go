@@ -47,8 +47,10 @@ const (
 type InitVal struct {
 	pstart            time.Time
 	workdir           string
-	cfgdir            string
-	usedDir           string // "work" for working directory or "env" for directory declared by the environment variable.
+	envConfig         string
+	customConfig      string
+	customCred        string
+	isAuthCmd         bool
 	update            bool
 	log               bool
 	Port              int
@@ -272,28 +274,21 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	if err != nil {
 		panic(err)
 	}
-	if c.Command.Names()[0] == "auth" {
-		a.InitVal.cfgdir = a.InitVal.workdir
-	} else {
-		a.InitVal.cfgdir = os.Getenv(cfgpathenv)
-		if a.InitVal.cfgdir == "" {
-			a.InitVal.cfgdir = a.InitVal.workdir
-		}
-	}
+
+	a.InitVal.isAuthCmd = (c.Command.Name == "auth")
+	a.InitVal.customConfig = c.String("config")
+	a.InitVal.customCred = c.String("credentials")
+	a.InitVal.envConfig = os.Getenv(cfgpathenv)
+
 	a.Param.Function = c.String("function")
 	a.InitVal.log = c.Bool("log")
 	a.InitVal.Port = defPort
-	if c.Command.Names()[0] == "auth" {
+	if a.InitVal.isAuthCmd {
 		if c.Int("port") != 0 {
 			a.InitVal.Port = c.Int("port")
 		}
 	}
 
-	// Default scopes for using Execution API and Drive API
-	// If you want to use own scopes, please write them to configuration file.
-	// They are used for retrieving access token.
-	//
-	// From v1.4.0, https://www.googleapis.com/auth/script.projects was added to scope.
 	a.GgsrunCfg.Scopes = []string{
 		"https://www.googleapis.com/auth/drive",
 		"https://www.googleapis.com/auth/drive.file",
@@ -304,7 +299,6 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 		"https://www.googleapis.com/auth/script.projects",
 	}
 
-	// Use Service Account
 	a.useServiceAccount = c.String("serviceaccount")
 	return a
 }
@@ -345,10 +339,6 @@ func defExecutionContainerWebApps() *ExecutionContainer {
 	e.InitVal.workdir, err = filepath.Abs(".")
 	if err != nil {
 		panic(err)
-	}
-	e.InitVal.cfgdir = os.Getenv(cfgpathenv)
-	if e.InitVal.cfgdir == "" {
-		e.InitVal.cfgdir = e.InitVal.workdir
 	}
 	return e
 }
@@ -439,7 +429,6 @@ func (e *ExecutionContainer) dispUpdateProjectContainer() *utl.FileInf {
 	p := &utl.FileInf{
 		Msgar:   e.Msg,
 		TotalEt: math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000,
-		// TotalEt: math.Trunc(time.Now().Sub(e.InitVal.pstart).Seconds()*1000) / 1000,
 	}
 	return p
 }
@@ -470,19 +459,6 @@ func (e *ExecutionContainer) convExecutionContainerToFileInf() *utl.FileInf {
 	}
 	return p
 }
-
-// adaptProjectForAppsScriptApi : Adapt project for Apps Script Api
-// func (e *ExecutionContainer) adaptProjectForAppsScriptApi() *ExecutionContainer {
-// 	// e.Project.ScriptId = ""
-// 	for i, f := range e.Project.Files {
-// 		e.Project.Files[i].Type = strings.ToLower(f.Type)
-// 		e.Project.Files[i].CreateTime = ""
-// 		e.Project.Files[i].UpdateTime = ""
-// 		e.Project.Files[i].Creator = nil
-// 		e.Project.Files[i].LastModifyUser = nil
-// 	}
-// 	return e
-// }
 
 // defPermissionsContainer : Struct container for managing permissions
 func (a *AuthContainer) defPermissionsContainer(c *cli.Context) *utl.FileInf {

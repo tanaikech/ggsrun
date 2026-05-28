@@ -5,9 +5,11 @@ package utl
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
-	"log"
+	"os"
 	"time"
+
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 )
 
 // zipFileHeads : For doZip()
@@ -36,14 +38,17 @@ func (f *zipFileHeads) doFilesZip(comment string) *bytes.Buffer {
 		}
 		zf, err := z.CreateHeader(fh)
 		if err != nil {
-			log.Fatal(err)
+			pterm.Error.Println(err)
+			os.Exit(1)
 		}
 		if _, err = zf.Write(file.Body); err != nil {
-			log.Fatal(err)
+			pterm.Error.Println(err)
+			os.Exit(1)
 		}
 	}
 	if err := z.Close(); err != nil {
-		log.Fatal(err)
+		pterm.Error.Println(err)
+		os.Exit(1)
 	}
 	return b
 }
@@ -64,13 +69,13 @@ func (p *FileInf) zipComment() string {
 		p.FileID,
 		func() string {
 			if p.CreatedTime != nil {
-				return p.CreatedTime.In(time.Local).Format("20060102 15:04:05 MST")
+				return p.CreatedTime.In(time.Local).Format("2006/01/02 15:04:05")
 			}
 			return ""
 		}(),
 		func() string {
 			if p.CreatedTime != nil {
-				return p.ModifiedTime.In(time.Local).Format("20060102 15:04:05 MST")
+				return p.ModifiedTime.In(time.Local).Format("2006/01/02 15:04:05")
 			}
 			return ""
 		}(),

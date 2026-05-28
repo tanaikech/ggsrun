@@ -1,82 +1,45 @@
 /*
 Package main (doc.go) :
-This is a CLI tool to execute Google Apps Script (GAS) on a terminal.
+This is a modern, highly-concurrent CLI tool to execute Google Apps Script (GAS) on a terminal and manage Google Drive infrastructure.
 
-Will you want to develop GAS on your local PC? Generally, when we develop GAS, we have to login to Google using own browser and develop it on the Script Editor. Recently, I have wanted to have more convenient local-environment for developing GAS. So I created this "ggsrun". The main work is to execute GAS on local terminal and retrieve the results from Google.
+# Architecture Overhaul (Go 1.26+)
+
+The core engine of `ggsrun` has been completely rewritten to embrace Go's native concurrency capabilities.
+
+1. Massively Parallel I/O: By leveraging `golang.org/x/sync/errgroup` and real-time proxy progress bars (`github.com/vbauerster/mpb/v8`), the tool now streams Drive file uploads and downloads concurrently. It entirely bypasses legacy in-memory processing, drastically reducing footprint and network latency.
+2. Ultra-Fast JSON Parsing: Integrated `github.com/goccy/go-json` (SIMD-accelerated JSON parser) replacing standard `encoding/json` to maximize CPU throughput when handling heavy API payloads.
+3. Modern TUI & UX: Implemented `github.com/pterm/pterm` for highly structured, color-coded, and professional terminal outputs (tables, interactive spinners, warnings).
+4. Secure OAuth Lifecycle: The outdated OOB manual flow has been excised. The application now provisions a localized loopback listener, opening the browser via `os/exec` and securely intercepting tokens with an automated HTML UI acknowledgment.
+5. Autonomous Readiness: New `mcp` command prepares the tool for MCP (Model Context Protocol). It acts as a pure I/O backend for LLM clients (like Gemini CLI or Cursor) over stdio JSON-RPC, executing tool calls directly on your infrastructure without requiring any LLM API keys locally.
 
 # Features of "ggsrun" are as follows.
 
-1. Develops GAS using your terminal and text editor which got accustomed to using.
-
+1. Develops GAS using your terminal and text editor.
 2. Executes GAS by giving values to your script.
-
-3. Executes GAS made of CoffeeScript.
-
-4. Downloads spreadsheet, document and presentation, while executes GAS, simultaneously.
-
-5. Downloads files from Google Drive and Uploads files to Google Drive.
-
-6. Downloads standalone script and bound script.
-
-7. Downloads all files and folders in a specific folder.
-
-8. Upload script files and create project as standalone script and container-bound script.
-
-9. Update project.
-
-10. Retrieve revision files of Google Docs and retrieve versions of projects.
-
-11. Rearranges scripts in project.
-
-12. Modifies Manifests in project.
-
-13. Seach files in Google Drive using search query and regex.
-
-14. Manage Permissions of files.
-
-15. Get Drive Information.
-
-16. ggsrun got to be able to be used by not only OAuth2, but also Service Account from v1.7.0.
-
-You can see the release page https://github.com/tanaikech/ggsrun/releases
-
-# Google API
-
-ggsrun uses Execution API, Web Apps and Drive API on Google. About how to install ggsrun, please check my github repository.
-
-https://github.com/tanaikech/ggsrun/
-
-You can read the detail information there.
-
-
----------------------------------------------------------------
+3. Downloads files concurrently from Google Drive with stunning progress visualizations.
+4. Uploads files concurrently to Google Drive via native Resumable upload wrappers.
+5. Downloads standalone script and bound script.
+6. Downloads all files and folders in a specific folder.
+7. Upload script files and create projects as standalone scripts and container-bound scripts.
+8. Manage Permissions of files.
+9. Seach files in Google Drive using search query and regex.
+10. ggsrun supports both robust OAuth2 looping and Service Accounts natively.
 
 # How to Execute Google Apps Script Using ggsrun
-When you have the configure file `ggsrun.cfg`, you can execute GAS. If you cannot find it, please download `client_secret.json` and run
 
+If you do not have an active OAuth session, run the automated auth flow:
 $ ggsrun auth
 
-In the case of using Execution API,
-
+Execute your script with Execution API:
 $ ggsrun e1 -s sample.gs
 
-If you want to execute a function except for `main()` of default, you can use an option like `-f foo`. This command `exe1` can be used to execute a function on project.
-
+Execute a specific function:
 $ ggsrun e1 -f foo
 
-$ ggsrun e2 -s sample.gs
+Concurrently Upload Files:
+$ ggsrun upload -f "a.txt, b.txt, c.txt"
 
-At `e2`, you cannot select the executing function except for `main()` of default.
-
-`e1`, `e2` and `-s` mean using Execution API and GAS script file name, respectively. Sample codes which are shown here will be used Execution API. At this time, the executing function is `main()`,  which is a default, in the script.
-
-In the case of using Web Apps,
-
-$ ggsrun w -s sample.gs -p password -u [ WebApps URL ]
-
-`w` and `-p` mean using Web Apps and password you set at the server side, respectively. Using `-u` it imports Web Apps URL like `-u https://script.google.com/macros/s/#####/exec`.
-
-
----------------------------------------------------------------
+Concurrently Download Files:
+$ ggsrun download -i "[FILE_ID_1], [FILE_ID_2], [FILE_ID_3]"
 */
 package main

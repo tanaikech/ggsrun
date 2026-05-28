@@ -4,15 +4,15 @@ package utl
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 
-	pb "gopkg.in/cheggaaa/pb.v1"
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 )
 
 const (
@@ -47,7 +47,7 @@ func (p *FileInf) initResumableUpload(metadata map[string]interface{}) string {
 	}
 	res, err := r.FetchAPIres()
 	if res.StatusCode != 200 || err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n%v\n", err, res)
+		pterm.Error.Printf("%v\n%v\n", err, res)
 		os.Exit(1)
 	}
 	return res.Header["Location"][0]
@@ -122,16 +122,16 @@ func (p *FileInf) getChunks(size int64) *chunkPot {
 
 // resToBody : Retrieve body from http response.
 func resToBody(res *http.Response) []byte {
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		pterm.Error.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	defer res.Body.Close()
 	return body
 }
 
-// resumableSingleRequest : Run sinble request.
+// resumableSingleRequest : Run single request.
 func (cP *chunkPot) resumableSingleRequest(location string, fileBytes []byte, metadata map[string]interface{}) ([]byte, error) {
 	r := &RequestParams{
 		Method:        "PUT",
@@ -155,9 +155,9 @@ func (cP *chunkPot) resumableSingleRequest(location string, fileBytes []byte, me
 
 // resumableMultipleRequest : Run multiple request.
 func (cP *chunkPot) resumableMultipleRequest(location string, fileBytes []byte, metadata map[string]interface{}) ([]byte, error) {
-	bar := pb.StartNew(len(cP.Chunks))
+	pb, _ := pterm.DefaultProgressbar.WithTotal(len(cP.Chunks)).WithTitle("Uploading Resumable Chunks").Start()
 	for _, e := range cP.Chunks {
-		bar.Increment()
+		pb.Increment()
 		r := &RequestParams{
 			Method:        "PUT",
 			APIURL:        location,
@@ -169,16 +169,17 @@ func (cP *chunkPot) resumableMultipleRequest(location string, fileBytes []byte, 
 		}
 		res, err := r.FetchAPIres()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			pterm.Error.Printf("%v\n", err)
 			os.Exit(1)
 		}
 		switch res.StatusCode {
 		case 308:
 			continue
 		case 200:
-			bar.FinishPrint("Done.")
+			pb.Stop()
 			return resToBody(res), nil
 		default:
+			pb.Stop()
 			return nil, fmt.Errorf("%v\n%v", err, string(resToBody(res)))
 		}
 	}
@@ -190,9 +191,9 @@ func (p *FileInf) ResumableUpload(metadata map[string]interface{}, fs *os.File, 
 	var err error
 	resUp := p.getChunks(fstatus.Size())
 	location := p.initResumableUpload(metadata)
-	fileBytes, err := ioutil.ReadAll(fs)
+	fileBytes, err := io.ReadAll(fs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		pterm.Error.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	defer fs.Close()
@@ -203,7 +204,7 @@ func (p *FileInf) ResumableUpload(metadata map[string]interface{}, fs *os.File, 
 		r, err = resUp.resumableMultipleRequest(location, fileBytes, metadata)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n%v\n", err, string(r))
+		pterm.Error.Printf("%v\n%v\n", err, string(r))
 		os.Exit(1)
 	}
 	return r

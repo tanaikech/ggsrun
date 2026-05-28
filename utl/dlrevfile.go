@@ -3,21 +3,20 @@
 package utl
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
 	"os"
 	"path"
 	"strings"
-	"text/tabwriter"
 	"time"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
-// revisionListOLD : Struct for revision list
+// revisionList : Struct for revision list
 type revisionList struct {
 	Revisions []struct {
 		ID           string    `json:"id,omitempty"`
@@ -31,19 +30,14 @@ type revisionListv2 struct {
 		ID           string    `json:"id,omitempty"`
 		ModifiedDate time.Time `json:"modifiedDate,omitempty"`
 		ExportLinks  struct {
-			// for spreadsheet
 			Elsx string `json:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,omitempty"`
 			CSV  string `json:"text/csv,omitempty"`
-			// for document
 			HTML string `json:"text/html,omitempty"`
 			Docx string `json:"application/vnd.openxmlformats-officedocument.wordprocessingml.document,omitempty"`
-			// for slide
 			Pptx string `json:"application/vnd.openxmlformats-officedocument.presentationml.presentation,omitempty"`
-			// for drawing
-			Svg string `json:"image/svg+xml,omitempty"`
-			PNG string `json:"image/png,omitempty"`
-			Jpg string `json:"image/jpeg,omitempty"`
-
+			Svg  string `json:"image/svg+xml,omitempty"`
+			PNG  string `json:"image/png,omitempty"`
+			Jpg  string `json:"image/jpeg,omitempty"`
 			Text string `json:"text/plain,omitempty"`
 			PDF  string `json:"application/pdf,omitempty"`
 			ZIP  string `json:"application/zip,omitempty"`
@@ -94,19 +88,19 @@ func (p *FileInf) versionForProject(c *cli.Context) *FileInf {
 	return p
 }
 
-// getVerFromProject : Retrieve version from project
+// dispProjectVersionList : Retrieve version from project and display structurally
 func (p *FileInf) dispProjectVersionList(pvl *projectVersionList) {
 	ar := pvl.Versions
 	if len(ar) > 0 {
-		buffer := &bytes.Buffer{}
-		w := new(tabwriter.Writer)
-		w.Init(buffer, 0, 4, 1, ' ', 0)
-		fmt.Fprintf(w, "\n%s\t%s\t%s\n", "# versionNumber", "# description", "# createTime")
+		tableData := pterm.TableData{{"Version Number", "Description", "Create Time"}}
 		for _, e := range ar {
-			fmt.Fprintf(w, "%d\t%s\t%s\n", e.VersionNumber, e.Description, e.CreateTime.In(time.Local).Format("20060102_15:04:05"))
+			tableData = append(tableData, []string{
+				fmt.Sprintf("%d", e.VersionNumber),
+				e.Description,
+				e.CreateTime.In(time.Local).Format("2006/01/02 15:04:05"),
+			})
 		}
-		w.Flush()
-		fmt.Printf("%s\n", buffer)
+		pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 	}
 	p.Msgar = append(p.Msgar, fmt.Sprintf("Version list of '%s' was retrieved.", p.FileName))
 }
@@ -129,7 +123,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 		var er dlError
 		json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
-			fmt.Print(fmt.Sprintf("Error: %s (Status code is %d)\n", er.Error.Message, er.Error.Code))
+			pterm.Error.Printf("%s (Status code is %d)\n", er.Error.Message, er.Error.Code)
 			os.Exit(1)
 		}
 		var rl revisionListv2
@@ -137,17 +131,13 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 		if len(c.String("download")) == 0 {
 			ar := rl.Items
 			if len(ar) > 0 {
-				buffer := &bytes.Buffer{}
-				w := new(tabwriter.Writer)
-				w.Init(buffer, 0, 4, 1, ' ', 0)
-				fmt.Fprintf(w, "\n%s\t%s\n", "# Revision ID", "# ModifedTime")
+				tableData := pterm.TableData{{"Revision ID", "Modified Time"}}
 				for _, e := range ar {
-					fmt.Fprintf(w, "%s\t%s\n", e.ID, e.ModifiedDate.In(time.Local))
+					tableData = append(tableData, []string{e.ID, e.ModifiedDate.In(time.Local).Format("2006/01/02 15:04:05")})
 				}
-				w.Flush()
-				fmt.Printf("%s\n", buffer)
+				pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 			}
-			p.Msgar = append(p.Msgar, fmt.Sprintf("Revision ID list was retrieved."))
+			p.Msgar = append(p.Msgar, "Revision ID list was retrieved.")
 			el, _ := json.Marshal(rl.Items[0].ExportLinks)
 			var obj map[string]interface{}
 			json.Unmarshal(el, &obj)
@@ -166,7 +156,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 					if len(ext) > 0 {
 						p.DlMime = extToMime(ext)
 						if len(p.DlMime) == 0 {
-							fmt.Fprintf(os.Stderr, "Error: '%s' is wrong extension.\n", ext)
+							pterm.Error.Printf("'%s' is wrong extension.\n", ext)
 							os.Exit(1)
 						}
 					} else {
@@ -182,7 +172,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 				}
 			}
 			if len(p.SaveName) == 0 {
-				fmt.Fprintf(os.Stderr, "Error: '%s' is wrong revision number.\n", c.String("download"))
+				pterm.Error.Printf("'%s' is wrong revision number.\n", c.String("download"))
 				os.Exit(1)
 			}
 		}
@@ -207,7 +197,7 @@ func (p *FileInf) downloadRevisionFile() {
 			}
 		}
 		if p.MimeType == "application/vnd.google-apps.script" {
-			fmt.Println("Error: I think that the project file does NOT support revisions yet. If you know how to get revisions for projects using API, please tell me. I'm glad.")
+			pterm.Error.Println("I think that the project file does NOT support revisions yet. If you know how to get revisions for projects using API, please tell me. I'm glad.")
 			os.Exit(1)
 		} else {
 			params := url.Values{}
@@ -241,24 +231,20 @@ func (p *FileInf) getRevFromExGoogleDocs(c *cli.Context) {
 		var er dlError
 		json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
-			fmt.Print(fmt.Sprintf("Error: %s (Status code is %d)\n", er.Error.Message, er.Error.Code))
+			pterm.Error.Printf("%s (Status code is %d)\n", er.Error.Message, er.Error.Code)
 			os.Exit(1)
 		}
 		var rl revisionList
 		json.Unmarshal(body, &rl)
 		ar := rl.Revisions
 		if len(ar) > 0 {
-			buffer := &bytes.Buffer{}
-			w := new(tabwriter.Writer)
-			w.Init(buffer, 0, 4, 1, ' ', 0)
-			fmt.Fprintf(w, "\n%s\t%s\n", "# Revision ID", "# ModifedTime")
+			tableData := pterm.TableData{{"Revision ID", "Modified Time"}}
 			for _, e := range ar {
-				fmt.Fprintf(w, "%s\t%s\n", e.ID, e.ModifiedTime.In(time.Local))
+				tableData = append(tableData, []string{e.ID, e.ModifiedTime.In(time.Local).Format("2006/01/02 15:04:05")})
 			}
-			w.Flush()
-			fmt.Printf("%s\n", buffer)
+			pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
 		}
-		p.Msgar = append(p.Msgar, fmt.Sprintf("Revision ID list was retrieved."))
+		p.Msgar = append(p.Msgar, "Revision ID list was retrieved.")
 	}
 	if len(p.FileID) > 0 && len(c.String("download")) > 0 {
 		p.FileID = c.String("fileid")

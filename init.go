@@ -3,27 +3,65 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
+// resolveConfigFile determines the exact path to ggsrun.cfg based on strict priority.
+func (a *AuthContainer) resolveConfigFile() string {
+	// Priority 1: --config flag explicitly sets the path
+	if a.InitVal.customConfig != "" {
+		return filepath.Join(a.InitVal.customConfig, cfgFile)
+	}
+	// Priority 2: --credentials implicit path binding
+	if a.InitVal.customCred != "" {
+		return filepath.Join(filepath.Dir(a.InitVal.customCred), cfgFile)
+	}
+	// Priority 3: GGSRUN_CFG_PATH environment variable
+	if a.InitVal.envConfig != "" {
+		p := filepath.Join(a.InitVal.envConfig, cfgFile)
+		// Return if exists, or if we are actively provisioning a new auth structure
+		if _, err := os.Stat(p); err == nil || a.InitVal.isAuthCmd {
+			return p
+		}
+	}
+	// Priority 4: Final fallback to current working directory
+	return filepath.Join(a.InitVal.workdir, cfgFile)
+}
+
+// resolveCredFile determines the exact path to the credentials file based on strict priority.
+func (a *AuthContainer) resolveCredFile() string {
+	// Priority 1: --credentials explicitly states exact file target
+	if a.InitVal.customCred != "" {
+		return a.InitVal.customCred
+	}
+	// Priority 2: GGSRUN_CFG_PATH directory search
+	if a.InitVal.envConfig != "" {
+		p := filepath.Join(a.InitVal.envConfig, clientsecretFile)
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	// Priority 3: Final fallback to current working directory
+	return filepath.Join(a.InitVal.workdir, clientsecretFile)
+}
+
 // GgsrunIni : Initialize ggsrun
 func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
-	if cfgdata, err := a.chkInitFile(cfgFile); err == nil {
+	cfgPath := a.resolveConfigFile()
+	if cfgdata, err := os.ReadFile(cfgPath); err == nil {
 		err = json.Unmarshal(cfgdata, &a.GgsrunCfg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: Format error of '%s'.\n", cfgFile)
+			pterm.Error.Printf("Format parsing failure for '%s'.\n", cfgPath)
 			os.Exit(1)
 		}
-		if c.Command.Names()[0] == "exe1" ||
-			c.Command.Names()[0] == "exe2" {
+		if c.Command.Name == "exe1" || c.Command.Name == "exe2" {
 			if len(c.String("scriptid")) == 0 && len(a.GgsrunCfg.Scriptid) == 0 {
-				fmt.Fprintf(os.Stderr, "Error: No script id. Please use option '-i [Script ID]'.\n")
+				pterm.Error.Println("No script id. Please supply option '-i [Script ID]'.")
 				os.Exit(1)
 			}
 			if len(c.String("scriptid")) > 0 {
@@ -40,38 +78,21 @@ func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
 	return a
 }
 
-// readClientSecret : Read client secret file
+// readClientSecret : Read client secret file based on hierarchical priority
 func (a *AuthContainer) readClientSecret() *AuthContainer {
-	if csecret, err := a.chkInitFile(clientsecretFile); err == nil {
+	credPath := a.resolveCredFile()
+	if csecret, err := os.ReadFile(credPath); err == nil {
 		err := json.Unmarshal(csecret, &a.Cs)
 		if err != nil || (len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) == 0) {
-			fmt.Fprintf(os.Stderr, "Error: Please confirm '%s'.\nError is %s.\n", clientsecretFile, err)
+			pterm.Error.Printf("Credentials schema mismatch in '%s'.\nError trace: %s.\n", credPath, err)
 			os.Exit(1)
 		}
 		if len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) > 0 {
 			a.Cs.Cid = a.Cs.Ciw
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "Error: No materials for retrieving accesstoken. Please download '%s'.\n", clientsecretFile)
+		pterm.Error.Printf("No authentication materials located at '%s'.\n", credPath)
 		os.Exit(1)
 	}
 	return a
-}
-
-// chkInitFile : Check initial files.
-// By this method, at first, files are searched in working directory, and next, they are searched in the directory declared by the environment variable.
-func (a *AuthContainer) chkInitFile(file string) ([]byte, error) {
-	var err error
-	var body []byte
-	if body, err = ioutil.ReadFile(filepath.Join(a.InitVal.workdir, file)); err == nil {
-		a.InitVal.usedDir = "work"
-		return body, err
-	}
-	if a.InitVal.workdir != a.InitVal.cfgdir {
-		if body, err = ioutil.ReadFile(filepath.Join(a.InitVal.cfgdir, file)); err == nil {
-			a.InitVal.usedDir = "env"
-			return body, err
-		}
-	}
-	return nil, fmt.Errorf("error: %s was not found", file)
 }

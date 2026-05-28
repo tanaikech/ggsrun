@@ -3,13 +3,15 @@
 package utl
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+
+	json "github.com/goccy/go-json"
+	"github.com/pterm/pterm"
 )
 
 // folderTree : Struct for folder tree.
@@ -127,7 +129,7 @@ func (p *FileInf) makeFileByCondition(file fileS) error {
 // makeDir : Make a directory by checking duplication.
 func (p *FileInf) makeDir(folder string) error {
 	if er := chkFile(folder); !er {
-		if err := os.Mkdir(folder, 0777); err != nil {
+		if err := os.MkdirAll(folder, 0777); err != nil {
 			return err
 		}
 	} else {
@@ -162,9 +164,9 @@ func (p *FileInf) makeDirByCondition(dir string) error {
 func (p *FileInf) initDownload(fileList *fileListDl) error {
 	var err error
 	if p.Progress {
-		fmt.Printf("Download files from a folder '%s'.\n", fileList.SearchedFolder.Name)
-		fmt.Printf("There are %d files and %d folders in the folder.\n", fileList.TotalNumberOfFiles, fileList.TotalNumberOfFolders-1)
-		fmt.Println("Starting download.")
+		pterm.Info.Printf("Download files from a folder '%s'.\n", fileList.SearchedFolder.Name)
+		pterm.Info.Printf("There are %d files and %d folders in the folder.\n", fileList.TotalNumberOfFiles, fileList.TotalNumberOfFolders-1)
+		pterm.Info.Println("Starting sequence...")
 	}
 	idToName := map[string]interface{}{}
 	for i, e := range fileList.FolderTree.Folders {
@@ -400,11 +402,11 @@ func (p *FileInf) getOwner() bool {
 func (p *FileInf) DlFolders() error {
 	if p.Progress {
 		if p.ShowFileInf {
-			fmt.Printf("File finformation is retrieved from a folder '%s'.\n", p.FileName)
+			pterm.Info.Printf("File finformation is retrieved from a folder '%s'.\n", p.FileName)
 		} else {
-			fmt.Printf("Files are downloaded from a folder '%s'.\n", p.FileName)
+			pterm.Info.Printf("Files are downloaded from a folder '%s'.\n", p.FileName)
 		}
-		fmt.Println("Getting values to download.")
+		pterm.Info.Println("Getting values to download.")
 	}
 	folT := &folderTree{}
 	if p.getOwner() {

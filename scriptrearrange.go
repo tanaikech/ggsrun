@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
+	"github.com/pterm/pterm"
 	rearrange "github.com/tanaikech/go-rearrange"
 )
 
@@ -23,25 +23,21 @@ func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 	}
 	changedIndx, _, err := rearrange.Do(scripts, 3, false, true)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		pterm.Error.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	var input string
-	fmt.Printf("## Please be careful.\n")
-	fmt.Printf("## When the script is rearranged, the revision of script is reset once.\n")
-	fmt.Printf("Reflect the rearranged result? [y or n] ... ")
+	pterm.Warning.Println("Please be careful.")
+	pterm.Warning.Println("When the script is rearranged, the revision of script is reset once.")
+	fmt.Print("Reflect the rearranged result? [y or n] ... ")
 	if _, err := fmt.Scan(&input); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		pterm.Error.Printf("%v\n", err)
 		os.Exit(1)
 	}
 	if input == "y" {
-		s := spinner.New([]string{"/", "|", "\\", "|"}, 100*time.Millisecond)
-		s.UpdateSpeed(200 * time.Millisecond)
-		fmt.Printf("Please wait a moment...")
-		s.Start()
+		spinner, _ := pterm.DefaultSpinner.Start("Please wait a moment...")
 		e.rearrange(baseProject, changedIndx)
-		s.Stop()
-		fmt.Printf("\n")
+		spinner.Success("Rearrangement complete.")
 		return e
 	}
 	e.Msg = append(e.Msg, "Scripts of project were NOT rearranged.")
@@ -133,7 +129,7 @@ func getRearrangeTemplate(templateFile string) []string {
 	var data []string
 	f, err := os.Open(templateFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: Script '%s' is not found.\n", templateFile)
+		pterm.Error.Printf("Script '%s' is not found.\n", templateFile)
 		os.Exit(1)
 	}
 	defer f.Close()
@@ -147,7 +143,7 @@ func getRearrangeTemplate(templateFile string) []string {
 		}
 	}
 	if scanner.Err() != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", scanner.Err())
+		pterm.Error.Printf("%v\n", scanner.Err())
 		os.Exit(1)
 	}
 	return data
