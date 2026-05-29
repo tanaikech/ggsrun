@@ -5,7 +5,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -22,34 +24,98 @@ import (
 	"github.com/urfave/cli"
 )
 
-// Exe1Function :
+// Regex cache for parameter evaluation
+var (
+	numRe   = regexp.MustCompile(`^[+-]?[0-9]*[\.]?[0-9]+$`)
+	arrayRe = regexp.MustCompile(`^\[.*\]$`)
+	objRe   = regexp.MustCompile(`^{.*}$`)
+)
+
+// Exe1Function : Updates the project and executes the script.
 func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 	if len(c.String("scriptfile")) > 0 || c.Bool("backup") {
+		e.UpdateStatus("Preparing project update and backup...")
 		return e.projectBackup(c).projectUpdateIni(utl.ConvGasToPut(c)).projectUpdate2()
 	}
 	return e
 }
 
-// Exe2Function :
+// exe2Function : Sends GAS script to server library without updating the project.
 func (e *ExecutionContainer) exe2Function(c *cli.Context) *ExecutionContainer {
+	e.UpdateStatus("Resolving local script and evaluating IIFE bindings...")
+	var rawScript string
+	isConvert := c.Bool("convert")
+
+	// 1. Resolve raw script contents
 	if c.Bool("foldertree") {
-		btof := "function main(){return new ggsrun(null, null, null).foldertree()}"
-		return e.executionAPIwithServer(utl.ConvStringToRun(c, btof)).esenderForExe2(c)
+		rawScript = "function main(){return new ggsrun(null, null, null).foldertree();}"
+	} else if isConvert {
+		if len(c.String("value")) == 0 {
+			e.FailStatus("Validation Error")
+			pterm.Error.Println("No File ID. Please set it using '-v [ File ID ]'.")
+			os.Exit(1)
+		}
+		rawScript = "function main(e){return new ggsrun(e, null, null).nodocsdownloader();}"
+	} else if len(c.String("stringscript")) > 0 {
+		rawScript = c.String("stringscript")
+	} else {
+		scriptFile := c.String("scriptfile")
+		if scriptFile == "" {
+			e.FailStatus("Validation Error")
+			pterm.Error.Println("No script. Please set GAS script using '-s' or '--stringscript'.")
+			os.Exit(1)
+		}
+		b, err := os.ReadFile(scriptFile)
+		if err != nil {
+			e.FailStatus("I/O Error")
+			pterm.Error.Printf("Failed to read script file: %v\n", err)
+			os.Exit(1)
+		}
+		rawScript = string(b)
 	}
-	if c.Bool("convert") && len(c.String("value")) > 0 {
-		btof := "function main(e){return new ggsrun(e, null, null).nodocsdownloader()}"
-		return e.executionAPIwithServer(utl.ConvStringToRun(c, btof)).esenderForExe2(c).byteSliceConverter()
-	} else if c.Bool("convert") && len(c.String("value")) == 0 {
-		pterm.Error.Println("No File ID. Please set it using '-v [ File ID ]'.")
-		os.Exit(1)
+
+	// 2. Resolve target API server function (GAS Endpoint)
+	serverFuncName := c.String("function")
+	if serverFuncName == "" {
+		serverFuncName = deffuncserv // default is "ggsrunif.ExecutionApi"
 	}
-	if len(c.String("stringscript")) > 0 {
-		return e.executionAPIwithServer(utl.ConvStringToRun(c, c.String("stringscript"))).esenderForExe2(c)
+
+	// 3. Resolve and format arguments (value) for local main() function
+	val := c.String("value")
+	var argStr string
+	if val != "" {
+		if numRe.MatchString(val) || arrayRe.MatchString(val) || objRe.MatchString(val) || val == "true" || val == "false" || val == "null" {
+			argStr = val
+		} else {
+			argStr = fmt.Sprintf("%q", val)
+		}
 	}
-	return e.executionAPIwithServer(utl.ConvGasToRun(c)).esenderForExe2(c)
+
+	// 4. Wrap with IIFE ensuring main() is the universal entry point
+	wrappedScript := fmt.Sprintf(`(function() {
+%s
+if (typeof main !== 'undefined') {
+	return main(%s);
+}
+return "Execution completed, but main() was not defined in the local script.";
+})()`, rawScript, argStr)
+
+	// 5. CRITICAL FIX for GAS eval(eval(rec.com)) architecture.
+	// Encode the IIFE as a JSON string literal. This forces the first eval() on GAS
+	// to simply strip the quotes and return the script code as a string.
+	// The second eval() then safely executes the script.
+	quotedBytes, _ := json.Marshal(wrappedScript)
+	quotedScript := string(quotedBytes)
+
+	// 6. Execute API sequence
+	e = e.executionAPIwithServer(quotedScript, serverFuncName).esenderForExe2(c)
+	if isConvert {
+		e = e.byteSliceConverter()
+	}
+	return e
 }
 
-// ExecutionAPIwithoutServer :
+// ExecutionAPIwithoutServer : For exe1
 func (e *ExecutionContainer) executionAPIwithoutServer(c *cli.Context) *ExecutionContainer {
 	if len(e.Param.Function) == 0 {
 		e.Param.Function = deffuncwithout
@@ -59,20 +125,24 @@ func (e *ExecutionContainer) executionAPIwithoutServer(c *cli.Context) *Executio
 	return e
 }
 
-// executionAPIwithServer :
-func (e *ExecutionContainer) executionAPIwithServer(sendscript string) *ExecutionContainer {
+// executionAPIwithServer : Binds parameters securely for exe2
+func (e *ExecutionContainer) executionAPIwithServer(sendscript string, serverFuncName string) *ExecutionContainer {
+	e.UpdateStatus("Formulating Execution API payload...")
 	if len(sendscript) == 0 {
-		pterm.Error.Println("No script. Please set GAS script using '-s'.")
+		e.FailStatus("Validation Error")
+		pterm.Error.Println("No script payload provided.")
 		os.Exit(1)
 	}
-	if len(e.Param.Function) == 0 {
-		e.Param.Function = deffuncserv
-	}
+
+	// Set the API target endpoint to the specified GAS wrapper
+	e.Param.Function = serverFuncName
+
 	scr := &Com{
 		Com:     sendscript,
-		Exefunc: e.Param.Function,
+		Exefunc: "main", // Informational logging on server
 		Log:     e.InitVal.log,
 	}
+
 	scri, _ := json.Marshal(scr)
 	e.Param.Parameters = []string{string(scri)}
 	e.Param.DevMode = true
@@ -82,6 +152,7 @@ func (e *ExecutionContainer) executionAPIwithServer(sendscript string) *Executio
 // executionError : Check error for execution API
 func (e *ExecutionContainer) executionError(body []byte, err error) {
 	if err != nil {
+		e.FailStatus("API Execution Failed")
 		json.Unmarshal(body, &e.FeedBackData)
 		if e.FeedBackData.Error.Status == "UNAUTHENTICATED" {
 			if len(e.chkAtoken().Error) > 0 {
@@ -130,6 +201,7 @@ func (e *e1para) MarshalJSON() ([]byte, error) {
 
 // EsenderForExe1 : Sends GAS to Google and retrieves results.
 func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer {
+	e.UpdateStatus("Executing GAS function via Execution API...")
 	var paraint []interface{}
 	if len(c.String("value")) > 0 {
 		paraint = []interface{}{c.String("value")}
@@ -141,6 +213,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	}
 	re, _ := json.Marshal(epara)
 	if len(re) == 0 {
+		e.FailStatus("Validation Error")
 		pterm.Error.Printf("Format of values is wrong. Double and single quotates have to be escaped.\n - Inputted value was  %s\n", c.String("value"))
 		os.Exit(1)
 	}
@@ -182,6 +255,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 
 // esenderForExe2 : Sends GAS to Google and retrieves results.
 func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer {
+	e.UpdateStatus("Executing script dynamically via ggsrunif server...")
 	re, _ := json.Marshal(e.Param)
 	r := &utl.RequestParams{
 		Method:      "POST",
@@ -231,7 +305,7 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 			e.Msg = append(e.Msg, res.Msgar...)
 		}
 	}
-	e.Msg = append(e.Msg, fmt.Sprintf("'%s()' in the script was run using ggsrun server. Server function is '%s()'.", deffuncwith, e.Param.Function))
+	e.Msg = append(e.Msg, fmt.Sprintf("Target API '%s()' was evaluated and executed successfully.", e.Param.Function))
 	return e
 }
 
@@ -257,6 +331,7 @@ func (e *ExecutionContainer) projectUpdateIni(sendscript string) *ExecutionConta
 
 // projectUpdate2 : In this method, the project is updated using Apps Script API.
 func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
+	e.UpdateStatus("Uploading project files via Apps Script API...")
 	script, _ := json.Marshal(e.Project)
 	tokenparams := url.Values{}
 	tokenparams.Set("fields", "files,scriptId")
@@ -271,6 +346,7 @@ func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
+		e.FailStatus("Project Upload Failed")
 		pterm.Error.Printf("%v. ", err)
 		utl.DispScopeError2(res)
 		os.Exit(1)
@@ -281,6 +357,7 @@ func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
 
 // projectBackup : Download and backup project (Apps Script API v1)
 func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
+	e.UpdateStatus("Backing up existing project...")
 	tokenparams := url.Values{}
 	tokenparams.Set("fields", "files,scriptId")
 	u, _ := url.Parse(appsscriptapi)
@@ -295,6 +372,7 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	}
 	res, err := r.FetchAPI()
 	if err != nil {
+		e.FailStatus("Project Backup Failed")
 		pterm.Error.Printf("%v.\n%v\n\n", err, string(res))
 		pterm.Warning.Println("One of reasons of error :\n Was the inputted project ID correct?")
 		utl.DispScopeError2(res)
@@ -311,32 +389,109 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 	return e
 }
 
-// webAppswithServerForExe3 : Sends GAS to Google and retrieves results.
+// webAppswithServerForExe3 : Sends GAS to Google securely, traversing OAuth redirects.
 func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Context) *ExecutionContainer {
+	e.UpdateStatus("Transmitting payload to Web Apps endpoint...")
 	if len(c.String("url")) == 0 {
+		e.FailStatus("Validation Error")
 		pterm.Error.Println("No URL for Web Apps.")
 		os.Exit(1)
 	}
+
 	tokenparams := url.Values{}
 	tokenparams.Set("com", script)
 	tokenparams.Set("pass", c.String("password"))
 	tokenparams.Set("log", strconv.FormatBool(c.Bool("log")))
-	r := &utl.RequestParams{
-		Method:      "POST",
-		APIURL:      c.String("url"),
-		Data:        strings.NewReader(tokenparams.Encode()),
-		Contenttype: "application/x-www-form-urlencoded",
-		Accesstoken: "",
-		Dtime:       370,
+
+	var accessToken string
+	var authStatusMsg string
+	var authUsed bool
+
+	// Determine if valid OAuth context exists to bypass "Anyone" restrictions.
+	if e.GgsrunCfg != nil && e.GgsrunCfg.Accesstoken != "" {
+		hasScope := false
+		for _, s := range e.GgsrunCfg.Scopes {
+			if strings.Contains(s, "auth/drive") || strings.Contains(s, "auth/drive.readonly") {
+				hasScope = true
+				break
+			}
+		}
+		if hasScope {
+			accessToken = e.GgsrunCfg.Accesstoken
+			authUsed = true
+			authStatusMsg = "Access Token with Drive scope was utilized for secure Web Apps execution."
+		} else {
+			authStatusMsg = "Access Token found but lacks 'drive' or 'drive.readonly' scope. Proceeding anonymously."
+		}
+	} else {
+		authStatusMsg = "No Access Token found (ggsrun auth not executed). Proceeding anonymously."
 	}
-	body, err := r.FetchAPI()
+
+	// Custom HTTP Client is mandatory here.
+	// Standard Go clients strip the "Authorization" header upon encountering a 302 Redirect.
+	// Google Web Apps explicitly rely on 302 Redirects to execute scripts securely.
+	client := &http.Client{
+		Timeout: 370 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return http.ErrUseLastResponse
+			}
+			if accessToken != "" {
+				req.Header.Set("Authorization", "Bearer "+accessToken)
+			}
+			return nil
+		},
+	}
+
+	req, err := http.NewRequest("POST", c.String("url"), strings.NewReader(tokenparams.Encode()))
 	if err != nil {
+		e.FailStatus("Network Initialization Failed")
+		pterm.Error.Printf("Failed to create request: %v\n", err)
+		os.Exit(1)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if accessToken != "" {
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		e.FailStatus("Network Transport Failed")
 		pterm.Error.Println("Please check Web Apps Service and/or URL of it. Web Apps Service might not be deployed.")
 		os.Exit(1)
 	}
-	json.Unmarshal(body, &e.FeedBackData.Response.Result)
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		e.FailStatus("I/O Error")
+		pterm.Error.Printf("Failed to read response: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Catch the scenario where a user sets it to "Only myself" but has no valid token,
+	// returning the Google HTML login page instead of JSON.
+	if resp.StatusCode != http.StatusOK {
+		e.FailStatus("Authentication Boundary Hit")
+		pterm.Error.Printf("Web Apps returned Status Code %d.\nIf you set 'Who has access' to 'Only myself', ensure you have executed 'ggsrun auth' and have Drive scopes.\nResponse: %s\n", resp.StatusCode, string(body))
+		os.Exit(1)
+	}
+
+	err = json.Unmarshal(body, &e.FeedBackData.Response.Result)
+	if err != nil {
+		e.FailStatus("Format Parsing Error")
+		pterm.Error.Printf("Failed to parse Web Apps response. (Are you hitting a login wall? Ensure your OAuth scopes are correct or set access to 'Anyone').\nError: %v\n", err)
+		os.Exit(1)
+	}
+
 	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
 	e.FeedBackData.Response.Result.Uapi = wapps
+
+	// Inject security audit info into the JSON payload
+	e.FeedBackData.Response.Result.TokenAuthUsed = authUsed
+	e.FeedBackData.Response.Result.TokenAuthMsg = authStatusMsg
+	e.Msg = append(e.Msg, authStatusMsg)
+
 	dlfileinf, _ := json.Marshal(e.FeedBackData.Response.Result.Result)
 	var rs map[string]interface{}
 	if err := json.Unmarshal(dlfileinf, &rs); err == nil {
@@ -352,7 +507,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	return e
 }
 
-// byteSliceConverter :
+// byteSliceConverter : Process conversion payload
 func (e *ExecutionContainer) byteSliceConverter() *ExecutionContainer {
 	if !strings.Contains(fmt.Sprintf("%s", e.FeedBackData.Response.Result.Result), "Error") {
 		var f ByteSliceFile

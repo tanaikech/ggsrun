@@ -23,8 +23,10 @@ import (
 
 // Goauth :
 func (a *AuthContainer) goauth() *AuthContainer {
+	a.UpdateStatus("Authenticating...")
 	if a.useServiceAccount != "" {
 		if err := a.getAtFromSa(); err != nil {
+			a.FailStatus("Authentication Failed")
 			pterm.Error.Println(err)
 			os.Exit(1)
 		}
@@ -47,6 +49,38 @@ func (a *AuthContainer) goauth() *AuthContainer {
 	}
 	a.Msg = append(a.Msg, "Access Token was was used.")
 	return a
+}
+
+// tryLoadAuth : Attempt to load authentication configuration securely without crashing.
+// Used primarily for webapps which can function both anonymously and securely authenticated.
+func (a *AuthContainer) tryLoadAuth() {
+	cfgPath := a.resolveConfigFile()
+	if cfgdata, err := os.ReadFile(cfgPath); err == nil {
+		json.Unmarshal(cfgdata, &a.GgsrunCfg)
+
+		// Detect if Drive scope exists for secure execution
+		hasScope := false
+		for _, s := range a.GgsrunCfg.Scopes {
+			if strings.Contains(s, "auth/drive") || strings.Contains(s, "auth/drive.readonly") {
+				hasScope = true
+				break
+			}
+		}
+
+		if hasScope {
+			if a.useServiceAccount != "" {
+				a.getAtFromSa()
+			} else if a.GgsrunCfg.Clientid != "" && a.GgsrunCfg.Refreshtoken != "" {
+				// Refresh the token automatically if it has expired
+				if (a.InitVal.pstart.Unix() - a.GgsrunCfg.Expiresin) > 0 {
+					a.getAtoken()
+					a.makecfgfile()
+				}
+			}
+		}
+	} else if a.useServiceAccount != "" {
+		a.getAtFromSa()
+	}
 }
 
 // ReAuth :
@@ -84,6 +118,7 @@ func (a *AuthContainer) makecfgfile() {
 
 // getAtoken : Retrieves accesstoken from refreshtoken.
 func (a *AuthContainer) getAtoken() *AuthContainer {
+	a.UpdateStatus("Refreshing Access Token...")
 	a.Msg = append(a.Msg, "Got a new accesstoken.")
 	values := url.Values{}
 	values.Set("client_id", a.GgsrunCfg.Clientid)
@@ -100,6 +135,7 @@ func (a *AuthContainer) getAtoken() *AuthContainer {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
+		a.FailStatus("Token Refresh Failed")
 		pterm.Error.Printf("%v. %s\n", err, body)
 		pterm.Info.Println("Hint: Try clearing your existing config manually or invoke 'ggsrun auth'.")
 		os.Exit(1)
@@ -122,6 +158,7 @@ func (a *AuthContainer) chkAtoken() int64 {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
+		a.FailStatus("Token Check Failed")
 		pterm.Error.Printf("%v. ", err)
 		os.Exit(1)
 	}
@@ -229,9 +266,11 @@ func (a *AuthContainer) getCode() (string, error) {
 
 // getNewAccesstoken : Retrieve accesstoken when there is no refreshtoken.
 func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
+	a.UpdateStatus("Requesting new Access Token...")
 	pterm.Info.Println("Authorization process initiated...")
 	code, err := a.getCode()
 	if err != nil {
+		a.FailStatus("Authorization Flow Error")
 		pterm.Error.Printf("Error during authorization flow: %v\n", err)
 		os.Exit(1)
 	}
@@ -252,6 +291,7 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	}
 	body, err := r.FetchAPI()
 	if err != nil {
+		a.FailStatus("Token Issuance Failed")
 		pterm.Error.Printf("[ %v ] - Authorization token issuance failed. ", err)
 		os.Exit(1)
 	}

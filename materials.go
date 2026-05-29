@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"ggsrun/utl"
 
+	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 )
 
@@ -55,6 +57,32 @@ type InitVal struct {
 	log               bool
 	Port              int
 	useServiceAccount string
+	Spinner           *pterm.SpinnerPrinter // TUI Spinner reference
+}
+
+// UpdateStatus safely updates the TUI spinner text if active.
+// It uses fixed-width spacing (%-70s) to pad the string, preventing trailing characters
+// from persisting when a shorter message overwrites a longer previous message.
+func (i *InitVal) UpdateStatus(msg string) {
+	if i.Spinner != nil {
+		i.Spinner.UpdateText(fmt.Sprintf("%-70s", msg))
+	}
+}
+
+// SuccessStatus cleanly stops the TUI spinner with a success mark.
+func (i *InitVal) SuccessStatus(msg string) {
+	if i.Spinner != nil {
+		i.Spinner.Success(fmt.Sprintf("%-70s", msg))
+		i.Spinner = nil // Prevent further updates
+	}
+}
+
+// FailStatus abruptly stops the TUI spinner with an error mark.
+func (i *InitVal) FailStatus(msg string) {
+	if i.Spinner != nil {
+		i.Spinner.Fail(fmt.Sprintf("%-70s", msg))
+		i.Spinner = nil // Prevent further updates
+	}
 }
 
 // ResMsg : Response message also included errors
@@ -188,13 +216,15 @@ type ErrorMsg struct {
 
 // Resvalue : Results of ggsrun
 type Resvalue struct {
-	Result   interface{}   `json:"result"`
-	Logger   []interface{} `json:"logger,omitempty"`
-	GoogleEt float64       `json:"GoogleElapsedTime,omitempty"`
-	TotalEt  float64       `json:"TotalElapsedTime,omitempty"`
-	Date     string        `json:"ScriptDate,omitempty"`
-	Uapi     string        `json:"API,omitempty"`
-	Message  []string      `json:"message,omitempty"`
+	Result        interface{}   `json:"result"`
+	Logger        []interface{} `json:"logger,omitempty"`
+	GoogleEt      float64       `json:"GoogleElapsedTime,omitempty"`
+	TotalEt       float64       `json:"TotalElapsedTime,omitempty"`
+	Date          string        `json:"ScriptDate,omitempty"`
+	Uapi          string        `json:"API,omitempty"`
+	Message       []string      `json:"message,omitempty"`
+	TokenAuthUsed bool          `json:"tokenAuthUsed,omitempty"`
+	TokenAuthMsg  string        `json:"tokenAuthMessage,omitempty"`
 }
 
 // DlFileByScript : Information of download file by script
@@ -244,8 +274,6 @@ type AuthContainer struct {
 }
 
 // ExecutionContainer : Struct container for using Execution API.
-// 1. Upload script using Execution API
-// 2. Update project using Drive API and execute script using Execution API
 type ExecutionContainer struct {
 	*InitVal            // Initial values
 	*ResMsg             // Response message

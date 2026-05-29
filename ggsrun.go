@@ -36,7 +36,7 @@ func main() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.0.0" // Version bumped for concurrent worker enhancements
+	app.Version = "5.0.3" // Version bumped for CLI/TUI UX overhaul
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -71,7 +71,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display outputs beautifully formatted by a JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 			}, getCommonFlags()...),
 		},
@@ -120,7 +120,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display outputs beautifully formatted by a JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 			}, getCommonFlags()...),
 		},
@@ -157,7 +157,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display outputs beautifully formatted by a JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 			}, getCommonFlags()...),
 		},
@@ -215,7 +215,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -279,7 +279,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -320,7 +320,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 			}, getCommonFlags()...),
 		},
@@ -353,7 +353,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -386,7 +386,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -415,7 +415,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -464,7 +464,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
@@ -486,7 +486,7 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
-					Usage: "Display results by JSON parser.",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
