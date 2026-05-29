@@ -101,11 +101,32 @@ Running `ggsrun mcp` transforms the application into an autonomous JSON-RPC serv
 
 ### 1. Install ggsrun
 
+#### Using Go
+
 Requires Go 1.26.3 or higher. Pull and compile the latest binary natively:
 
 ```bash
 $ go install github.com/tanaikech/ggsrun@latest
 ```
+
+#### Downloading Pre-built Binaries
+
+Alternatively, you can download pre-built binaries directly from the [Releases page](https://github.com/tanaikech/ggsrun/releases).
+
+The following compiled binaries are available:
+
+* **macOS (Darwin)**
+  * `ggsrun_darwin_amd64`
+  * `ggsrun_darwin_arm64`
+* **Linux**
+  * `ggsrun_linux_386`
+  * `ggsrun_linux_amd64`
+  * `ggsrun_linux_arm64`
+  * `ggsrun_linux_armv7`
+* **Windows**
+  * `ggsrun_windows_386.exe`
+  * `ggsrun_windows_amd64.exe`
+  * `ggsrun_windows_arm64.exe`
 
 ### 2. Obtain Google Cloud Credentials
 
