@@ -33,6 +33,10 @@
     - [Authentication \& MCP](#authentication--mcp)
     - [Massively Parallel Download](#massively-parallel-download)
     - [Massively Parallel Upload](#massively-parallel-upload)
+  - [Model Context Protocol (MCP) Server \& LLM Integration](#model-context-protocol-mcp-server--llm-integration)
+    - [1. Exposed Tools](#1-exposed-tools)
+    - [2. Standardized JSON Output (TransferResult)](#2-standardized-json-output-transferresult)
+    - [3. AI Agent Prompt Scenarios \& Expected Behaviors](#3-ai-agent-prompt-scenarios--expected-behaviors)
   - [Deep Dive: Executing Google Apps Script (exe1, exe2, webapps)](#deep-dive-executing-google-apps-script-exe1-exe2-webapps)
     - [Mode 1: `exe1` (Stateful Project Execution)](#mode-1-exe1-stateful-project-execution)
       - [Architecture Workflow](#architecture-workflow)
@@ -54,7 +58,7 @@
 
 **ggsrun** is an enterprise-grade CLI tool and MCP (Model Context Protocol) Server designed to relentlessly orchestrate Google Drive I/O operations and execute Google Apps Script (GAS) natively from a local terminal.
 
-With the release of **v5.0.2**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.3+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
+With the release of **v5.1.1**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.3+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
 
 ---
 
@@ -249,6 +253,82 @@ If not specified, `ggsrun` will default to an **interactive CLI prompt** allowin
 
 ---
 
+## Model Context Protocol (MCP) Server & LLM Integration
+
+Running `$ ggsrun mcp` transforms `ggsrun` into a native **Model Context Protocol (MCP) Server**, communicating with LLM clients (such as Claude Desktop, Cursor, or specialized AI agents) over standard I/O (`stdin`/`stdout`). 
+
+With the release of **v5.1.1**, the MCP capabilities are enhanced to fully expose modern conflict resolution and deliver deeply structured JSON results.
+
+### 1. Exposed Tools
+The MCP server exposes the following high-level tools to your AI agent:
+- `searchfiles`: Search Google Drive files using queries (e.g., `name='target' and trashed=false`).
+- `download`: Download files or folders by File ID. Includes a `--conflict-mode` option to handle name collisions.
+- `upload`: Upload a local file or recursive folder to a Google Drive location. Includes a `--conflict-mode` option.
+- `exe1`: Stateful execution of Google Apps Script projects.
+- `filelist`: Exact name search for files, returning Google Drive File IDs.
+
+### 2. Standardized JSON Output (`TransferResult`)
+When executing transfer operations (uploads/downloads), `ggsrun` outputs a standardized JSON payload structure named `TransferResult`. This allows your AI agent to reliably parse the result, extract metadata, and identify multi-turn actions like conflict resolution.
+
+**Example `TransferResult` JSON structure:**
+```json
+{
+  "message": [
+    "Upload processed successfully."
+  ],
+  "files": [
+    {
+      "name": "file_2.txt",
+      "fileId": "1a2b3c4d5e6f7g8h9i0j",
+      "mimeType": "text/plain",
+      "url": "https://drive.google.com/file/d/1a2b3c4d5e6f7g8h9i0j/view",
+      "size": 1024,
+      "localPath": "/local/path/file_2.txt",
+      "status": "uploaded"
+    }
+  ],
+  "pendingConflicts": [
+    {
+      "name": "file_1.txt",
+      "mimeType": "text/plain",
+      "size": 2048,
+      "localPath": "/local/path/file_1.txt",
+      "status": "pending_conflict"
+    }
+  ],
+  "actionRequired": "Conflicts detected. Please invoke upload again with a conflict-mode: 'skip', 'overwrite', 'rename', or 'update' for the pending files."
+}
+```
+
+### 3. AI Agent Prompt Scenarios & Expected Behaviors
+
+To help your AI agent interact effectively with the `ggsrun` MCP server, use the following standardized and optimized prompts.
+
+#### Scenario A: Batch Upload with Interactive Conflict Resolution
+Test how the AI coordinates partial execution and handles unexpected collisions when some files already exist in Google Drive while others do not.
+
+* **Setup:** Ensure `file_1.txt` already exists on your Google Drive, while `file_2.txt` is a brand-new local file.
+* **Agent Prompt:**
+  > "Please upload `file_1.txt` and `file_2.txt` to Google Drive using the `upload` tool. Do not specify the conflict mode initially. If there are pending conflicts, ask me how to resolve them."
+* **Expected Interaction Flow:**
+  1. The AI invokes the `upload` tool for both files without passing the `--conflict-mode` argument.
+  2. The `ggsrun` backend uploads `file_2.txt` successfully and populates it in the `files` array, but registers `file_1.txt` under `pendingConflicts` with `"status": "pending_conflict"`.
+  3. The AI parses the `TransferResult` and successfully reports: *"I have uploaded `file_2.txt` (ID: ...). However, `file_1.txt` already exists. Would you like to skip, overwrite, rename, or update it?"*
+  4. You reply: *"Please overwrite it."*
+  5. The AI intelligently invokes the `upload` tool specifically for `file_1.txt` with `conflict-mode` set to `"overwrite"`.
+
+#### Scenario B: Granular Metadata Extraction and Parsing
+Test if the AI can retrieve full file metadata from `TransferResult` and report specific file properties precisely.
+
+* **Agent Prompt:**
+  > "Please download the file with ID `[YOUR_FILE_ID]` from Google Drive. Tell me exactly where it was saved (`localPath`) and its `size` from the result."
+* **Expected Interaction Flow:**
+  1. The AI invokes the `download` tool passing the target file ID.
+  2. `ggsrun` performs the parallel download and returns a standardized JSON structure containing the file array.
+  3. The AI successfully parses the `files` array in `TransferResult` and replies to you with clear, accurate metadata: *"The file has been saved to `[localPath]` and its size is `[size]` bytes."*
+
+---
+
 ## Deep Dive: Executing Google Apps Script (exe1, exe2, webapps)
 
 ### Mode 1: `exe1` (Stateful Project Execution)
@@ -414,6 +494,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.1.1 (May 2026) - Modular Handlers & Enhanced MCP Server Core**
+  Refactored the codebase to modularize legacy single-file command handlers into dedicated, organized handler files (`handler_download.go`, `handler_upload.go`, `handler_transfer.go`, `handler_mcp.go`, `handler_execute.go`). Strengthened the MCP server core (`ggsrun mcp`) by capturing stdout and stderr execution logs for comprehensive error recovery. Embedded full support for `--conflict-mode` inside the MCP JSON-RPC schemas and standardized file transfer outputs into `TransferResult` to support interactive multi-turn collision resolution in LLM conversations. Fully updated pre-built binaries for all major architectures.
 - **v5.1.0 (May 2026) - Advanced Conflict Resolution Engine**
   Introduced a robust pre-computation conflict resolution matrix for both `download` and `upload` commands via the new `--conflict-mode` (`-cm`) flag. Users can now choose from `skip`, `overwrite`, `rename` (appends timestamp `_YYYYMMDD_HHMMSS` to avoid collisions), or `update` (syncs only if the source file is newer than the target). Includes interactive fallback CLI prompts if no mode is specified. Deprecated the legacy `--overwrite` (`-o`) and `--skip` (`-s`) options in favor of `--conflict-mode`. To avoid Drive API rate limits during massive concurrent uploads, metadata query is pre-fetched in bulk.
 - **v5.0.3 (May 2026) - CLI UX Overhaul & Dynamic TUI Integration**
