@@ -122,7 +122,12 @@ The following compiled binaries are available:
   * `ggsrun_linux_386`
   * `ggsrun_linux_amd64`
   * `ggsrun_linux_arm64`
-  * `ggsrun_linux_armv7`
+  * `ggsrun_linux_arm7`
+  * `ggsrun_linux_mips`
+  * `ggsrun_linux_mipsle`
+* **FreeBSD**
+  * `ggsrun_freebsd_amd64`
+  * `ggsrun_freebsd_arm64`
 * **Windows**
   * `ggsrun_windows_386.exe`
   * `ggsrun_windows_amd64.exe`
@@ -209,6 +214,7 @@ Target IDs can belong to Standard Drives, Shared Drives, or Team Drives seamless
 | `$ ggsrun download -i "FOLDER_ID" -m "application/pdf"` | Recursively downloads a folder, but filters specifically to retrieve only PDF files.                |
 | `$ ggsrun download -i "SCRIPT_ID" -z`                   | Downloads an entire GAS project, bundles all `.js`/`.html` files, and saves it as a `.zip` archive. |
 | `$ ggsrun download -i "SCRIPT_ID" -r`                   | Downloads a GAS project natively as raw `.json` payload.                                            |
+| `$ ggsrun download -i "FOLDER_ID" -cm update`            | Recursively downloads a folder, updating only files that are newer on Drive.                        |
 
 ### Massively Parallel Upload
 
@@ -222,6 +228,24 @@ Pushes local hierarchical structures to Google Drive asynchronously. Resumable c
 | `$ ggsrun upload -f "script.js" -pid "SHEET_ID" --projecttype "spreadsheet"` | Uploads a script and provisions it as a **Container-Bound Script** directly attached to the specified Google Sheet. |
 | `$ ggsrun upload -f "data.csv" -c "sheet"`                                   | Uploads a CSV file and automatically commands Google Drive to convert it into a native Google Spreadsheet.          |
 | `$ ggsrun upload -f "large_file.mp4" --chunksize 250`                        | Accelerates massive file transfers by increasing the Resumable Upload chunk size to 250MB.                          |
+| `$ ggsrun upload -f "/path/to/folder" -p "FOLDER_ID" -cm rename`             | Uploads a directory, appending timestamps to any conflicting filenames on Drive.                                    |
+
+### Conflict Resolution Mode
+
+Both `download` and `upload` commands support the `--conflict-mode` (or `-cm`) flag to handle collisions when files already exist in the target destination.
+
+If not specified, `ggsrun` will default to an **interactive CLI prompt** allowing you to dynamically select the resolution per collision.
+
+| Conflict Mode | Behavior (Download) | Behavior (Upload) |
+| :--- | :--- | :--- |
+| `skip` | Skips downloading the file if it already exists locally. | Skips uploading the file if it already exists on Google Drive. |
+| `overwrite` | Overwrites the local file. | Overwrites the remote file on Google Drive (triggers a `PATCH` request). |
+| `rename` | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename locally. | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename on Google Drive. |
+| `update` | Downloads only if the remote file is newer than the local file. | Uploads/updates only if the local file is newer than the remote file. |
+
+> [!NOTE]
+> The legacy `--overwrite` (`-o`) and `--skip` (`-s`) flags in `download` are deprecated. Please migrate to `--conflict-mode`.
+> For massive concurrent uploads, metadata queries are pre-fetched in bulk to bypass Google Drive API rate limits.
 
 ---
 
@@ -390,6 +414,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.1.0 (May 2026) - Advanced Conflict Resolution Engine**
+  Introduced a robust pre-computation conflict resolution matrix for both `download` and `upload` commands via the new `--conflict-mode` (`-cm`) flag. Users can now choose from `skip`, `overwrite`, `rename` (appends timestamp `_YYYYMMDD_HHMMSS` to avoid collisions), or `update` (syncs only if the source file is newer than the target). Includes interactive fallback CLI prompts if no mode is specified. Deprecated the legacy `--overwrite` (`-o`) and `--skip` (`-s`) options in favor of `--conflict-mode`. To avoid Drive API rate limits during massive concurrent uploads, metadata query is pre-fetched in bulk.
 - **v5.0.3 (May 2026) - CLI UX Overhaul & Dynamic TUI Integration**
   Introduced a highly visual, modern Terminal UI (TUI) powered by `pterm` for `exe1`, `exe2`, and `webapps` commands. Added interactive loading spinners with anti-ghosting fixed-width padding (`%-70s`) and beautifully structured execution reports. Maintained strict backward compatibility by preserving pure JSON output streams via the `-j` flag for CI/CD pipeline automation.
 - **v5.0.2 (May 2026) - Secure Web Apps Protocol Upgrade**

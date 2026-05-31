@@ -36,7 +36,7 @@ func main() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.0.3" // Version bumped for CLI/TUI UX overhaul
+	app.Version = "5.1.0" // Version bumped for CLI/TUI UX overhaul
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -189,6 +189,10 @@ func main() {
 					Name:  "mimetype, m",
 					Usage: "mimeType filter for downloading from folders. ex: '-m \"mimeType1,mimeType2\"'",
 				},
+				&cli.StringFlag{
+					Name:  "conflict-mode, cm",
+					Usage: "Action on conflict: skip, overwrite, rename, update. Default is interactive CLI prompt.",
+				},
 				&cli.BoolFlag{
 					Name:  "rawdata, r",
 					Usage: "Save a GAS project as raw JSON data.",
@@ -203,11 +207,11 @@ func main() {
 				},
 				&cli.BoolFlag{
 					Name:  "overwrite, o",
-					Usage: "Overwrite local files if they already exist.",
+					Usage: "Overwrite local files if they already exist (Deprecated: use --conflict-mode=overwrite).",
 				},
 				&cli.BoolFlag{
 					Name:  "skip, s",
-					Usage: "Skip downloading files if they already exist locally.",
+					Usage: "Skip downloading files if they already exist locally (Deprecated: use --conflict-mode=skip).",
 				},
 				&cli.BoolFlag{
 					Name:  "showfilelist, l",
@@ -242,6 +246,10 @@ func main() {
 					Name:  "workers, w",
 					Usage: "Number of concurrent workers for parallel uploads.",
 					Value: 5,
+				},
+				&cli.StringFlag{
+					Name:  "conflict-mode, cm",
+					Usage: "Action on conflict: skip, overwrite, rename, update. Default is interactive CLI prompt.",
 				},
 				&cli.StringFlag{
 					Name:  "parentid, pid",

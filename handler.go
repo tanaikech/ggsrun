@@ -129,34 +129,39 @@ return "Execution completed, but main() was not defined in the local script.";
 // --- Data Structures for Recursive Transfers ---
 
 type transferNode struct {
-	Name     string
-	IsDir    bool
-	Path     string // Local path or Drive ID
-	Size     int64
-	MimeType string
-	Children []*transferNode
+	Name         string
+	IsDir        bool
+	Path         string // Local path or Drive ID
+	Size         int64
+	MimeType     string
+	ModifiedTime string
+	Children     []*transferNode
 }
 
 type uploadJob struct {
-	LocalPath string
-	Name      string
-	ParentID  string
-	Size      int64
+	LocalPath  string
+	Name       string
+	ParentID   string
+	Size       int64
+	ExistingID string
 }
 
 type downloadJob struct {
-	DriveID  string
-	Name     string
-	SavePath string
-	Size     int64
-	MimeType string
+	DriveID      string
+	Name         string
+	SavePath     string
+	Size         int64
+	MimeType     string
+	ExportURL    string
+	ModifiedTime time.Time
 }
 
 type driveFileObj struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	MimeType string `json:"mimeType"`
-	Size     string `json:"size"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	MimeType     string `json:"mimeType"`
+	Size         string `json:"size"`
+	ModifiedTime string `json:"modifiedTime"`
 }
 
 // printTransferTree visually outputs the directory structure to the terminal.
@@ -191,7 +196,7 @@ func buildDriveTree(driveID, name, token string) (*transferNode, error) {
 	pageToken := ""
 	for {
 		// CRITICAL: includeItemsFromAllDrives and supportsAllDrives are mandatory for Shared Drives traversal.
-		apiURL := "https://www.googleapis.com/drive/v3/files?q=" + escapedQuery + "&fields=nextPageToken,files(id,name,mimeType,size)&pageSize=1000&includeItemsFromAllDrives=true&supportsAllDrives=true"
+		apiURL := "https://www.googleapis.com/drive/v3/files?q=" + escapedQuery + "&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime)&pageSize=1000&includeItemsFromAllDrives=true&supportsAllDrives=true"
 		if pageToken != "" {
 			apiURL += "&pageToken=" + pageToken
 		}
@@ -222,11 +227,12 @@ func buildDriveTree(driveID, name, token string) (*transferNode, error) {
 			} else {
 				size, _ := strconv.ParseInt(f.Size, 10, 64)
 				node.Children = append(node.Children, &transferNode{
-					Name:     f.Name,
-					IsDir:    false,
-					Path:     f.ID,
-					Size:     size,
-					MimeType: f.MimeType,
+					Name:         f.Name,
+					IsDir:        false,
+					Path:         f.ID,
+					Size:         size,
+					MimeType:     f.MimeType,
+					ModifiedTime: f.ModifiedTime,
 				})
 			}
 		}
@@ -251,27 +257,28 @@ func extractDownloadJobsAndCreateDirs(node *transferNode, localParentPath string
 			extractDownloadJobsAndCreateDirs(child, currentPath, jobs)
 		}
 	} else {
+		modTime, _ := time.Parse(time.RFC3339, node.ModifiedTime)
 		*jobs = append(*jobs, downloadJob{
-			DriveID:  node.Path,
-			Name:     node.Name,
-			SavePath: currentPath,
-			Size:     node.Size,
-			MimeType: node.MimeType,
+			DriveID:      node.Path,
+			Name:         node.Name,
+			SavePath:     currentPath,
+			Size:         node.Size,
+			MimeType:     node.MimeType,
+			ModifiedTime: modTime,
 		})
 	}
 	return nil
 }
 
-// executeDownloadJob safely processes a single download task with fault isolation and explicit API routing.
-func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progress *mpb.Progress) error {
-	var downloadURL string
-
-	// Explicit routing: GAS projects CANNOT be exported via Drive API. They require Apps Script API.
+// resolveDownloadSavePath computes the final local save path and exact Drive export URL.
+// Returns false if the item is fundamentally unexportable (e.g. Google Maps shortcuts).
+func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 	if job.MimeType == "application/vnd.google-apps.script" {
-		downloadURL = "https://script.googleapis.com/v1/projects/" + job.DriveID + "/content"
-		ext := "json" // GAS payload structure is natively JSON
+		job.ExportURL = "https://script.googleapis.com/v1/projects/" + job.DriveID + "/content"
+		ext := "json"
 		job.SavePath += "." + ext
 		job.Name += "." + ext
+		return true
 	} else if strings.Contains(job.MimeType, "application/vnd.google-apps") {
 		// Prevent guaranteed 400 Bad Request by skipping inherently un-exportable types
 		unexportable := map[string]bool{
@@ -284,7 +291,7 @@ func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progr
 
 		if unexportable[job.MimeType] {
 			pterm.Warning.Printf("Skipped unexportable Workspace entity '%s' (Type: %s)\n", job.Name, job.MimeType)
-			return nil // Isolated skip. Does not crash the errgroup.
+			return false
 		}
 
 		ext := c.String("extension")
@@ -319,20 +326,24 @@ func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progr
 			}
 		}
 
-		downloadURL = "https://www.googleapis.com/drive/v3/files/" + job.DriveID + "/export?mimeType=" + exportMime
+		job.ExportURL = "https://www.googleapis.com/drive/v3/files/" + job.DriveID + "/export?mimeType=" + exportMime
 		job.SavePath += "." + ext
 		job.Name += "." + ext
-	} else {
-		// Native files download via media alt, with Shared Drive support
-		downloadURL = "https://www.googleapis.com/drive/v3/files/" + job.DriveID + "?alt=media&supportsAllDrives=true"
+		return true
 	}
 
+	job.ExportURL = "https://www.googleapis.com/drive/v3/files/" + job.DriveID + "?alt=media&supportsAllDrives=true"
+	return true
+}
+
+// executeDownloadJob safely processes a single download task with fault isolation and explicit API routing.
+func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progress *mpb.Progress) error {
 	var resp2 *http.Response
 	var reqErr error
 	maxRetries := 3
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		req2, _ := http.NewRequest("GET", downloadURL, nil)
+		req2, _ := http.NewRequest("GET", job.ExportURL, nil)
 		req2.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		resp2, reqErr = http.DefaultClient.Do(req2)
 		if reqErr != nil {
@@ -425,7 +436,7 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (*utl.FileInf, error) 
 		}
 
 		// Ensure Shared Drive support for fetching individual file metadata
-		req, _ := http.NewRequest("GET", "https://www.googleapis.com/drive/v3/files/"+id+"?fields=id,name,mimeType,size&supportsAllDrives=true", nil)
+		req, _ := http.NewRequest("GET", "https://www.googleapis.com/drive/v3/files/"+id+"?fields=id,name,mimeType,size,modifiedTime&supportsAllDrives=true", nil)
 		req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -451,6 +462,7 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (*utl.FileInf, error) 
 			extractDownloadJobsAndCreateDirs(rootNode, localBase, &jobs)
 		} else {
 			size, _ := strconv.ParseInt(meta.Size, 10, 64)
+			modTime, _ := time.Parse(time.RFC3339, meta.ModifiedTime)
 
 			savePath := meta.Name
 			if len(filenames) > i && strings.TrimSpace(filenames[i]) != "" {
@@ -458,11 +470,12 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (*utl.FileInf, error) 
 			}
 
 			jobs = append(jobs, downloadJob{
-				DriveID:  id,
-				Name:     meta.Name,
-				SavePath: savePath,
-				Size:     size,
-				MimeType: meta.MimeType,
+				DriveID:      id,
+				Name:         meta.Name,
+				SavePath:     savePath,
+				Size:         size,
+				MimeType:     meta.MimeType,
+				ModifiedTime: modTime,
 			})
 		}
 	}
@@ -470,6 +483,63 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (*utl.FileInf, error) 
 	if len(jobs) == 0 {
 		return p, nil
 	}
+
+	// --- Pre-computation Conflict Resolution Matrix ---
+	conflictMode := c.String("conflict-mode")
+	if conflictMode == "" {
+		if c.Bool("overwrite") {
+			conflictMode = "overwrite"
+		} else if c.Bool("skip") {
+			conflictMode = "skip"
+		}
+	}
+
+	var finalJobs []downloadJob
+	for _, job := range jobs {
+		if !resolveDownloadSavePath(&job, c) {
+			continue // Immediately drop unexportable objects
+		}
+
+		stat, err := os.Stat(job.SavePath)
+		if err == nil {
+			mode := conflictMode
+			if mode == "" { // Interactive mode fallback
+				mode, _ = pterm.DefaultInteractiveSelect.
+					WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists locally. Action?", job.SavePath)).
+					WithOptions([]string{"skip", "overwrite", "rename", "update"}).
+					Show()
+			}
+
+			switch mode {
+			case "skip":
+				pterm.Info.Printf("Skipped download: %s\n", job.SavePath)
+				continue
+			case "overwrite":
+				// Proceed. Target will be overwritten natively.
+			case "rename":
+				dir := filepath.Dir(job.SavePath)
+				base := filepath.Base(job.SavePath)
+				ext := filepath.Ext(base)
+				nameWithoutExt := strings.TrimSuffix(base, ext)
+				ts := time.Now().Format("20060102_150405")
+				job.SavePath = filepath.Join(dir, fmt.Sprintf("%s_%s%s", nameWithoutExt, ts, ext))
+			case "update":
+				if !job.ModifiedTime.IsZero() && job.ModifiedTime.After(stat.ModTime()) {
+					// Source is newer. Proceed to overwrite.
+				} else {
+					pterm.Info.Printf("Skipped (local file is newer or equal): %s\n", job.SavePath)
+					continue
+				}
+			}
+		}
+		finalJobs = append(finalJobs, job)
+	}
+
+	if len(finalJobs) == 0 {
+		pterm.Success.Println("No jobs require execution. All conflicts skipped.")
+		return p, nil
+	}
+	jobs = finalJobs
 
 	workers := c.Int("workers")
 	if workers < 1 {
@@ -627,15 +697,21 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) e
 	defer f.Close()
 
 	metaStr := fmt.Sprintf(`{"name":"%s"}`, job.Name)
-	if job.ParentID != "" {
+	if job.ParentID != "" && job.ExistingID == "" {
 		metaStr = fmt.Sprintf(`{"name":"%s", "parents":["%s"]}`, job.Name, job.ParentID)
+	}
+
+	method := "POST"
+	apiURL := "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true"
+	if job.ExistingID != "" {
+		method = "PATCH"
+		apiURL = "https://www.googleapis.com/upload/drive/v3/files/" + job.ExistingID + "?uploadType=resumable&supportsAllDrives=true"
 	}
 
 	var location string
 	maxRetries := 3
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		// Include supportsAllDrives=true to ensure seamless uploads to Shared Drives
-		req, _ := http.NewRequest("POST", "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true", strings.NewReader(metaStr))
+		req, _ := http.NewRequest(method, apiURL, strings.NewReader(metaStr))
 		req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -749,6 +825,103 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (*utl.FileInf, error) {
 	if len(jobs) == 0 {
 		return p, nil
 	}
+
+	// --- Pre-computation Conflict Resolution Matrix ---
+	conflictMode := c.String("conflict-mode")
+	parentMap := make(map[string]bool)
+	for _, job := range jobs {
+		pid := job.ParentID
+		if pid == "" {
+			pid = "root"
+		}
+		parentMap[pid] = true
+	}
+
+	// Bulk-fetch metadata to bypass Drive API Rate Limits
+	existingFiles := make(map[string]map[string]driveFileObj)
+	for pid := range parentMap {
+		existingFiles[pid] = make(map[string]driveFileObj)
+		query := fmt.Sprintf("'%s' in parents and trashed=false", pid)
+		escapedQuery := url.QueryEscape(query)
+		pageToken := ""
+
+		for {
+			apiURL := "https://www.googleapis.com/drive/v3/files?q=" + escapedQuery + "&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=1000&includeItemsFromAllDrives=true&supportsAllDrives=true"
+			if pageToken != "" {
+				apiURL += "&pageToken=" + pageToken
+			}
+
+			req, _ := http.NewRequest("GET", apiURL, nil)
+			req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				break
+			}
+
+			var res struct {
+				NextPageToken string         `json:"nextPageToken"`
+				Files         []driveFileObj `json:"files"`
+			}
+			json.NewDecoder(resp.Body).Decode(&res)
+			resp.Body.Close()
+
+			for _, f := range res.Files {
+				existingFiles[pid][f.Name] = f
+			}
+			if res.NextPageToken == "" {
+				break
+			}
+			pageToken = res.NextPageToken
+		}
+	}
+
+	var finalJobs []uploadJob
+	for _, job := range jobs {
+		pid := job.ParentID
+		if pid == "" {
+			pid = "root"
+		}
+
+		if existing, ok := existingFiles[pid][job.Name]; ok {
+			mode := conflictMode
+			if mode == "" { // Interactive mode fallback
+				mode, _ = pterm.DefaultInteractiveSelect.
+					WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists on Google Drive. Action?", job.Name)).
+					WithOptions([]string{"skip", "overwrite", "rename", "update"}).
+					Show()
+			}
+
+			switch mode {
+			case "skip":
+				pterm.Info.Printf("Skipped upload: %s\n", job.LocalPath)
+				continue
+			case "overwrite":
+				// Bind ID to trigger PATCH request
+				job.ExistingID = existing.ID
+			case "rename":
+				ext := filepath.Ext(job.Name)
+				base := strings.TrimSuffix(job.Name, ext)
+				ts := time.Now().Format("20060102_150405")
+				job.Name = fmt.Sprintf("%s_%s%s", base, ts, ext)
+			case "update":
+				stat, _ := os.Stat(job.LocalPath)
+				driveMod, err := time.Parse(time.RFC3339, existing.ModifiedTime)
+				if err == nil && stat.ModTime().After(driveMod) {
+					job.ExistingID = existing.ID
+				} else {
+					pterm.Info.Printf("Skipped (Drive file is newer or equal): %s\n", job.LocalPath)
+					continue
+				}
+			}
+		}
+		finalJobs = append(finalJobs, job)
+	}
+
+	if len(finalJobs) == 0 {
+		pterm.Success.Println("No jobs require execution. All conflicts skipped.")
+		return p, nil
+	}
+	jobs = finalJobs
 
 	workers := c.Int("workers")
 	if workers < 1 {
