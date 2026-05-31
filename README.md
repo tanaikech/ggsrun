@@ -34,6 +34,7 @@
     - [Massively Parallel Download](#massively-parallel-download)
     - [Massively Parallel Upload](#massively-parallel-upload)
   - [Model Context Protocol (MCP) Server \& LLM Integration](#model-context-protocol-mcp-server--llm-integration)
+    - [MCP Server Configuration for Antigravity CLI](#mcp-server-configuration-for-antigravity-cli)
     - [1. Exposed Tools](#1-exposed-tools)
     - [2. Standardized JSON Output (TransferResult)](#2-standardized-json-output-transferresult)
     - [3. AI Agent Prompt Scenarios \& Expected Behaviors](#3-ai-agent-prompt-scenarios--expected-behaviors)
@@ -258,6 +259,23 @@ If not specified, `ggsrun` will default to an **interactive CLI prompt** allowin
 Running `$ ggsrun mcp` transforms `ggsrun` into a native **Model Context Protocol (MCP) Server**, communicating with LLM clients (such as Claude Desktop, Cursor, or specialized AI agents) over standard I/O (`stdin`/`stdout`). 
 
 With the release of **v5.1.1**, the MCP capabilities are enhanced to fully expose modern conflict resolution and deliver deeply structured JSON results.
+
+### MCP Server Configuration for Antigravity CLI
+
+To configure `ggsrun` as an MCP server inside your **Antigravity CLI** environment, specify the server details in your global config file at `~/.gemini/config/mcp_config.json`.
+
+Add the following JSON configuration snippet, ensuring that the `command` value points to your exact local `ggsrun` executable path:
+
+```json
+{
+  "mcpServers": {
+    "ggsrun-drive-agent": {
+      "command": "/path/to/ggsrun",
+      "args": ["mcp"]
+    }
+  }
+}
+```
 
 ### 1. Exposed Tools
 The MCP server exposes the following high-level tools to your AI agent:
