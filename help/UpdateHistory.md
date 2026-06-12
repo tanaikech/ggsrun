@@ -93,17 +93,27 @@
   3. Embedded full support for `--conflict-mode` inside the MCP JSON-RPC schemas and standardized file transfer outputs into `TransferResult` to support interactive multi-turn collision resolution in LLM conversations.
   4. Fully updated pre-built binaries for all major architectures.
 
-- **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, and CLI UX hardening**
+- **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, and CLI hardening**
   1. Reorganized the codebase to follow the standard Go project structure (`main.go`, `/internal/app/`, `/internal/utl/`).
   2. Expanded `ggsrun auth` to request Web Apps URL registration and dynamically persist it in `ggsrun.cfg`, allowing `ggsrun w` to run without the `-u` option.
   3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
   4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
 
+- **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
+  1. Integrated comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays for `e1`, `e2`, and `w` modes.
+  2. Resolved a namespace issue where evaluated scripts calling `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)
-
   Initial release.
+
+- **v1.2.1 (June 2026) - V8 Modernization, Log Sheet Lazy Loading, and Namespace Scope Resolution**
+  1. Refactored the core library script into an optimized V8 ES6 class structure.
+  2. Added lazy-loading of log spreadsheets to bypass spreadsheet lookup overhead on non-logging runs (such as Beacon checks).
+  3. Replaced deprecated `arguments.callee` with named recursive functions in `foldertree` and transitioned to the modern `File.moveTo` method for folder reorganization.
+  4. Implemented flexible password verification that securely bypasses password checks when none is configured on the server, permitting seamless token-based execution.
+  5. Bound `ggsrunif` globally to the library context to permit evaluated script payloads to call namespace alias methods safely.
 
 **You can read "How to install" at [here](https://github.com/tanaikech/ggsrun/blob/master/README.md#howtoinstall).**
 

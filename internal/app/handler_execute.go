@@ -38,64 +38,16 @@ func readAllStdin() (string, error) {
 // Safeguard helpers
 func showE1HelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	fmt.Fprintln(os.Stderr)
-
-	helpMsg := `Usage Examples:
-  1. Execute a local script file:
-     ggsrun e1 -i [SCRIPT_ID] -s path/to/script.gs -f myFunction -v "hello"
-
-  2. Execute an inline script:
-     ggsrun e1 -i [SCRIPT_ID] -ss "function main() { return 'hello'; }"
-
-  3. Execute via standard input (pipe):
-     cat script.js | ggsrun e1 -i [SCRIPT_ID]
-
-  4. Run and backup the project before updating:
-     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b
-`
-	fmt.Fprint(os.Stderr, helpMsg)
 	os.Exit(1)
 }
 
 func showE2HelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	fmt.Fprintln(os.Stderr)
-
-	helpMsg := `Usage Examples:
-  1. Execute a local script file:
-     ggsrun e2 -i [SCRIPT_ID] -s path/to/script.gs -v "hello"
-
-  2. Execute an inline script:
-     ggsrun e2 -i [SCRIPT_ID] -ss "function main() { return 'hello'; }"
-
-  3. Execute via standard input (pipe):
-     cat script.js | ggsrun e2 -i [SCRIPT_ID]
-
-  4. Get a folder tree of Google Drive:
-     ggsrun e2 -i [SCRIPT_ID] -t
-
-  5. Download a file using byte slice conversion:
-     ggsrun e2 -i [SCRIPT_ID] -conv -v [FILE_ID]
-`
-	fmt.Fprint(os.Stderr, helpMsg)
 	os.Exit(1)
 }
 
 func showWHelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	fmt.Fprintln(os.Stderr)
-
-	helpMsg := `Usage Examples:
-  1. Execute a local script file:
-     ggsrun w -u [WEB_APPS_URL] -s path/to/script.gs -p password -v "hello"
-
-  2. Execute an inline script:
-     ggsrun w -u [WEB_APPS_URL] -ss "function main() { return 'hello'; }"
-
-  3. Execute via standard input (pipe):
-     cat script.js | ggsrun w -u [WEB_APPS_URL]
-`
-	fmt.Fprint(os.Stderr, helpMsg)
 	os.Exit(1)
 }
 

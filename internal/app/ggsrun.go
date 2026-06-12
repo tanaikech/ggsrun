@@ -36,13 +36,13 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.2.0"
+	app.Version = "5.2.1"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
 			Aliases:     []string{"e1"},
 			Usage:       "Updates the GAS project with a local script and executes a specified function.",
-			Description: "Requires an access token. Synchronizes the local script to the Drive project and triggers the execution API.",
+			Description: "Requires an access token. Synchronizes the local script to the Drive project and triggers the execution API.\n\nUsage Examples:\n  1. Execute a local script file:\n     ggsrun e1 -i [SCRIPT_ID] -s path/to/script.gs -f myFunction -v \"hello\"\n\n  2. Execute an inline script:\n     ggsrun e1 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  3. Execute via standard input (pipe):\n     cat script.js | ggsrun e1 -i [SCRIPT_ID]\n\n  4. Run and backup the project before updating:\n     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b\n\n  5. Execute a stateless beacon request:\n     ggsrun e1 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
 			Action:      exeAPIWithout,
 			Flags: append([]cli.Flag{
 				&cli.StringFlag{
@@ -83,7 +83,7 @@ func Run() {
 			Name:        "exe2",
 			Aliases:     []string{"e2"},
 			Usage:       "Executes a GAS script directly via the Execution API without updating the project files.",
-			Description: "Requires an access token. The script string is uploaded as a payload to the server-side GAS library for execution.",
+			Description: "Requires an access token. The script string is uploaded as a payload to the server-side GAS library for execution.\n\nUsage Examples:\n  1. Execute a local script file:\n     ggsrun e2 -i [SCRIPT_ID] -s path/to/script.gs -v \"hello\"\n\n  2. Execute an inline script:\n     ggsrun e2 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  3. Execute via standard input (pipe):\n     cat script.js | ggsrun e2 -i [SCRIPT_ID]\n\n  4. Get a folder tree of Google Drive:\n     ggsrun e2 -i [SCRIPT_ID] -t\n\n  5. Download a file using byte slice conversion:\n     ggsrun e2 -i [SCRIPT_ID] -conv -v [FILE_ID]\n\n  6. Execute a stateless beacon request:\n     ggsrun e2 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
 			Action:      exeAPIWith,
 			Flags: append([]cli.Flag{
 				&cli.StringFlag{
@@ -132,7 +132,7 @@ func Run() {
 			Name:        "webapps",
 			Aliases:     []string{"w"},
 			Usage:       "Executes a GAS script anonymously or securely via Web Apps URL.",
-			Description: "No access token is required. Operates directly via POST requests to a deployed Web App.",
+			Description: "No access token is required. Operates directly via POST requests to a deployed Web App.\n\nUsage Examples:\n  1. Execute a local script file:\n     ggsrun w -u [WEB_APPS_URL] -s path/to/script.gs -p password -v \"hello\"\n\n  2. Execute an inline script:\n     ggsrun w -u [WEB_APPS_URL] -ss \"function main() { return 'hello'; }\"\n\n  3. Execute via standard input (pipe):\n     cat script.js | ggsrun w -u [WEB_APPS_URL]\n\n  4. Execute a stateless beacon request:\n     ggsrun w -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
 			Action:      webAppsWith,
 			Flags: append([]cli.Flag{
 				&cli.StringFlag{

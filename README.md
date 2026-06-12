@@ -508,6 +508,16 @@ sequenceDiagram
     URL-->>CLI: Pure JSON Result
 ```
 
+### Verification & Diagnostics
+
+To quickly verify the functionality of all execution modes using a stateless beacon request, you can run the following test commands:
+
+```bash
+ggsrun e1 -ss "const main = (_) => ggsrunif.Beacon();" -j
+ggsrun e2 -ss "const main = (_) => ggsrunif.Beacon();" -j
+ggsrun w -ss "const main = (_) => ggsrunif.Beacon();" -j
+```
+
 ---
 
 ## Advanced Configurations
@@ -550,6 +560,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
+  Updated the CLI help systems for `e1`, `e2`, and `w` to integrate comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays. Fixed a namespace bug where evaluated scripts executing `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.
 - **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, CLI UX hardening, and MCP Server Schema Improvements**
   Reorganized the codebase to follow the standard Go project structure (`main.go`, `/internal/app/`, `/internal/utl/`). Expanded `ggsrun auth` to request Web Apps URL registration and dynamically persist it in `ggsrun.cfg`, allowing `ggsrun w` to run without the `-u` option. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser, WSL/Ubuntu native browser, or manual URL copy-pasting. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples. **Improved the MCP server (`ggsrun mcp`) tools schema, adding rich parameter descriptions, Drive API query examples, new `scriptfile`/`stringscript` parameters to the `exe1` schema, `searchbyid` parameter to the `filelist` schema, and making `scriptid` optional by resolving automatically from `ggsrun.cfg` (via `GGSRUN_CFG_PATH` or the local directory). Refined `tools/call` backend handling to safely strip null/empty values.**
 - **v5.1.1 (May 2026) - Modular Handlers & Enhanced MCP Server Core**
@@ -588,6 +600,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### Server
 
+- **v1.2.1 (June 2026) - V8 Modernization, Log Sheet Lazy Loading, and Namespace Scope Resolution**
+  Refactored the core library script into an optimized V8 ES6 class structure. Added lazy-loading of log spreadsheets to bypass spreadsheet lookup overhead on non-logging runs (such as Beacon checks). Replaced deprecated `arguments.callee` with named recursive functions in `foldertree`, transitioned to the modern `File.moveTo` method for folder reorganization, and bound `ggsrunif` globally to the library context to permit evaluated script payloads to call namespace alias methods safely.
 - **v1.0.0 (April 2017)** Initial release.
 
 [Back to Top](#top)
