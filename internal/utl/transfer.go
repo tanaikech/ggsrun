@@ -1006,7 +1006,7 @@ func (p *FileInf) createProject(timeZone string) []byte {
 // ChkExtention : Check extension of inputted files.
 func ChkExtention(ex string) bool {
 	switch strings.ToLower(ex) {
-	case ".gs", ".gas", ".js", ".htm", ".html", ".json":
+	case ".gs", ".gas", ".js", ".txt", ".htm", ".html", ".json":
 		return true
 	default:
 		return false
@@ -1017,7 +1017,7 @@ func ChkExtention(ex string) bool {
 func ExtToType(ex string, uppercase bool) string {
 	var scripttype string
 	switch strings.ToLower(ex) {
-	case ".gs", ".gas", ".js":
+	case ".gs", ".gas", ".js", ".txt":
 		scripttype = "server_js"
 	case ".htm", ".html":
 		scripttype = "html"

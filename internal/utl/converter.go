@@ -4,6 +4,7 @@ package utl
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,8 +31,10 @@ func chkScript(c *cli.Context) (string, error) {
 			return "", err
 		}
 		scriptfile = strings.Replace(filepath.Base(c.String("scriptfile")), fext, ".js", -1)
-	} else {
+	} else if fext == ".gs" || fext == ".js" || fext == ".txt" || fext == ".gas" || fext == "" {
 		scriptfile = c.String("scriptfile")
+	} else {
+		return "", fmt.Errorf("unrecognized format: %s. Supported extensions are .gs, .js, .txt, .coffee", fext)
 	}
 	return scriptfile, nil
 }
@@ -40,7 +43,7 @@ func chkScript(c *cli.Context) (string, error) {
 func ConvGasToPut(c *cli.Context) string {
 	scriptfile, err := chkScript(c)
 	if err != nil {
-		pterm.Error.Printf("Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
+		pterm.Error.Printf("Compile/Validation error of script. Please check the script.\n%s\n", err.Error())
 		os.Exit(1)
 	}
 	var res string

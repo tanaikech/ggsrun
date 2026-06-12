@@ -64,6 +64,41 @@
 - **v3.2.2 (May 2026) - Pure MCP Node Evolution**
   1. Finalized the `mcp` command. `ggsrun mcp` acts as a pure I/O backend for LLM clients (like Gemini CLI or Cursor) over stdio JSON-RPC. It intercepts tools calls (`searchfiles`, `download`, `upload`, `exe1`), executes them, and returns JSON without polluting standard output with human-readable logs.
 
+- **v5.0.0 (May 2026) - The Omnibus Architecture Rewrite**
+  1. Engine fundamentally rewritten for Go 1.26.3+. Implemented channel-based concurrency (`errgroup`), freeze-proof TUI (`mpb/v8`), SIMD JSON parsing (`goccy/go-json`), native MCP server (`ggsrun mcp`), Shared Drives full-support, auto MIME-mapping, isolated fault tolerance, and OAuth2 loopback automation.
+
+- **v5.0.1 (May 2026) - Execution Engine Hardening & Double-Eval Eradication**
+  1. Eliminated the V8 engine double-eval 500 server crash during dynamic script execution by enforcing IIFE and JSON-literal payload encoding.
+  2. Redefined `-f` flag mapping for proper API gateway resolution in `exe2`.
+  3. Added precision deployment documentation for stateful and stateless execution modes.
+
+- **v5.0.2 (May 2026) - Secure Web Apps Protocol Upgrade**
+  1. Upgraded the `webapps` command to natively support "Only myself" execution deployments by bridging OAuth tokens (`drive` scope) across Google's HTTP 302 Auth Redirects.
+  2. Ported the IIFE/JSON-literal double-eval protections from `exe2` to `webapps`.
+
+- **v5.0.3 (May 2026) - CLI UX Overhaul & Dynamic TUI Integration**
+  1. Introduced a highly visual, modern Terminal UI (TUI) powered by `pterm` for `exe1`, `exe2`, and `webapps` commands.
+  2. Added interactive loading spinners with anti-ghosting fixed-width padding (`%-70s`) and beautifully structured execution reports.
+  3. Maintained strict backward compatibility by preserving pure JSON output streams via the `-j` flag for CI/CD pipeline automation.
+
+- **v5.1.0 (May 2026) - Advanced Conflict Resolution Engine**
+  1. Introduced a robust pre-computation conflict resolution matrix for both `download` and `upload` commands via the new `--conflict-mode` (`-cm`) flag. Users can now choose from `skip`, `overwrite`, `rename` (appends timestamp `_YYYYMMDD_HHMMSS` to avoid collisions), or `update` (syncs only if the source file is newer than the target).
+  2. Includes interactive fallback CLI prompts if no mode is specified.
+  3. Deprecated the legacy `--overwrite` (`-o`) and `--skip` (`-s`) options in favor of `--conflict-mode`.
+  4. To avoid Drive API rate limits during massive concurrent uploads, metadata query is pre-fetched in bulk.
+
+- **v5.1.1 (May 2026) - Modular Handlers & Enhanced MCP Server Core**
+  1. Refactored the codebase to modularize legacy single-file command handlers into dedicated, organized handler files (`handler_download.go`, `handler_upload.go`, `handler_transfer.go`, `handler_mcp.go`, `handler_execute.go`).
+  2. Strengthened the MCP server core (`ggsrun mcp`) by capturing stdout and stderr execution logs for comprehensive error recovery.
+  3. Embedded full support for `--conflict-mode` inside the MCP JSON-RPC schemas and standardized file transfer outputs into `TransferResult` to support interactive multi-turn collision resolution in LLM conversations.
+  4. Fully updated pre-built binaries for all major architectures.
+
+- **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, and CLI UX hardening**
+  1. Reorganized the codebase to follow the standard Go project structure (`main.go`, `/internal/app/`, `/internal/utl/`).
+  2. Expanded `ggsrun auth` to request Web Apps URL registration and dynamically persist it in `ggsrun.cfg`, allowing `ggsrun w` to run without the `-u` option.
+  3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
+  4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)

@@ -1,6 +1,6 @@
 // Package main (handler_upload.go) :
 // Advanced Google Drive concurrent uploader engine using Resumable endpoints.
-package main
+package app
 
 import (
 	"bytes"
@@ -472,6 +472,6 @@ func uploadFiles(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	dispTransferResult(c, res)
+	dispTransferResult(c, res, a.resolveConfigFile())
 	return nil
 }

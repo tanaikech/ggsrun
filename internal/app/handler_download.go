@@ -1,6 +1,6 @@
 // Package main (handler_download.go) :
 // Advanced Google Drive concurrent downloader engine.
-package main
+package app
 
 import (
 	"context"
@@ -509,6 +509,6 @@ func downloadFiles(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	dispTransferResult(c, res)
+	dispTransferResult(c, res, a.resolveConfigFile())
 	return nil
 }

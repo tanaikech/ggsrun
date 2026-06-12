@@ -331,15 +331,17 @@ By installing this, you can use command `exe1` and `exe2`. To use command `exe1`
 $ ggsrun auth
 ```
 
-- When above is run, your browser is launched and waits for login to Google.
-- Please login to Google.
-- [Authorization for Google Services](https://developers.google.com/apps-script/guides/services/authorization) is launched. Please authorize it.
-- The authorization code can be retrieved automatically. And `Done.` is displayed on your terminal.
-  - If your browser isn't launched or spends for 30 seconds from the wait of authorization, it becomes the input work queue. This is a manual mode. Please copy displayed URL and paste it to your browser, and login to Google. A **code** is displayed on the browser. Please copy it and paste it to your terminal during the input work queue. If you cannot find the code on your browser, please check the URL of your browser.
-- When `Done` is displayed on your terminal, the authorization is completed and `ggsrun.cfg` is created on a directory you currently stay.
-- `ggsrun.cfg` includes client id, client secret, access token, refresh token, scopes and so on.
-- At the default, there are 6 scopes. If you want to change the scopes, please modify `ggsrun.cfg` and run `$ ggsrun auth`.
-- You notice that `script_id` has no data. Don't worry. This is explained below.
+- When the command is executed, you will be prompted to confirm or enter the directory path to save `ggsrun.cfg`.
+  - Priority: `GGSRUN_CFG_PATH` environment variable (if defined) > current working directory. You can also specify an alternative path.
+- Next, you will be prompted to enter your **Google Apps Script project Script ID** and your **Web Apps URL** (optional). If existing values are found in the configuration, you can easily press Enter to keep them or enter new values to modify them.
+- Then, the OAuth 2.0 consent flow begins:
+  - **WSL 2 (Ubuntu on Windows) Support**: If a WSL 2 environment is detected, the CLI will ask you whether to launch the browser on the Windows host (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or display the URL for manual copy-pasting.
+  - On other platforms, the system's default browser will launch automatically.
+- Please login to Google and authorize the application.
+- The authorization code will be retrieved automatically, and `ggsrun.cfg` is created/updated at the resolved directory.
+- `ggsrun.cfg` includes the Script ID, Client ID, Client Secret, Refresh Token, Access Token, 13 default Scopes, and Web Apps URL.
+- By default, 13 scopes are registered. If you want to change the scopes, please modify `ggsrun.cfg` and run `$ ggsrun auth` again.
+- You can now omit the `-u` or `--url` option when executing `ggsrun w` if the Web Apps URL is saved in `ggsrun.cfg`. If you run `ggsrun w` with `-u` and without `-j`, it will prompt you whether you want to save/overwrite the Web Apps URL in `ggsrun.cfg`.
 
 <a name="environmentvariable"></a>
 
@@ -443,13 +445,14 @@ DESCRIPTION:
    In this mode, an access token is required.
 
 OPTIONS:
-   --scriptid value, -i value    Script ID of project on Google Drive
-   --scriptfile value, -s value  GAS file (.gs, .gas, .js, .coffee) on local PC
-   --function value, -f value    Function name which is executed. Default is 'main'.
-   --value value, -v value       Give a value to the function which is executed.
-   --backup, -b                  Backup project with script ID you set as a file.
-   --onlyresult, -r              Display only 'result' in JSON results
-   --jsonparser, -j              Display results by JSON parser
+   --scriptid value, -i value        Script ID of project on Google Drive
+   --scriptfile value, -s value      GAS file (.gs, .gas, .js, .txt, .coffee) on local PC
+   --stringscript value, -ss value   GAS script provided directly as strings.
+   --function value, -f value        Function name which is executed. Default is 'main'.
+   --value value, -v value           Give a value to the function which is executed.
+   --backup, -b                      Backup project with script ID you set as a local file.
+   --onlyresult, -r                  Display only 'result' field in JSON outputs.
+   --jsonparser, -j                  Bypass TUI and display outputs strictly as pure JSON.
 ```
 
 #### Command `exe2`
@@ -2033,7 +2036,7 @@ The GAS script can be modified by the received values from Google. I think that 
 
 ## A1. Scopes
 
-As the default, 7 scopes are set in ggsrun as follows.
+As the default, 13 scopes are set in ggsrun as follows.
 
 - https://www.googleapis.com/auth/drive
 - https://www.googleapis.com/auth/drive.file
@@ -2041,7 +2044,13 @@ As the default, 7 scopes are set in ggsrun as follows.
 - https://www.googleapis.com/auth/script.external_request
 - https://www.googleapis.com/auth/script.scriptapp
 - https://www.googleapis.com/auth/spreadsheets
+- https://www.googleapis.com/auth/documents
 - https://www.googleapis.com/auth/script.projects
+- https://www.googleapis.com/auth/script.deployments
+- https://www.googleapis.com/auth/presentations
+- https://www.googleapis.com/auth/forms
+- https://mail.google.com/
+- https://www.googleapis.com/auth/script.webapp.deploy
 
 If you want to change the scopes,
 

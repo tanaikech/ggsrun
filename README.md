@@ -3,7 +3,7 @@
 ![](help/images/fig1a.jpg)
 
 <a name="top"></a>
-[![Go Version](https://img.shields.io/badge/Go-1.26.3+-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.26.4+-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
 [![MCP Ready](https://img.shields.io/badge/MCP-Ready-8A2BE2?style=for-the-badge)](https://modelcontextprotocol.io)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)]()
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge)](LICENCE)
@@ -59,7 +59,7 @@
 
 **ggsrun** is an enterprise-grade CLI tool and MCP (Model Context Protocol) Server designed to relentlessly orchestrate Google Drive I/O operations and execute Google Apps Script (GAS) natively from a local terminal.
 
-With the release of **v5.1.1**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.3+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
+With the release of **v5.2.0**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.4+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
 
 ---
 
@@ -108,7 +108,7 @@ Running `ggsrun mcp` transforms the application into an autonomous JSON-RPC serv
 
 #### Using Go
 
-Requires Go 1.26.3 or higher. Pull and compile the latest binary natively:
+Requires Go 1.26.4 or higher. Pull and compile the latest binary natively:
 
 ```bash
 $ go install github.com/tanaikech/ggsrun@latest
@@ -279,11 +279,11 @@ Add the following JSON configuration snippet, ensuring that the `command` value 
 
 ### 1. Exposed Tools
 The MCP server exposes the following high-level tools to your AI agent:
-- `searchfiles`: Search Google Drive files using queries (e.g., `name='target' and trashed=false`).
-- `download`: Download files or folders by File ID. Includes a `--conflict-mode` option to handle name collisions.
-- `upload`: Upload a local file or recursive folder to a Google Drive location. Includes a `--conflict-mode` option.
-- `exe1`: Stateful execution of Google Apps Script projects.
-- `filelist`: Exact name search for files, returning Google Drive File IDs.
+- `searchfiles`: Search Google Drive files using standard Google Drive API v3 queries (e.g., `name='target' and trashed=false`). Supports optional regex filename filtering.
+- `download`: Download files or folders by File ID. Includes a `--conflict-mode` option to handle name collisions, and supports custom local filename mapping.
+- `upload`: Upload a local file or recursive folder to a Google Drive location. Includes a `--conflict-mode` option and `--projectname` for GAS scripts.
+- `exe1`: Stateful execution of Google Apps Script projects. Now supports passing local script sources (`scriptfile` or `stringscript`), executing target entry functions, and automatically resolves `scriptid` from the local configuration file `ggsrun.cfg` as a fallback.
+- `filelist`: Exact name or ID search for files, returning Google Drive File details and names.
 
 ### 2. Standardized JSON Output (`TransferResult`)
 When executing transfer operations (uploads/downloads), `ggsrun` outputs a standardized JSON payload structure named `TransferResult`. This allows your AI agent to reliably parse the result, extract metadata, and identify multi-turn actions like conflict resolution.
@@ -318,6 +318,31 @@ When executing transfer operations (uploads/downloads), `ggsrun` outputs a stand
 }
 ```
 
+### Manual Testing of the MCP Server
+
+You can manually test the MCP server configuration and schemas directly on your command line by piping JSON-RPC payloads into the standard input of `ggsrun mcp`.
+
+**1. Test MCP Server Initialization**
+```bash
+$ echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | ggsrun mcp
+```
+
+**2. List All Available Tools and Schemas**
+```bash
+$ echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | ggsrun mcp
+```
+
+**3. Test Drive Search (`searchfiles` tool)**
+```bash
+$ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "searchfiles", "arguments": {"query": "name = '\''test_script.gs'\'' and trashed = false"}}, "id": 3}' | ggsrun mcp
+```
+
+**4. Test Stateful GAS Script Execution (`exe1` tool)**
+This invokes the `main` function using the local configuration fallback for `scriptid`:
+```bash
+$ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "exe1", "arguments": {"scriptfile": "./my_script.js", "function": "main"}}, "id": 4}' | ggsrun mcp
+```
+
 ### 3. AI Agent Prompt Scenarios & Expected Behaviors
 
 To help your AI agent interact effectively with the `ggsrun` MCP server, use the following standardized and optimized prompts.
@@ -344,6 +369,19 @@ Test if the AI can retrieve full file metadata from `TransferResult` and report 
   1. The AI invokes the `download` tool passing the target file ID.
   2. `ggsrun` performs the parallel download and returns a standardized JSON structure containing the file array.
   3. The AI successfully parses the `files` array in `TransferResult` and replies to you with clear, accurate metadata: *"The file has been saved to `[localPath]` and its size is `[size]` bytes."*
+
+### 4. Sample Prompts to Give to Your AI Agent
+
+You can use the following sample prompts to instruct an AI Agent (e.g. Claude Desktop, Cursor, or Gemini Agent) connected to your `ggsrun` MCP server:
+
+* **Find and download a script file by name:**
+  > "Please search my Google Drive for a file named 'backup_utility.js'. If you find it, download it to my local workspace and let me know the path where you saved it."
+* **Run a local GAS script on Google Drive statefully:**
+  > "Upload the local script file `./main.gs` to my Google Apps Script project (Script ID is `1IRpZ4Hu...`) and execute the `main` function. Please return the output payload."
+* **Search files with Drive API v3 queries:**
+  > "Search for folders modified within the last 7 days that do not contain 'archive' in their name. Give me a list of their names and IDs."
+* **Upload local files and handle conflicts dynamically:**
+  > "Upload the local file `./data/report_2026.csv` to the Drive folder `1a2b3c...`. If a file with the same name already exists in that folder, ask me whether to overwrite, skip, or rename it, and then proceed with my choice."
 
 ---
 
@@ -512,6 +550,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, CLI UX hardening, and MCP Server Schema Improvements**
+  Reorganized the codebase to follow the standard Go project structure (`main.go`, `/internal/app/`, `/internal/utl/`). Expanded `ggsrun auth` to request Web Apps URL registration and dynamically persist it in `ggsrun.cfg`, allowing `ggsrun w` to run without the `-u` option. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser, WSL/Ubuntu native browser, or manual URL copy-pasting. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples. **Improved the MCP server (`ggsrun mcp`) tools schema, adding rich parameter descriptions, Drive API query examples, new `scriptfile`/`stringscript` parameters to the `exe1` schema, `searchbyid` parameter to the `filelist` schema, and making `scriptid` optional by resolving automatically from `ggsrun.cfg` (via `GGSRUN_CFG_PATH` or the local directory). Refined `tools/call` backend handling to safely strip null/empty values.**
 - **v5.1.1 (May 2026) - Modular Handlers & Enhanced MCP Server Core**
   Refactored the codebase to modularize legacy single-file command handlers into dedicated, organized handler files (`handler_download.go`, `handler_upload.go`, `handler_transfer.go`, `handler_mcp.go`, `handler_execute.go`). Strengthened the MCP server core (`ggsrun mcp`) by capturing stdout and stderr execution logs for comprehensive error recovery. Embedded full support for `--conflict-mode` inside the MCP JSON-RPC schemas and standardized file transfer outputs into `TransferResult` to support interactive multi-turn collision resolution in LLM conversations. Fully updated pre-built binaries for all major architectures.
 - **v5.1.0 (May 2026) - Advanced Conflict Resolution Engine**

@@ -1,9 +1,10 @@
 // Package main (handler_transfer.go) :
 // Shared data structures and generic display logic for Drive transfer operations.
-package main
+package app
 
 import (
 	"fmt"
+	"path/filepath"
 
 	json "github.com/goccy/go-json"
 	"github.com/pterm/pterm"
@@ -68,12 +69,43 @@ func printTransferTree(node *transferNode, prefix string, isLast bool) {
 }
 
 // dispTransferResult : Display result generically supporting custom structs or utl.FileInf
-func dispTransferResult(c *cli.Context, f interface{}) {
-	var dispRes []byte
+func dispTransferResult(c *cli.Context, f interface{}, cfgPath string) {
 	if c.Bool("jsonparser") {
-		dispRes, _ = json.MarshalIndent(f, "", "  ")
+		b, err := json.Marshal(f)
+		if err == nil {
+			absPath, _ := filepath.Abs(cfgPath)
+			var m map[string]interface{}
+			if err2 := json.Unmarshal(b, &m); err2 == nil {
+				m["config_path"] = absPath
+				dispRes, _ := json.MarshalIndent(m, "", "  ")
+				fmt.Printf("%s\n", string(dispRes))
+				return
+			}
+			var arr []interface{}
+			if err2 := json.Unmarshal(b, &arr); err2 == nil {
+				wrapped := map[string]interface{}{
+					"result":      arr,
+					"config_path": absPath,
+				}
+				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
+				fmt.Printf("%s\n", string(dispRes))
+				return
+			}
+			var val interface{}
+			if err2 := json.Unmarshal(b, &val); err2 == nil {
+				wrapped := map[string]interface{}{
+					"result":      val,
+					"config_path": absPath,
+				}
+				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
+				fmt.Printf("%s\n", string(dispRes))
+				return
+			}
+		}
+		dispRes, _ := json.MarshalIndent(f, "", "  ")
+		fmt.Printf("%s\n", string(dispRes))
 	} else {
-		dispRes, _ = json.Marshal(f)
+		dispRes, _ := json.Marshal(f)
+		fmt.Printf("%s\n", string(dispRes))
 	}
-	fmt.Printf("%s\n", string(dispRes))
 }
