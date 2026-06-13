@@ -2,7 +2,7 @@
 Package main (doc.go) :
 This is a modern, highly-concurrent CLI tool to execute Google Apps Script (GAS) on a terminal and manage Google Drive infrastructure.
 
-# Architecture Overhaul (v5.2.2 - Go 1.26+)
+# Architecture Overhaul (v5.2.3 - Go 1.26+)
 
 The core engine of `ggsrun` has been upgraded to include advanced self-healing features, expanded execution mechanics, and refined security/TUI flows:
 
@@ -38,12 +38,12 @@ The core engine of `ggsrun` has been upgraded to include advanced self-healing f
    - Critical Safety static-analysis and user Y/N confirmation rules have been integrated into the `exe1` tool's description to guide LLM agents safely before script execution on write/update/delete operations.
    - Help command `ggsrun mcp -h` has been expanded to display all exposed MCP tool names and descriptions directly.
 
-8. Redesigned Download & Upload Conflict-Mode Rules:
-   The file transfer conflict resolution engine supports dual behaviors:
+8. Redesigned Download & Upload Conflict-Mode Rules (v5.2.3):
+   The file transfer conflict resolution engine has been upgraded to support recursive folder/directory conflict resolution along with individual files:
    - For MCP server sessions (triggered via `GGSRUN_MCP_MODE=true` environment variable), conflict resolution is fully automated and non-interactive:
-     - Default behavior: Automatically checks file timestamps and overwrites only if the source file is newer (`OverwriteIfNewer`).
+     - Default behavior: Automatically checks file timestamps and overwrites only if the source file/folder is newer (`OverwriteIfNewer`).
      - Options: `OverwriteIfNewer` (overwrite only if newer), `Ignore` (skip completely on name collision), and `Rename` (auto-rename with sequential numbers/timestamps).
-   - For raw CLI sessions, the legacy v5.2.1 behavior is strictly preserved, prompting the user interactively (or returning pending status in JSON parser mode) upon name collisions.
+   - For raw CLI sessions, the legacy v5.2.1 behavior is strictly preserved for both files and directories, prompting the user interactively (or returning pending status in JSON parser mode) upon name collisions.
 
 # Features of "ggsrun" are as follows.
 

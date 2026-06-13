@@ -90,14 +90,51 @@ func createDriveFolder(ctx context.Context, name, parentID, token string) (strin
 }
 
 // extractUploadJobsAndCreateFolders traverses the local tree, mimics it on Drive, and flattens file jobs.
-func extractUploadJobsAndCreateFolders(ctx context.Context, node *transferNode, driveParentID, token string, jobs *[]uploadJob) error {
+func extractUploadJobsAndCreateFolders(
+	ctx context.Context,
+	c *cli.Context,
+	node *transferNode,
+	driveParentID, token string,
+	conflictMode string,
+	isMCP bool,
+	driveCache map[string]map[string]driveFileObj,
+	jobs *[]uploadJob,
+) error {
 	if node.IsDir {
-		newFolderID, err := createDriveFolder(ctx, node.Name, driveParentID, token)
+		existingFiles, err := getDriveFilesCached(ctx, driveParentID, token, driveCache)
 		if err != nil {
 			return err
 		}
+
+		var newFolderID string
+		var conflictDetected bool
+		var existing driveFileObj
+
+		if extFile, exists := existingFiles[node.Name]; exists {
+			if extFile.MimeType == "application/vnd.google-apps.folder" {
+				conflictDetected = true
+				existing = extFile
+			}
+		}
+
+		if conflictDetected {
+			newFolderID = existing.ID
+			pterm.Info.Printf("Using existing folder on Google Drive: %s (%s)\n", node.Name, newFolderID)
+		} else {
+			var err error
+			newFolderID, err = createDriveFolder(ctx, node.Name, driveParentID, token)
+			if err != nil {
+				return fmt.Errorf("failed to create folder: %w", err)
+			}
+			pterm.Info.Printf("Created folder: %s (%s)\n", node.Name, newFolderID)
+			driveCache[newFolderID] = make(map[string]driveFileObj)
+		}
+
 		for _, child := range node.Children {
-			extractUploadJobsAndCreateFolders(ctx, child, newFolderID, token, jobs)
+			err := extractUploadJobsAndCreateFolders(ctx, c, child, newFolderID, token, conflictMode, isMCP, driveCache, jobs)
+			if err != nil {
+				return err
+			}
 		}
 	} else {
 		*jobs = append(*jobs, uploadJob{
@@ -236,102 +273,11 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 		return p.Uploader(c), nil
 	}
 
-	filenames := regexp.MustCompile(`\s*,\s*`).Split(filenamesStr, -1)
-	var jobs []uploadJob
-
-	for _, fname := range filenames {
-		fname = strings.TrimSpace(fname)
-		if fname == "" {
-			continue
-		}
-
-		fi, err := os.Stat(fname)
-		if err != nil {
-			continue
-		}
-
-		if fi.IsDir() {
-			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgMagenta)).WithMargin(10).Println("Local Directory Detected: " + fname)
-			rootNode, err := buildLocalTree(fname)
-			if err != nil {
-				return nil, err
-			}
-
-			pterm.Info.Println("\nTarget Upload Structure:")
-			printTransferTree(rootNode, "", true)
-
-			pterm.Info.Println("\nProvisioning hierarchical folders on Google Drive...")
-			err = extractUploadJobsAndCreateFolders(ctx, rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, &jobs)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			jobs = append(jobs, uploadJob{
-				LocalPath: fname,
-				Name:      fi.Name(),
-				ParentID:  c.String("parentfolderid"),
-				Size:      fi.Size(),
-			})
-		}
-	}
-
-	if len(jobs) == 0 {
-		return TransferResult{Message: []string{"No valid files found for upload."}}, nil
-	}
-
 	// --- Pre-computation Conflict Resolution Matrix ---
-	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true"
+	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true" || c.Bool("jsonparser")
 	conflictMode := c.String("conflict-mode")
-
-	var finalJobs []uploadJob
-	var skippedFiles []TransferFileMetadata
-	var pendingFiles []TransferFileMetadata
-
-	parentMap := make(map[string]bool)
-	for _, job := range jobs {
-		pid := job.ParentID
-		if pid == "" {
-			pid = "root"
-		}
-		parentMap[pid] = true
-	}
-
-	// Bulk-fetch metadata to bypass Drive API Rate Limits
-	existingFiles := make(map[string]map[string]driveFileObj)
-	for pid := range parentMap {
-		existingFiles[pid] = make(map[string]driveFileObj)
-		query := fmt.Sprintf("'%s' in parents and trashed=false", pid)
-		escapedQuery := url.QueryEscape(query)
-		pageToken := ""
-
-		for {
-			apiURL := "https://www.googleapis.com/drive/v3/files?q=" + escapedQuery + "&fields=nextPageToken,files(id,name,modifiedTime)&pageSize=1000&includeItemsFromAllDrives=true&supportsAllDrives=true"
-			if pageToken != "" {
-				apiURL += "&pageToken=" + pageToken
-			}
-
-			req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-			req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				break
-			}
-
-			var res struct {
-				NextPageToken string         `json:"nextPageToken"`
-				Files         []driveFileObj `json:"files"`
-			}
-			json.NewDecoder(resp.Body).Decode(&res)
-			resp.Body.Close()
-
-			for _, f := range res.Files {
-				existingFiles[pid][f.Name] = f
-			}
-			if res.NextPageToken == "" {
-				break
-			}
-			pageToken = res.NextPageToken
-		}
+	if conflictMode == "" {
+		conflictMode = c.String("cm")
 	}
 
 	if isMCP {
@@ -358,14 +304,101 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 				conflictMode = "OverwriteIfNewer"
 			}
 		}
+	} else {
+		// CLI Mode: Keep legacy v5.2.1 interactive CLI prompt behavior
+		if conflictMode == "" {
+			if c.Bool("overwrite") {
+				conflictMode = "overwrite"
+			} else if c.Bool("skip") {
+				conflictMode = "skip"
+			}
+		}
+	}
 
+	filenames := regexp.MustCompile(`\s*,\s*`).Split(filenamesStr, -1)
+	var jobs []uploadJob
+	var skippedFiles []TransferFileMetadata
+	var pendingFiles []TransferFileMetadata
+
+	driveCache := make(map[string]map[string]driveFileObj)
+
+	for _, fname := range filenames {
+		fname = strings.TrimSpace(fname)
+		if fname == "" {
+			continue
+		}
+
+		fi, err := os.Stat(fname)
+		if err != nil {
+			continue
+		}
+
+		if fi.IsDir() {
+			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgMagenta)).WithMargin(10).Println("Local Directory Detected: " + fname)
+			rootNode, err := buildLocalTree(fname)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build local directory tree: %w", err)
+			}
+
+			pterm.Info.Println("\nTarget Upload Structure:")
+			printTransferTree(rootNode, "", true)
+
+			pterm.Info.Println("\nProvisioning hierarchical folders on Google Drive...")
+			err = extractUploadJobsAndCreateFolders(ctx, c, rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, conflictMode, isMCP, driveCache, &jobs)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			jobs = append(jobs, uploadJob{
+				LocalPath: fname,
+				Name:      fi.Name(),
+				ParentID:  c.String("parentfolderid"),
+				Size:      fi.Size(),
+			})
+		}
+	}
+
+	if len(jobs) == 0 {
+		if len(skippedFiles) > 0 || len(pendingFiles) > 0 {
+			actionReq := ""
+			if len(pendingFiles) > 0 {
+				actionReq = "CRITICAL INSTRUCTION FOR AGENT: Some files had naming conflicts and were temporarily skipped. You MUST NOT automatically guess or retry with a conflict-mode. You MUST explicitly present these files to the user and ask how to handle them (skip, overwrite, rename, or update). Once the user decides, execute the tool again ONLY for the files in the 'pendingConflicts' list using the user's chosen 'conflict-mode'."
+			}
+			msg := "No jobs require immediate execution. All items were successfully processed, skipped, or are pending conflict resolution."
+			return TransferResult{
+				Message:          []string{msg},
+				Files:            skippedFiles,
+				PendingConflicts: pendingFiles,
+				ActionRequired:   actionReq,
+			}, nil
+		}
+		return TransferResult{Message: []string{"No valid files found for upload."}}, nil
+	}
+
+	// Bulk-fetch metadata to bypass Drive API Rate Limits for any remaining parents
+	for _, job := range jobs {
+		pid := job.ParentID
+		if pid == "" {
+			pid = "root"
+		}
+		if _, ok := driveCache[pid]; !ok {
+			_, err := getDriveFilesCached(ctx, pid, a.GgsrunCfg.Accesstoken, driveCache)
+			if err != nil {
+				pterm.Warning.Printf("Failed to fetch existing files for parent %s: %v\n", pid, err)
+			}
+		}
+	}
+
+	var finalJobs []uploadJob
+
+	if isMCP {
 		for _, job := range jobs {
 			pid := job.ParentID
 			if pid == "" {
 				pid = "root"
 			}
 
-			if existing, ok := existingFiles[pid][job.Name]; ok {
+			if existing, ok := driveCache[pid][job.Name]; ok {
 				switch conflictMode {
 				case "Ignore":
 					pterm.Info.Printf("Skipped upload: %s\n", job.LocalPath)
@@ -374,17 +407,16 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 					})
 					continue
 				case "overwrite":
-					// Bind ID to trigger PATCH request
 					job.ExistingID = existing.ID
 				case "Rename":
 					ext := filepath.Ext(job.Name)
 					base := strings.TrimSuffix(job.Name, ext)
 					ts := time.Now().Format("20060102_150405")
 					newName := fmt.Sprintf("%s_%s%s", base, ts, ext)
-					if _, exists := existingFiles[pid][newName]; exists {
+					if _, exists := driveCache[pid][newName]; exists {
 						for k := 1; k <= 1000; k++ {
 							tempName := fmt.Sprintf("%s_%s_%d%s", base, ts, k, ext)
-							if _, exists2 := existingFiles[pid][tempName]; !exists2 {
+							if _, exists2 := driveCache[pid][tempName]; !exists2 {
 								newName = tempName
 								break
 							}
@@ -412,22 +444,13 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 			finalJobs = append(finalJobs, job)
 		}
 	} else {
-		// CLI Mode: Keep legacy v5.2.1 interactive CLI prompt behavior
-		if conflictMode == "" {
-			if c.Bool("overwrite") {
-				conflictMode = "overwrite"
-			} else if c.Bool("skip") {
-				conflictMode = "skip"
-			}
-		}
-
 		for _, job := range jobs {
 			pid := job.ParentID
 			if pid == "" {
 				pid = "root"
 			}
 
-			if existing, ok := existingFiles[pid][job.Name]; ok {
+			if existing, ok := driveCache[pid][job.Name]; ok {
 				mode := conflictMode
 				if mode == "" {
 					if c.Bool("jsonparser") {
@@ -436,10 +459,14 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 						})
 						continue
 					}
-					mode, _ = pterm.DefaultInteractiveSelect.
+					var selectErr error
+					mode, selectErr = pterm.DefaultInteractiveSelect.
 						WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists on Google Drive. Action?", job.Name)).
 						WithOptions([]string{"skip", "overwrite", "rename", "update"}).
 						Show()
+					if selectErr != nil {
+						return nil, fmt.Errorf("failed to prompt for file conflict: %w", selectErr)
+					}
 				}
 
 				switch mode {
@@ -499,11 +526,16 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 	var wg sync.WaitGroup
 	wg.Add(len(jobs))
 
+	var progressOutput io.Writer = os.Stderr
+	if c.Bool("jsonparser") {
+		progressOutput = io.Discard
+	}
+
 	progress := mpb.New(
 		mpb.WithWaitGroup(&wg),
 		mpb.WithWidth(60),
 		mpb.WithRefreshRate(180*time.Millisecond),
-		mpb.WithOutput(os.Stderr),
+		mpb.WithOutput(progressOutput),
 	)
 
 	jobsChan := make(chan uploadJob, len(jobs))
@@ -570,11 +602,69 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 
 // uploadFiles : Uploads files using concurrent parallel architecture.
 func uploadFiles(c *cli.Context) error {
+	if c.Bool("jsonparser") {
+		pterm.DisableOutput()
+	}
 	a := defAuthContainer(c).ggsrunIni(c).goauth()
 	res, err := concurrentUpload(context.Background(), c, a)
 	if err != nil {
 		return err
 	}
-	dispTransferResult(c, res, a.resolveConfigFile())
+	if c.Bool("jsonparser") {
+		dispTransferResult(c, res, a.resolveConfigFile())
+	}
 	return nil
+}
+
+// getDriveFilesCached retrieves files under the specified parent ID and caches them to minimize API hits.
+func getDriveFilesCached(ctx context.Context, parentID, token string, cache map[string]map[string]driveFileObj) (map[string]driveFileObj, error) {
+	if parentID == "" {
+		parentID = "root"
+	}
+	if files, ok := cache[parentID]; ok {
+		return files, nil
+	}
+
+	files := make(map[string]driveFileObj)
+	query := fmt.Sprintf("'%s' in parents and trashed=false", parentID)
+	escapedQuery := url.QueryEscape(query)
+	pageToken := ""
+
+	for {
+		apiURL := "https://www.googleapis.com/drive/v3/files?q=" + escapedQuery + "&fields=nextPageToken,files(id,name,mimeType,size,modifiedTime)&pageSize=1000&includeItemsFromAllDrives=true&supportsAllDrives=true"
+		if pageToken != "" {
+			apiURL += "&pageToken=" + pageToken
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request for parent %s: %w", parentID, err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list drive files under parent %s: %w", parentID, err)
+		}
+
+		var res struct {
+			NextPageToken string         `json:"nextPageToken"`
+			Files         []driveFileObj `json:"files"`
+		}
+		decodeErr := json.NewDecoder(resp.Body).Decode(&res)
+		resp.Body.Close()
+		if decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode drive files response under parent %s: %w", parentID, decodeErr)
+		}
+
+		for _, f := range res.Files {
+			files[f.Name] = f
+		}
+		if res.NextPageToken == "" {
+			break
+		}
+		pageToken = res.NextPageToken
+	}
+
+	cache[parentID] = files
+	return files, nil
 }

@@ -354,8 +354,11 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 	}
 
 	// --- Pre-computation Conflict Resolution Matrix ---
-	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true"
+	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true" || c.Bool("jsonparser")
 	conflictMode := c.String("conflict-mode")
+	if conflictMode == "" {
+		conflictMode = c.String("cm")
+	}
 
 	var finalJobs []downloadJob
 	var skippedFiles []TransferFileMetadata
@@ -521,11 +524,16 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 	var wg sync.WaitGroup
 	wg.Add(len(jobs))
 
+	var progressOutput io.Writer = os.Stderr
+	if c.Bool("jsonparser") {
+		progressOutput = io.Discard
+	}
+
 	progress := mpb.New(
 		mpb.WithWaitGroup(&wg),
 		mpb.WithWidth(60),
 		mpb.WithRefreshRate(180*time.Millisecond),
-		mpb.WithOutput(os.Stderr),
+		mpb.WithOutput(progressOutput),
 	)
 
 	jobsChan := make(chan downloadJob, len(jobs))
@@ -592,11 +600,16 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 
 // downloadFiles : Download files from Google Drive using concurrent parallel architecture.
 func downloadFiles(c *cli.Context) error {
+	if c.Bool("jsonparser") {
+		pterm.DisableOutput()
+	}
 	a := defAuthContainer(c).ggsrunIni(c).goauth()
 	res, err := concurrentDownload(context.Background(), c, a)
 	if err != nil {
 		return err
 	}
-	dispTransferResult(c, res, a.resolveConfigFile())
+	if c.Bool("jsonparser") {
+		dispTransferResult(c, res, a.resolveConfigFile())
+	}
 	return nil
 }
