@@ -2,7 +2,7 @@
 Package main (doc.go) :
 This is a modern, highly-concurrent CLI tool to execute Google Apps Script (GAS) on a terminal and manage Google Drive infrastructure.
 
-# Architecture Overhaul (v5.2.0 - Go 1.26+)
+# Architecture Overhaul (v5.2.2 - Go 1.26+)
 
 The core engine of `ggsrun` has been upgraded to include advanced self-healing features, expanded execution mechanics, and refined security/TUI flows:
 
@@ -32,8 +32,18 @@ The core engine of `ggsrun` has been upgraded to include advanced self-healing f
 6. Enhanced Config Path Visibility:
    Loads of `ggsrun.cfg` are reported on standard output. If `-j` (JSON mode) is specified, the absolute config path is injected into the output JSON top-level under the "config_path" key.
 
-7. MCP Server Schema & Mapping Enhancements:
-   The `ggsrun mcp` command now features improved JSON schemas with comprehensive description fields and Drive API syntax examples. The `exe1` tool schema adds `scriptfile` and `stringscript` properties to allow dynamic source execution, while `scriptid` has been made optional by automatically resolving the 'script_id' from the configuration file `ggsrun.cfg` (falling back using `GGSRUN_CFG_PATH` or local working directory). Argument mapping filters out nil/empty parameters to prevent command failures.
+7. MCP Server Schema, Safety Reviews, & Mapping Enhancements:
+   The `ggsrun mcp` command now features improved JSON schemas with comprehensive description fields and Drive API syntax examples.
+   - The `exe1` tool schema adds `scriptfile` and `stringscript` properties to allow dynamic source execution, while `scriptid` has been made optional by automatically resolving the 'script_id' from the configuration file `ggsrun.cfg`.
+   - Critical Safety static-analysis and user Y/N confirmation rules have been integrated into the `exe1` tool's description to guide LLM agents safely before script execution on write/update/delete operations.
+   - Help command `ggsrun mcp -h` has been expanded to display all exposed MCP tool names and descriptions directly.
+
+8. Redesigned Download & Upload Conflict-Mode Rules:
+   The file transfer conflict resolution engine supports dual behaviors:
+   - For MCP server sessions (triggered via `GGSRUN_MCP_MODE=true` environment variable), conflict resolution is fully automated and non-interactive:
+     - Default behavior: Automatically checks file timestamps and overwrites only if the source file is newer (`OverwriteIfNewer`).
+     - Options: `OverwriteIfNewer` (overwrite only if newer), `Ignore` (skip completely on name collision), and `Rename` (auto-rename with sequential numbers/timestamps).
+   - For raw CLI sessions, the legacy v5.2.1 behavior is strictly preserved, prompting the user interactively (or returning pending status in JSON parser mode) upon name collisions.
 
 # Features of "ggsrun" are as follows.
 

@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.2.1"
+	app.Version = "5.2.2"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -203,7 +203,7 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "conflict-mode, cm",
-					Usage: "Action on conflict: skip, overwrite, rename, update. Default is interactive CLI prompt.",
+					Usage: "Action on conflict: OverwriteIfNewer, Ignore, Rename. (MCP Mode Default: OverwriteIfNewer, CLI Mode Default: Interactive).",
 				},
 				&cli.BoolFlag{
 					Name:  "rawdata, r",
@@ -261,7 +261,7 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "conflict-mode, cm",
-					Usage: "Action on conflict: skip, overwrite, rename, update. Default is interactive CLI prompt.",
+					Usage: "Action on conflict: OverwriteIfNewer, Ignore, Rename. (MCP Mode Default: OverwriteIfNewer, CLI Mode Default: Interactive).",
 				},
 				&cli.StringFlag{
 					Name:  "parentid, pid",
@@ -539,7 +539,7 @@ func Run() {
 			Name:        "mcp",
 			Aliases:     []string{"m"},
 			Usage:       "Starts ggsrun as an MCP (Model Context Protocol) server for LLM clients.",
-			Description: "Runs a stdio listener providing Drive/GAS tools to an MCP client. Does not require LLM API keys natively.",
+			Description: "Runs a stdio listener providing Drive/GAS tools to an MCP client. Does not require LLM API keys natively.\n\nExposed MCP Tools:\n  - searchfiles: Search Google Drive files using standard Google Drive API v3 query syntax. Supports optional regex filtering on filenames.\n  - download: Download files or folder structures from Google Drive to the local environment using File/Folder IDs.\n  - upload: Upload local files or entire recursive directories to Google Drive.\n  - exe1: Upload/synchronize a local Google Apps Script file or raw script string to a remote Google Apps Script project, and execute a specified entry function. Returns the function execution response payload as JSON.\n  - filelist: List files or search by exact File Name or File ID on Google Drive. Outputs corresponding file details.",
 			Action:      runMCP,
 			Flags:       getCommonFlags(),
 		},

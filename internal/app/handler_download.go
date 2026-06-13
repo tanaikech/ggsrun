@@ -36,7 +36,7 @@ type downloadJob struct {
 }
 
 // buildDriveTree recursively queries Google Drive API to map the folder structure, with full Shared Drive support.
-func buildDriveTree(driveID, name, token string) (*transferNode, error) {
+func buildDriveTree(ctx context.Context, driveID, name, token string) (*transferNode, error) {
 	node := &transferNode{
 		Name:  name,
 		IsDir: true,
@@ -54,7 +54,7 @@ func buildDriveTree(driveID, name, token string) (*transferNode, error) {
 			apiURL += "&pageToken=" + pageToken
 		}
 
-		req, _ := http.NewRequest("GET", apiURL, nil)
+		req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -67,13 +67,13 @@ func buildDriveTree(driveID, name, token string) (*transferNode, error) {
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 			resp.Body.Close()
-			return nil, err
+			return nil, fmt.Errorf("failed to decode drive tree response: %w", err)
 		}
 		resp.Body.Close()
 
 		for _, f := range res.Files {
 			if f.MimeType == "application/vnd.google-apps.folder" {
-				childNode, err := buildDriveTree(f.ID, f.Name, token)
+				childNode, err := buildDriveTree(ctx, f.ID, f.Name, token)
 				if err == nil {
 					node.Children = append(node.Children, childNode)
 				}
@@ -189,17 +189,17 @@ func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 }
 
 // executeDownloadJob safely processes a single download task with fault isolation and explicit API routing.
-func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progress *mpb.Progress) error {
+func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, c *cli.Context, progress *mpb.Progress) (*TransferFileMetadata, error) {
 	var resp2 *http.Response
 	var reqErr error
 	maxRetries := 3
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		req2, _ := http.NewRequest("GET", job.ExportURL, nil)
+		req2, _ := http.NewRequestWithContext(ctx, "GET", job.ExportURL, nil)
 		req2.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		resp2, reqErr = http.DefaultClient.Do(req2)
 		if reqErr != nil {
-			return fmt.Errorf("network transport failed for '%s': %w", job.Name, reqErr)
+			return nil, fmt.Errorf("network transport failed for '%s': %w", job.Name, reqErr)
 		}
 
 		if resp2.StatusCode >= 400 {
@@ -213,8 +213,15 @@ func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progr
 				}
 			}
 
-			pterm.Warning.Printf("Download API failed for '%s' (Status %d): %s\n", job.Name, resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
-			return nil
+			errMsg := fmt.Sprintf("failed (API error Status %d: %s)", resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
+			pterm.Warning.Printf("Download API failed for '%s': %s\n", job.Name, errMsg)
+			return &TransferFileMetadata{
+				Name:     job.Name,
+				FileID:   job.DriveID,
+				MimeType: job.MimeType,
+				Path:     job.SavePath,
+				Status:   errMsg,
+			}, nil
 		}
 		break
 	}
@@ -241,7 +248,7 @@ func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progr
 
 	out, err := os.Create(job.SavePath)
 	if err != nil {
-		return fmt.Errorf("local FS error creating file '%s': %w", job.SavePath, err)
+		return nil, fmt.Errorf("local FS error creating file '%s': %w", job.SavePath, err)
 	}
 
 	proxyReader := bar.ProxyReader(resp2.Body)
@@ -252,15 +259,22 @@ func executeDownloadJob(job downloadJob, a *AuthContainer, c *cli.Context, progr
 
 	if err != nil {
 		os.Remove(job.SavePath)
-		return fmt.Errorf("I/O stream interrupted for '%s': %w", job.Name, err)
+		return nil, fmt.Errorf("I/O stream interrupted for '%s': %w", job.Name, err)
 	}
 
 	bar.SetTotal(written, true)
-	return nil
+	return &TransferFileMetadata{
+		Name:     job.Name,
+		FileID:   job.DriveID,
+		MimeType: job.MimeType,
+		Size:     written,
+		Path:     job.SavePath,
+		Status:   "downloaded",
+	}, nil
 }
 
 // concurrentDownload : Massively parallel file downloader utilizing a robust Channel-based Worker Pool
-func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
+func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (interface{}, error) {
 	p := a.defDownloadContainer(c)
 	fileIDsStr := c.String("fileid")
 
@@ -288,7 +302,7 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 		}
 
 		// Ensure Shared Drive support for fetching individual file metadata
-		req, _ := http.NewRequest("GET", "https://www.googleapis.com/drive/v3/files/"+id+"?fields=id,name,mimeType,size,modifiedTime&supportsAllDrives=true", nil)
+		req, _ := http.NewRequestWithContext(ctx, "GET", "https://www.googleapis.com/drive/v3/files/"+id+"?fields=id,name,mimeType,size,modifiedTime&supportsAllDrives=true", nil)
 		req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -296,13 +310,16 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 		}
 
 		var meta driveFileObj
-		json.NewDecoder(resp.Body).Decode(&meta)
+		if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+			resp.Body.Close()
+			return nil, fmt.Errorf("failed to decode file metadata JSON: %w", err)
+		}
 		resp.Body.Close()
 
 		if meta.MimeType == "application/vnd.google-apps.folder" {
 			pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgCyan)).WithMargin(10).Println("Drive Folder Detected: " + meta.Name)
 			pterm.Info.Println("Fetching folder structure from Google Drive...")
-			rootNode, err := buildDriveTree(id, meta.Name, a.GgsrunCfg.Accesstoken)
+			rootNode, err := buildDriveTree(ctx, id, meta.Name, a.GgsrunCfg.Accesstoken)
 			if err != nil {
 				return nil, err
 			}
@@ -337,70 +354,146 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 	}
 
 	// --- Pre-computation Conflict Resolution Matrix ---
+	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true"
 	conflictMode := c.String("conflict-mode")
-	if conflictMode == "" {
-		if c.Bool("overwrite") {
-			conflictMode = "overwrite"
-		} else if c.Bool("skip") {
-			conflictMode = "skip"
-		}
-	}
 
 	var finalJobs []downloadJob
 	var skippedFiles []TransferFileMetadata
 	var pendingFiles []TransferFileMetadata
 
-	for _, job := range jobs {
-		if !resolveDownloadSavePath(&job, c) {
-			continue // Immediately drop unexportable objects
-		}
-
-		stat, err := os.Stat(job.SavePath)
-		if err == nil {
-			mode := conflictMode
-			if mode == "" { // Interactive mode fallback or JSON parsing safety
-				if c.Bool("jsonparser") {
-					// Safe partial failure: Separate this conflicting job and ask the agent to verify it.
-					pendingFiles = append(pendingFiles, TransferFileMetadata{
-						Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "pending_conflict_locally",
-					})
-					continue
-				}
-				mode, _ = pterm.DefaultInteractiveSelect.
-					WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists locally. Action?", job.SavePath)).
-					WithOptions([]string{"skip", "overwrite", "rename", "update"}).
-					Show()
+	if isMCP {
+		// MCP Mode: Automated non-interactive conflict resolution
+		if conflictMode == "" {
+			if c.Bool("overwrite") {
+				conflictMode = "overwrite"
+			} else if c.Bool("skip") {
+				conflictMode = "Ignore"
+			} else {
+				conflictMode = "OverwriteIfNewer"
 			}
-
-			switch mode {
-			case "skip":
-				pterm.Info.Printf("Skipped download: %s\n", job.SavePath)
-				skippedFiles = append(skippedFiles, TransferFileMetadata{
-					Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (user chose skip)",
-				})
-				continue
-			case "overwrite":
-				// Proceed. Target will be overwritten natively.
+		} else {
+			switch strings.ToLower(conflictMode) {
+			case "overwriteifnewer", "update":
+				conflictMode = "OverwriteIfNewer"
+			case "ignore", "skip":
+				conflictMode = "Ignore"
 			case "rename":
-				dir := filepath.Dir(job.SavePath)
-				base := filepath.Base(job.SavePath)
-				ext := filepath.Ext(base)
-				nameWithoutExt := strings.TrimSuffix(base, ext)
-				ts := time.Now().Format("20060102_150405")
-				job.SavePath = filepath.Join(dir, fmt.Sprintf("%s_%s%s", nameWithoutExt, ts, ext))
-			case "update":
-				if !job.ModifiedTime.IsZero() && job.ModifiedTime.After(stat.ModTime()) {
-					// Source is newer. Proceed to overwrite.
-				} else {
-					pterm.Info.Printf("Skipped (local file is newer or equal): %s\n", job.SavePath)
-					skippedFiles = append(skippedFiles, TransferFileMetadata{
-						Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (local is newer or equal)",
-					})
-					continue
-				}
+				conflictMode = "Rename"
+			case "overwrite":
+				conflictMode = "overwrite"
+			default:
+				conflictMode = "OverwriteIfNewer"
 			}
 		}
-		finalJobs = append(finalJobs, job)
+
+		for _, job := range jobs {
+			if !resolveDownloadSavePath(&job, c) {
+				continue
+			}
+
+			stat, err := os.Stat(job.SavePath)
+			if err == nil {
+				switch conflictMode {
+				case "Ignore":
+					pterm.Info.Printf("Skipped download: %s\n", job.SavePath)
+					skippedFiles = append(skippedFiles, TransferFileMetadata{
+						Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (conflict-mode Ignore)",
+					})
+					continue
+				case "overwrite":
+					// Proceed.
+				case "Rename":
+					dir := filepath.Dir(job.SavePath)
+					base := filepath.Base(job.SavePath)
+					ext := filepath.Ext(base)
+					nameWithoutExt := strings.TrimSuffix(base, ext)
+					ts := time.Now().Format("20060102_150405")
+					newPath := filepath.Join(dir, fmt.Sprintf("%s_%s%s", nameWithoutExt, ts, ext))
+					if _, statErr := os.Stat(newPath); statErr == nil {
+						for k := 1; k <= 1000; k++ {
+							tempPath := filepath.Join(dir, fmt.Sprintf("%s_%s_%d%s", nameWithoutExt, ts, k, ext))
+							if _, tempStatErr := os.Stat(tempPath); tempStatErr != nil {
+								newPath = tempPath
+								break
+							}
+						}
+					}
+					job.SavePath = newPath
+				case "OverwriteIfNewer":
+					if !job.ModifiedTime.IsZero() && job.ModifiedTime.After(stat.ModTime()) {
+						// Source is newer. Proceed.
+					} else {
+						pterm.Info.Printf("Skipped download (local is newer or equal): %s\n", job.SavePath)
+						skippedFiles = append(skippedFiles, TransferFileMetadata{
+							Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (OverwriteIfNewer: local is newer or equal)",
+						})
+						continue
+					}
+				}
+			}
+			finalJobs = append(finalJobs, job)
+		}
+	} else {
+		// CLI Mode: Keep legacy v5.2.1 interactive CLI prompt behavior
+		if conflictMode == "" {
+			if c.Bool("overwrite") {
+				conflictMode = "overwrite"
+			} else if c.Bool("skip") {
+				conflictMode = "skip"
+			}
+		}
+
+		for _, job := range jobs {
+			if !resolveDownloadSavePath(&job, c) {
+				continue
+			}
+
+			stat, err := os.Stat(job.SavePath)
+			if err == nil {
+				mode := conflictMode
+				if mode == "" {
+					if c.Bool("jsonparser") {
+						pendingFiles = append(pendingFiles, TransferFileMetadata{
+							Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "pending_conflict_locally",
+						})
+						continue
+					}
+					mode, _ = pterm.DefaultInteractiveSelect.
+						WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists locally. Action?", job.SavePath)).
+						WithOptions([]string{"skip", "overwrite", "rename", "update"}).
+						Show()
+				}
+
+				switch mode {
+				case "skip":
+					pterm.Info.Printf("Skipped download: %s\n", job.SavePath)
+					skippedFiles = append(skippedFiles, TransferFileMetadata{
+						Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (user chose skip)",
+					})
+					continue
+				case "overwrite":
+					// Proceed.
+				case "rename":
+					dir := filepath.Dir(job.SavePath)
+					base := filepath.Base(job.SavePath)
+					ext := filepath.Ext(base)
+					nameWithoutExt := strings.TrimSuffix(base, ext)
+					ts := time.Now().Format("20060102_150405")
+					job.SavePath = filepath.Join(dir, fmt.Sprintf("%s_%s%s", nameWithoutExt, ts, ext))
+				case "update":
+					if !job.ModifiedTime.IsZero() && job.ModifiedTime.After(stat.ModTime()) {
+						// Source is newer. Proceed.
+					} else {
+						pterm.Info.Printf("Skipped (local file is newer or equal): %s\n", job.SavePath)
+						skippedFiles = append(skippedFiles, TransferFileMetadata{
+							Name: job.Name, FileID: job.DriveID, MimeType: job.MimeType, Path: job.SavePath, Status: "skipped (local is newer or equal)",
+						})
+						continue
+					}
+				}
+			}
+			finalJobs = append(finalJobs, job)
+		}
 	}
 
 	actionReq := ""
@@ -444,35 +537,30 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 	var mu sync.Mutex
 	var successFiles []TransferFileMetadata
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctxGroup := errgroup.WithContext(ctx)
 
 	for i := 0; i < workers; i++ {
 		g.Go(func() error {
 			for job := range jobsChan {
 				select {
-				case <-ctx.Done():
+				case <-ctxGroup.Done():
 					wg.Done()
 					continue
 				default:
 				}
 
-				err := executeDownloadJob(job, a, c, progress)
+				resMeta, err := executeDownloadJob(ctxGroup, job, a, c, progress)
 				wg.Done()
 
 				if err != nil {
 					return err
 				}
 
-				mu.Lock()
-				successFiles = append(successFiles, TransferFileMetadata{
-					Name:     job.Name,
-					FileID:   job.DriveID,
-					MimeType: job.MimeType,
-					Size:     job.Size,
-					Path:     job.SavePath,
-					Status:   "downloaded",
-				})
-				mu.Unlock()
+				if resMeta != nil {
+					mu.Lock()
+					successFiles = append(successFiles, *resMeta)
+					mu.Unlock()
+				}
 			}
 			return nil
 		})
@@ -505,7 +593,7 @@ func concurrentDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 // downloadFiles : Download files from Google Drive using concurrent parallel architecture.
 func downloadFiles(c *cli.Context) error {
 	a := defAuthContainer(c).ggsrunIni(c).goauth()
-	res, err := concurrentDownload(c, a)
+	res, err := concurrentDownload(context.Background(), c, a)
 	if err != nil {
 		return err
 	}

@@ -63,7 +63,7 @@ func buildLocalTree(localPath string) (*transferNode, error) {
 }
 
 // createDriveFolder creates a new directory in Google Drive with Shared Drive support.
-func createDriveFolder(name, parentID, token string) (string, error) {
+func createDriveFolder(ctx context.Context, name, parentID, token string) (string, error) {
 	metaMap := map[string]interface{}{
 		"name":     name,
 		"mimeType": "application/vnd.google-apps.folder",
@@ -73,7 +73,7 @@ func createDriveFolder(name, parentID, token string) (string, error) {
 	}
 	body, _ := json.Marshal(metaMap)
 	// Enable Shared Drive uploads
-	req, _ := http.NewRequest("POST", "https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", bytes.NewReader(body))
+	req, _ := http.NewRequestWithContext(ctx, "POST", "https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", bytes.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -90,14 +90,14 @@ func createDriveFolder(name, parentID, token string) (string, error) {
 }
 
 // extractUploadJobsAndCreateFolders traverses the local tree, mimics it on Drive, and flattens file jobs.
-func extractUploadJobsAndCreateFolders(node *transferNode, driveParentID, token string, jobs *[]uploadJob) error {
+func extractUploadJobsAndCreateFolders(ctx context.Context, node *transferNode, driveParentID, token string, jobs *[]uploadJob) error {
 	if node.IsDir {
-		newFolderID, err := createDriveFolder(node.Name, driveParentID, token)
+		newFolderID, err := createDriveFolder(ctx, node.Name, driveParentID, token)
 		if err != nil {
 			return err
 		}
 		for _, child := range node.Children {
-			extractUploadJobsAndCreateFolders(child, newFolderID, token, jobs)
+			extractUploadJobsAndCreateFolders(ctx, child, newFolderID, token, jobs)
 		}
 	} else {
 		*jobs = append(*jobs, uploadJob{
@@ -111,7 +111,7 @@ func extractUploadJobsAndCreateFolders(node *transferNode, driveParentID, token 
 }
 
 // executeUploadJob safely processes a single upload task with Shared Drive routing.
-func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (*TransferFileMetadata, error) {
+func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, progress *mpb.Progress) (*TransferFileMetadata, error) {
 	f, err := os.Open(job.LocalPath)
 	if err != nil {
 		return nil, fmt.Errorf("local FS read error '%s': %w", job.LocalPath, err)
@@ -133,7 +133,7 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 	var location string
 	maxRetries := 3
 	for attempt := 0; attempt <= maxRetries; attempt++ {
-		req, _ := http.NewRequest(method, apiURL, strings.NewReader(metaStr))
+		req, _ := http.NewRequestWithContext(ctx, method, apiURL, strings.NewReader(metaStr))
 		req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -150,8 +150,13 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 				continue
 			}
 
-			pterm.Warning.Printf("Upload API init failed for '%s' (Status %d): %s\n", job.Name, resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
-			return nil, nil // Return nil so it skips instead of crashing the batch
+			errMsg := fmt.Sprintf("failed (Upload Init error Status %d: %s)", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
+			pterm.Warning.Printf("Upload API init failed for '%s': %s\n", job.Name, errMsg)
+			return &TransferFileMetadata{
+				Name:   job.Name,
+				Path:   job.LocalPath,
+				Status: errMsg,
+			}, nil
 		}
 
 		location = resp.Header.Get("Location")
@@ -160,8 +165,13 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 	}
 
 	if location == "" {
+		errMsg := "failed (Failed to resolve resumable location URI)"
 		pterm.Warning.Printf("Failed to resolve resumable location URI for '%s'. Skipping.\n", job.Name)
-		return nil, nil
+		return &TransferFileMetadata{
+			Name:   job.Name,
+			Path:   job.LocalPath,
+			Status: errMsg,
+		}, nil
 	}
 
 	bar := progress.AddBar(job.Size,
@@ -178,7 +188,7 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 	proxyReader := bar.ProxyReader(f)
 	defer proxyReader.Close()
 
-	req2, _ := http.NewRequest("PUT", location, proxyReader)
+	req2, _ := http.NewRequestWithContext(ctx, "PUT", location, proxyReader)
 	req2.Header.Set("Content-Length", strconv.FormatInt(job.Size, 10))
 	resp2, err := http.DefaultClient.Do(req2)
 	if err != nil {
@@ -189,8 +199,13 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 	bodyBytes, _ := io.ReadAll(resp2.Body)
 
 	if resp2.StatusCode >= 400 {
-		pterm.Warning.Printf("Upload API transfer failed for '%s' (Status %d): %s\n", job.Name, resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
-		return nil, nil
+		errMsg := fmt.Sprintf("failed (Upload Transfer error Status %d: %s)", resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
+		pterm.Warning.Printf("Upload API transfer failed for '%s': %s\n", job.Name, errMsg)
+		return &TransferFileMetadata{
+			Name:   job.Name,
+			Path:   job.LocalPath,
+			Status: errMsg,
+		}, nil
 	}
 
 	var resMap map[string]interface{}
@@ -213,7 +228,7 @@ func executeUploadJob(job uploadJob, a *AuthContainer, progress *mpb.Progress) (
 }
 
 // concurrentUpload : Massively parallel file uploader utilizing a robust Channel-based Worker Pool
-func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
+func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (interface{}, error) {
 	p := a.defUploadContainer(c)
 	filenamesStr := c.String("filename")
 
@@ -246,7 +261,7 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 			printTransferTree(rootNode, "", true)
 
 			pterm.Info.Println("\nProvisioning hierarchical folders on Google Drive...")
-			err = extractUploadJobsAndCreateFolders(rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, &jobs)
+			err = extractUploadJobsAndCreateFolders(ctx, rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, &jobs)
 			if err != nil {
 				return nil, err
 			}
@@ -265,7 +280,13 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 	}
 
 	// --- Pre-computation Conflict Resolution Matrix ---
+	isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true"
 	conflictMode := c.String("conflict-mode")
+
+	var finalJobs []uploadJob
+	var skippedFiles []TransferFileMetadata
+	var pendingFiles []TransferFileMetadata
+
 	parentMap := make(map[string]bool)
 	for _, job := range jobs {
 		pid := job.ParentID
@@ -289,7 +310,7 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 				apiURL += "&pageToken=" + pageToken
 			}
 
-			req, _ := http.NewRequest("GET", apiURL, nil)
+			req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
 			req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
@@ -313,62 +334,144 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 		}
 	}
 
-	var finalJobs []uploadJob
-	var skippedFiles []TransferFileMetadata
-	var pendingFiles []TransferFileMetadata
-
-	for _, job := range jobs {
-		pid := job.ParentID
-		if pid == "" {
-			pid = "root"
-		}
-
-		if existing, ok := existingFiles[pid][job.Name]; ok {
-			mode := conflictMode
-			if mode == "" { // Interactive mode fallback or JSON parsing safety
-				if c.Bool("jsonparser") {
-					// Safe partial failure: Separate this conflicting job and ask the agent to verify it.
-					pendingFiles = append(pendingFiles, TransferFileMetadata{
-						Name: job.Name, Path: job.LocalPath, Status: "pending_conflict_remotely", FileID: existing.ID,
-					})
-					continue
-				}
-				mode, _ = pterm.DefaultInteractiveSelect.
-					WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists on Google Drive. Action?", job.Name)).
-					WithOptions([]string{"skip", "overwrite", "rename", "update"}).
-					Show()
+	if isMCP {
+		// MCP Mode: Automated non-interactive conflict resolution
+		if conflictMode == "" {
+			if c.Bool("overwrite") {
+				conflictMode = "overwrite"
+			} else if c.Bool("skip") {
+				conflictMode = "Ignore"
+			} else {
+				conflictMode = "OverwriteIfNewer"
 			}
-
-			switch mode {
-			case "skip":
-				pterm.Info.Printf("Skipped upload: %s\n", job.LocalPath)
-				skippedFiles = append(skippedFiles, TransferFileMetadata{
-					Name: job.Name, Path: job.LocalPath, Status: "skipped (user chose skip)",
-				})
-				continue
-			case "overwrite":
-				// Bind ID to trigger PATCH request
-				job.ExistingID = existing.ID
+		} else {
+			switch strings.ToLower(conflictMode) {
+			case "overwriteifnewer", "update":
+				conflictMode = "OverwriteIfNewer"
+			case "ignore", "skip":
+				conflictMode = "Ignore"
 			case "rename":
-				ext := filepath.Ext(job.Name)
-				base := strings.TrimSuffix(job.Name, ext)
-				ts := time.Now().Format("20060102_150405")
-				job.Name = fmt.Sprintf("%s_%s%s", base, ts, ext)
-			case "update":
-				stat, _ := os.Stat(job.LocalPath)
-				driveMod, err := time.Parse(time.RFC3339, existing.ModifiedTime)
-				if err == nil && stat.ModTime().After(driveMod) {
-					job.ExistingID = existing.ID
-				} else {
-					pterm.Info.Printf("Skipped (Drive file is newer or equal): %s\n", job.LocalPath)
-					skippedFiles = append(skippedFiles, TransferFileMetadata{
-						Name: job.Name, Path: job.LocalPath, Status: "skipped (Drive file is newer or equal)",
-					})
-					continue
-				}
+				conflictMode = "Rename"
+			case "overwrite":
+				conflictMode = "overwrite"
+			default:
+				conflictMode = "OverwriteIfNewer"
 			}
 		}
-		finalJobs = append(finalJobs, job)
+
+		for _, job := range jobs {
+			pid := job.ParentID
+			if pid == "" {
+				pid = "root"
+			}
+
+			if existing, ok := existingFiles[pid][job.Name]; ok {
+				switch conflictMode {
+				case "Ignore":
+					pterm.Info.Printf("Skipped upload: %s\n", job.LocalPath)
+					skippedFiles = append(skippedFiles, TransferFileMetadata{
+						Name: job.Name, Path: job.LocalPath, Status: "skipped (conflict-mode Ignore)",
+					})
+					continue
+				case "overwrite":
+					// Bind ID to trigger PATCH request
+					job.ExistingID = existing.ID
+				case "Rename":
+					ext := filepath.Ext(job.Name)
+					base := strings.TrimSuffix(job.Name, ext)
+					ts := time.Now().Format("20060102_150405")
+					newName := fmt.Sprintf("%s_%s%s", base, ts, ext)
+					if _, exists := existingFiles[pid][newName]; exists {
+						for k := 1; k <= 1000; k++ {
+							tempName := fmt.Sprintf("%s_%s_%d%s", base, ts, k, ext)
+							if _, exists2 := existingFiles[pid][tempName]; !exists2 {
+								newName = tempName
+								break
+							}
+						}
+					}
+					job.Name = newName
+				case "OverwriteIfNewer":
+					stat, statErr := os.Stat(job.LocalPath)
+					if statErr != nil {
+						pterm.Warning.Printf("Local file stat error: %v. Skipping.\n", statErr)
+						continue
+					}
+					driveMod, err := time.Parse(time.RFC3339, existing.ModifiedTime)
+					if err == nil && stat.ModTime().After(driveMod) {
+						job.ExistingID = existing.ID
+					} else {
+						pterm.Info.Printf("Skipped upload (Drive is newer or equal): %s\n", job.LocalPath)
+						skippedFiles = append(skippedFiles, TransferFileMetadata{
+							Name: job.Name, Path: job.LocalPath, Status: "skipped (OverwriteIfNewer: Drive is newer or equal)",
+						})
+						continue
+					}
+				}
+			}
+			finalJobs = append(finalJobs, job)
+		}
+	} else {
+		// CLI Mode: Keep legacy v5.2.1 interactive CLI prompt behavior
+		if conflictMode == "" {
+			if c.Bool("overwrite") {
+				conflictMode = "overwrite"
+			} else if c.Bool("skip") {
+				conflictMode = "skip"
+			}
+		}
+
+		for _, job := range jobs {
+			pid := job.ParentID
+			if pid == "" {
+				pid = "root"
+			}
+
+			if existing, ok := existingFiles[pid][job.Name]; ok {
+				mode := conflictMode
+				if mode == "" {
+					if c.Bool("jsonparser") {
+						pendingFiles = append(pendingFiles, TransferFileMetadata{
+							Name: job.Name, Path: job.LocalPath, Status: "pending_conflict_remotely", FileID: existing.ID,
+						})
+						continue
+					}
+					mode, _ = pterm.DefaultInteractiveSelect.
+						WithDefaultText(fmt.Sprintf("Conflict detected: '%s' exists on Google Drive. Action?", job.Name)).
+						WithOptions([]string{"skip", "overwrite", "rename", "update"}).
+						Show()
+				}
+
+				switch mode {
+				case "skip":
+					pterm.Info.Printf("Skipped upload: %s\n", job.LocalPath)
+					skippedFiles = append(skippedFiles, TransferFileMetadata{
+						Name: job.Name, Path: job.LocalPath, Status: "skipped (user chose skip)",
+					})
+					continue
+				case "overwrite":
+					job.ExistingID = existing.ID
+				case "rename":
+					ext := filepath.Ext(job.Name)
+					base := strings.TrimSuffix(job.Name, ext)
+					ts := time.Now().Format("20060102_150405")
+					job.Name = fmt.Sprintf("%s_%s%s", base, ts, ext)
+				case "update":
+					stat, _ := os.Stat(job.LocalPath)
+					driveMod, err := time.Parse(time.RFC3339, existing.ModifiedTime)
+					if err == nil && stat.ModTime().After(driveMod) {
+						job.ExistingID = existing.ID
+					} else {
+						pterm.Info.Printf("Skipped (Drive file is newer or equal): %s\n", job.LocalPath)
+						skippedFiles = append(skippedFiles, TransferFileMetadata{
+							Name: job.Name, Path: job.LocalPath, Status: "skipped (Drive file is newer or equal)",
+						})
+						continue
+					}
+				}
+			}
+			finalJobs = append(finalJobs, job)
+		}
 	}
 
 	actionReq := ""
@@ -412,19 +515,19 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 	var mu sync.Mutex
 	var successFiles []TransferFileMetadata
 
-	g, ctx := errgroup.WithContext(context.Background())
+	g, ctxGroup := errgroup.WithContext(ctx)
 
 	for i := 0; i < workers; i++ {
 		g.Go(func() error {
 			for job := range jobsChan {
 				select {
-				case <-ctx.Done():
+				case <-ctxGroup.Done():
 					wg.Done()
 					continue
 				default:
 				}
 
-				resMeta, err := executeUploadJob(job, a, progress)
+				resMeta, err := executeUploadJob(ctxGroup, job, a, progress)
 				wg.Done()
 
 				if err != nil {
@@ -468,7 +571,7 @@ func concurrentUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
 // uploadFiles : Uploads files using concurrent parallel architecture.
 func uploadFiles(c *cli.Context) error {
 	a := defAuthContainer(c).ggsrunIni(c).goauth()
-	res, err := concurrentUpload(c, a)
+	res, err := concurrentUpload(context.Background(), c, a)
 	if err != nil {
 		return err
 	}

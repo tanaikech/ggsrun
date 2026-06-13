@@ -560,6 +560,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.2.2 (June 2026) - MCP Help Display Expansion, Safety Review Prompt, Dual-Mode Conflict Engine, and File-Level Error Feedback**
+  Expanded `ggsrun mcp -h` (and `--help`) to display all exposed MCP tool names and their detailed description outputs directly. Implemented strict programmatic safety review prompts inside the `exe1` MCP tool description, instructing LLMs to statically analyze Apps Script payloads for API mutations (write/update/delete) and obtain user Y/N confirmations before running, while allowing read-only scripts to run automatically. Re-designed the conflict resolution engine into a dual-mode system: automated and non-interactive for MCP server sessions (defaulting to `OverwriteIfNewer`, with options for `Ignore` and `Rename`), and preserving legacy interactive CLI prompts for raw executions. Refactored parallel transfer loops to capture and return detailed file-level error feedback instead of crashing.
 - **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
   Updated the CLI help systems for `e1`, `e2`, and `w` to integrate comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays. Fixed a namespace bug where evaluated scripts executing `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.
 - **v5.2.0 (June 2026) - Go standard layout, WSL2 browser integration, Web Apps URL registration, CLI UX hardening, and MCP Server Schema Improvements**

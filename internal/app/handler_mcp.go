@@ -55,7 +55,7 @@ func runMCP(c *cli.Context) error {
 				},
 				"serverInfo": map[string]interface{}{
 					"name":    "ggsrun-mcp-server",
-					"version": "4.0.1",
+					"version": "5.2.2",
 				},
 			})
 
@@ -99,8 +99,8 @@ func runMCP(c *cli.Context) error {
 								},
 								"conflict-mode": map[string]interface{}{
 									"type":        "string",
-									"description": "Action to perform on conflict when a file already exists locally. Values: 'skip' (skip downloading), 'overwrite' (overwrite local file), 'rename' (append number to local name), 'update' (overwrite only if remote is newer). Ask the user before using this argument.",
-									"enum":        []string{"skip", "overwrite", "rename", "update"},
+									"description": "Action to perform on conflict when a file already exists locally. Values: 'OverwriteIfNewer' (overwrite local file only if remote is newer), 'Ignore' (unconditionally skip), 'Rename' (auto-rename with timestamp/number). Default is 'OverwriteIfNewer'.",
+									"enum":        []string{"OverwriteIfNewer", "Ignore", "Rename"},
 								},
 							},
 							"required": []string{"fileid"},
@@ -122,8 +122,8 @@ func runMCP(c *cli.Context) error {
 								},
 								"conflict-mode": map[string]interface{}{
 									"type":        "string",
-									"description": "Action to perform on conflict when a file with the same name already exists in the destination folder. Values: 'skip', 'overwrite', 'rename', 'update'. Ask the user before using this argument.",
-									"enum":        []string{"skip", "overwrite", "rename", "update"},
+									"description": "Action to perform on conflict when a file with the same name already exists in the destination folder. Values: 'OverwriteIfNewer' (overwrite remote file only if local is newer), 'Ignore' (unconditionally skip), 'Rename' (auto-rename with timestamp/number). Default is 'OverwriteIfNewer'.",
+									"enum":        []string{"OverwriteIfNewer", "Ignore", "Rename"},
 								},
 								"projectname": map[string]interface{}{
 									"type":        "string",
@@ -135,7 +135,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "exe1",
-						"description": "Upload/synchronize a local Google Apps Script file or raw script string to a remote Google Apps Script project, and execute a specified entry function. Returns the function execution response payload as JSON.",
+						"description": "Upload/synchronize a local Google Apps Script file or raw script string to a remote Google Apps Script project, and execute a specified entry function. Returns the function execution response payload as JSON.\n\nSAFETY & SECURITY RULES FOR LLM AGENTS:\nBefore executing any script using this tool, you MUST inspect and statically analyze the script content (either from `scriptfile` or `stringscript`) and perform the following safety evaluation:\n1. Identify if the script performs any write, update, or delete actions on Google APIs/resources (e.g., Google Drive, Gmail, Google Calendar, Google Sheets, etc.). Specifically, look for write methods like `.create*`, `.set*`, `.update*`, `.delete*`, `MailApp.sendEmail`, `GmailApp.sendEmail`, etc.\n2. If it contains ANY write, update, or delete actions, you MUST display a brief summary of the potential security risks and resource changes, list the specific write actions detected, and ask the user for confirmation (Y/N) before calling this tool.\n3. If the script is strictly READ-ONLY (only retrieving data, e.g., `.get*`, and no modification or email sending), you may proceed to call this tool directly without asking for confirmation.",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -208,6 +208,7 @@ func runMCP(c *cli.Context) error {
 			}
 
 			cmd := exec.Command(exePath, cmdArgs...)
+			cmd.Env = append(os.Environ(), "GGSRUN_MCP_MODE=true")
 			var stdoutBuf, stderrBuf bytes.Buffer
 			cmd.Stdout = &stdoutBuf
 			cmd.Stderr = &stderrBuf

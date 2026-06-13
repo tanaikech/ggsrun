@@ -99,6 +99,15 @@
   3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
   4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
 
+- **v5.2.2 (June 2026) - MCP Help Display Expansion, Safety Review Prompt, Dual-Mode Conflict Engine, and File-Level Error Feedback**
+  1. Expanded `ggsrun mcp -h` (and `--help`) to display all exposed MCP tool names and their detailed description outputs directly.
+  2. Implemented strict programmatic safety review prompts inside the `exe1` MCP tool description, instructing LLMs to statically analyze Apps Script payloads for API mutations (write/update/delete) and obtain user Y/N confirmations before running, while allowing read-only scripts to run automatically.
+  3. Re-designed the conflict resolution engine into a dual-mode system:
+     - For MCP server sessions (`GGSRUN_MCP_MODE=true` environment variable), conflict resolution is fully automated and non-interactive. Naming collisions default to `OverwriteIfNewer` (overwriting only if source timestamp is newer), with optional parameters for `Ignore` (unconditional skip) and `Rename` (auto-renaming with sequential numbers/timestamps).
+     - For raw CLI sessions, the legacy v5.2.1 behavior is strictly preserved, prompting the user interactively (or returning pending status in JSON parser mode) upon name collisions.
+  4. Enhanced file-level error feedback inside concurrent download and upload loops. Non-fatal transfer failures (e.g. API HTTP errors 400, 403, 404, or 429) no longer crash the queue but are returned with explicit error details inside the JSON `files` metadata array.
+  5. Strictly adhered to Go 1.26 best practices: implemented context propagation to folders/files APIs and applied structured error wrapping via `fmt.Errorf` and `%w`.
+
 - **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
   1. Integrated comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays for `e1`, `e2`, and `w` modes.
   2. Resolved a namespace issue where evaluated scripts calling `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.

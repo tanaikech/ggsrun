@@ -993,6 +993,13 @@ $ ggsrun d -i fileId -r
 
 > For the container-bound script, please download by file ID. Because for the baound script, Google APIs doesn't privide for retrieving file ID from filename yet.
 
+**Conflict Resolution Options:**
+From v5.2.2, when a local file already exists, the transfer behavior is controlled by the `--conflict-mode` (`-cm`) flag:
+- `OverwriteIfNewer` (MCP Mode Default): Overwrites the local file only if the remote file on Google Drive is newer. Otherwise, it ignores the download.
+- `Ignore`: Unconditionally skips downloading if the file exists locally.
+- `Rename`: Automatically appends a timestamp (`_YYYYMMDD_HHMMSS`) and counter sequence number if needed to avoid name collision.
+- For raw CLI sessions (when not running in MCP mode), omitting this flag will trigger an interactive CLI prompt to select the action (`skip`, `overwrite`, `rename`, `update`), preserving the legacy behavior.
+
 **Delete files**
 
 You can also delete files using file ID.
@@ -1123,6 +1130,13 @@ When files are uploaded from your local PC, the files got to be able to be conve
 ```bash
 $ ggsrun u -f filename -c sheet
 ```
+
+**Conflict Resolution Options:**
+From v5.2.2, when a file already exists on Google Drive, the upload behavior is controlled by the `--conflict-mode` (`-cm`) flag:
+- `OverwriteIfNewer` (MCP Mode Default): Overwrites the remote file only if the local file is newer. Otherwise, it ignores the upload.
+- `Ignore`: Unconditionally skips uploading if the file exists on Google Drive.
+- `Rename`: Automatically appends a timestamp (`_YYYYMMDD_HHMMSS`) and counter sequence number if needed to avoid name collision.
+- For raw CLI sessions (when not running in MCP mode), omitting this flag will trigger an interactive CLI prompt to select the action (`skip`, `overwrite`, `rename`, `update`), preserving the legacy behavior.
 
 <a name="ResumableUpload"></a>
 **Run :** [Resumable upload](https://developers.google.com/drive/v3/web/resumable-upload)
