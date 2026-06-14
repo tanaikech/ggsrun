@@ -21,6 +21,7 @@
     - [D. Robust Fault Tolerance \& Auto-Retry](#d-robust-fault-tolerance--auto-retry)
     - [E. MCP (Model Context Protocol) Integration](#e-mcp-model-context-protocol-integration)
   - [Installation \& Setup](#installation--setup)
+    - [Beginner's Guide (Dropdown)](#complete-beginners-guide-how-to-install-authenticate-and-execute-google-apps-script-with-ggsrun)
     - [1. Install ggsrun](#1-install-ggsrun)
     - [2. Obtain Google Cloud Credentials](#2-obtain-google-cloud-credentials)
     - [3. Automated Authorization (OAuth2 Loopback)](#3-automated-authorization-oauth2-loopback)
@@ -103,6 +104,212 @@ Running `ggsrun mcp` transforms the application into an autonomous JSON-RPC serv
 ---
 
 ## Installation & Setup
+
+<details>
+<summary><b>📖 Click to expand: Complete Beginner's Guide (Step-by-Step Installation, Auth & GAS/Web Apps Execution)</b></summary>
+
+# Complete Beginner's Guide: How to Install, Authenticate, and Execute Google Apps Script with ggsrun
+
+This beginner-friendly, step-by-step guide will walk you through installing **ggsrun**, configuring your Google Cloud environment, deploying your script, and executing your Google Apps Script (GAS) or Web App directly from your local computer. No advanced programming experience required.
+
+---
+
+## Step 1: Install ggsrun on Your Computer
+
+`ggsrun` is a lightweight application that runs through your terminal (Command Prompt or PowerShell on Windows, or Terminal on macOS/Linux). You do not need to install complex development environments; you can simply download a ready-to-use version.
+
+### For Windows Users
+
+1. Go to the official [ggsrun Releases Page](https://github.com/tanaikech/ggsrun/releases).
+2. Download the file named `ggsrun_windows_amd64.exe` (or `arm64` if you are using an ARM-based Windows device like a Surface Pro).
+3. Rename the downloaded file to simply `ggsrun.exe`.
+4. Move this file into a dedicated folder where you want to work (for example, create a new folder on your Desktop named `ggsrun-workspace`).
+
+### For macOS & Linux Users
+
+1. Go to the official [ggsrun Releases Page](https://github.com/tanaikech/ggsrun/releases).
+2. Download the appropriate binary for your system:
+   * **macOS (Intel):** `ggsrun_darwin_amd64`
+   * **macOS (Apple Silicon M1/M2/M3):** `ggsrun_darwin_arm64`
+   * **Linux:** `ggsrun_linux_amd64` (or matching CPU architecture)
+3. Rename the downloaded file to simply `ggsrun`.
+4. Move the file to your working folder (e.g., a folder on your Desktop named `ggsrun-workspace`).
+5. Open your Terminal, navigate to your working folder, and grant execution permissions to the binary:
+   ```bash
+   cd ~/Desktop/ggsrun-workspace
+   chmod +x ggsrun
+   ```
+
+---
+
+## Step 2: Configure Your Google Cloud Project (Critical Setup)
+
+To allow `ggsrun` to securely communicate with your Google account, you must create a private connection keyset inside the Google Cloud Console.
+
+### 2.1 Create a New Project
+1. Open your browser and navigate to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Log in with the same Google/Gmail account you use for Google Apps Script.
+3. Click the project dropdown menu at the top left corner of the screen and select **New Project**.
+4. Give your project an easy-to-remember name (e.g., `My-ggsrun-Project`) and click **Create**. Ensure this newly created project is selected in the top dropdown menu before moving forward.
+
+### 2.2 Enable the Required Google APIs
+1. In the search bar at the top, search for **Google Drive API** and click on it from the results.
+2. Click the blue **Enable** button.
+3. Next, search for **Google Apps Script API** in the top search bar, click on it, and click **Enable**.
+
+### 2.3 Configure the OAuth Consent Screen
+Google requires you to set up an authorization screen that pops up when you link your account.
+1. Click the **Navigation Menu** (the three horizontal lines at the top-left) and navigate to **APIs & Services > OAuth consent screen**.
+2. Select **User Type**:
+   * If you use a regular `@gmail.com` account, choose **External** and click **Create**.
+   * If you use a Google Workspace business/school account, you can choose **Internal** (which simplifies the process).
+3. Fill out the required App Information fields:
+   * **App name**: `ggsrun Client`
+   * **User support email**: Select your own Gmail address.
+   * **Developer contact information**: Enter your own Gmail address again.
+4. Click **Save and Continue**. Skip the "Scopes" page by clicking **Save and Continue** again.
+5. **CRITICAL STEP (For External Type):** On the **Test users** page, click **+ ADD USERS**. Type your exact Gmail address and click **Add / Save**. 
+   > ⚠️ **Warning:** If you skip adding your email as a test user, Google will block you with an `Error 400: invalid_scope` later during the authorization process.
+6. Click **Save and Continue** to finish.
+
+### 2.4 Download Your Security Credentials
+1. In the left-hand sidebar, click **Credentials**.
+2. Click the **+ CREATE CREDENTIALS** button at the top and select **OAuth client ID**.
+3. Under **Application type**, select **Desktop app**.
+4. In the **Name** field, type `ggsrun Desktop Client`. Click **Create**.
+5. A popup window will show your Client ID and Client Secret. Click **OK**.
+6. Look at the list under "OAuth 2.0 Client IDs". Click the **Download icon** (a down arrow pointing into a tray) on the far right side of your newly created credentials.
+7. A file with a long name ending in `.json` will download. 
+8. Move this downloaded file directly into your working folder (`ggsrun-workspace`).
+9. **Rename the file to exactly:** `client_secret.json`
+
+---
+
+## Step 3: Link Your Google Cloud Project to Google Apps Script
+
+Now, you must tell your Google Apps Script project to use the specific cloud credentials you just generated.
+
+### 3.1 Get Your Project Number
+1. Return to your [Google Cloud Console](https://console.cloud.google.com/).
+2. Click on the **Dashboard** or **Welcome** page of your project.
+3. Look for the **Project Info** card. Copy the **Project number** (this is a long string of numbers, e.g., `123456789012`). Do not copy the Project ID text; you specifically need the numerical number.
+
+### 3.2 Change the Project in the Google Apps Script Editor
+1. Go to the [Google Apps Script Dashboard](https://script.google.com/) and open the specific script project you wish to run, or create a **New Project**.
+2. On the left sidebar of the modern GAS editor, click the gear icon (**Project Settings**).
+3. Scroll down to the section titled **Google Cloud Platform (GCP) Project**.
+4. Click the **Change project** button.
+5. Paste the **Project number** you copied in the previous step into the text box.
+6. Click **Set project**. Your Apps Script project is now linked with your cloud infrastructure.
+
+---
+
+## Step 4: Perform the Automated Authorization
+
+1. Open your terminal application and change your directory to your working folder where `ggsrun` and `client_secret.json` are placed:
+   * **Windows Command Prompt:** `cd %USERPROFILE%\Desktop\ggsrun-workspace`
+   * **macOS/Linux Terminal:** `cd ~/Desktop/ggsrun-workspace`
+2. Run the authentication command:
+   * **Windows:** `ggsrun auth`
+   * **macOS/Linux:** `./ggsrun auth`
+3. `ggsrun` will automatically open your default web browser and present a standard Google login page.
+4. Select your Google account. You may see a safety warning screen stating *"Google hasn't verified this app"*. Since this is your own private project, click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
+5. Click **Allow** to grant permission.
+6. The browser will display a success message saying authentication is complete. You can close the browser window.
+7. **Configure Default Values (Highly Recommended):** In the terminal, the latest version of `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional). 
+   * Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
+   * A file named `ggsrun.cfg` is automatically generated in your folder; this stores your login session and configurations securely.
+
+---
+
+## Step 5: Set Up the Execution Server on Google Apps Script
+
+To let `ggsrun` securely trigger your scripts remotely (necessary for stateless `exe2` and `webapps` modes), you must add a small gateway wrapper inside your Google Apps Script.
+
+### 5.1 Add the Shared Server Library
+
+1. Inside your Google Apps Script editor, look at the left sidebar and click the `+` icon next to **Libraries**.
+2. Paste the following official `ggsrunif` Library ID into the box:
+   ```text
+   115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov
+   ```
+3. Click **Look up**. Select the **latest version** from the dropdown menu, keep the Identifier named exactly as `ggsrunif`, and click **Add**.
+
+### 5.2 Add the Gateway Code
+Open your `Code.gs` file in the script editor and replace the default code with the following wrapper endpoints (for both `exe2` and `webapps` modes):
+
+```javascript
+const doPost = (e) => ggsrunif.WebApps(e, "pass1");
+const ExecutionApi = (e) => ggsrunif.ExecutionApi(e);
+```
+*(Note: Change `"pass1"` to a secure custom password if you plan to execute webapps anonymously).*
+
+### 5.3 Deploy the Script as an API Executable (For `exe1` & `exe2`)
+
+1. At the top-right corner of the editor, click **Deploy > New Deployment**.
+2. Click the gear icon next to "Select type" and choose **API Executable**.
+3. In the description, type `ggsrun API Engine`.
+4. In the **Who has access** dropdown, select **Only myself** (this keeps your automation completely private and secure).
+5. Click **Deploy**.
+6. Copy the **Script ID** (a long string of alphanumeric characters) displayed on this screen.
+
+### 5.4 Deploy the Script as a Web App (For `webapps`)
+
+1. At the top-right corner of the editor, click **Deploy > New Deployment**.
+2. Click the gear icon next to "Select type" and choose **Web app**.
+3. In the description, type `ggsrun Web Engine`.
+4. Set **Execute as** to **Me** (your email address).
+5. Set **Who has access** to:
+   * **Only myself**: Highly recommended for secure execution. This requires the `ggsrun` CLI to be authenticated via `ggsrun auth` with Drive scopes enabled.
+   * **Anyone**: Select this if you need to trigger the webapp anonymously from a CI/CD pipeline without a token. (Access is secured by the password flag `-p`).
+6. Click **Deploy**.
+7. Copy the generated **Web app URL** (e.g., `https://script.google.com/macros/s/[WEB_APP_ID]/exec`).
+
+---
+
+## Step 6: Test Execution from Your Computer
+
+Let's test everything to ensure your computer can run scripts inside your Google Account successfully.
+
+1. Create a simple text file on your local computer inside your working folder (`ggsrun-workspace`) and name it `test_script.js`.
+2. Open it with any text editor (Notepad, VS Code, etc.) and paste the following simple test code inside:
+   ```javascript
+   function main(message) {
+     return "Success! Received local message: " + message;
+   }
+   ```
+3. Open your terminal window in your working folder (`cd ~/Desktop/ggsrun-workspace` or your Windows path).
+4. Run the test commands below:
+
+### Test Option A: Execution via API Executable (`exe2` mode)
+Run the script using `ggsrun exe2`. Replace `[YOUR_SCRIPT_ID]` with the Script ID you copied during Step 5.3 (or omit the `-i` flag if you saved the Script ID in `ggsrun.cfg` during authentication):
+
+* **Windows Command Prompt:**
+  ```cmd
+  ggsrun exe2 -i "[YOUR_SCRIPT_ID]" -f ExecutionApi -s test_script.js -v "Hello Google Apps Script!" -j
+  ```
+* **macOS/Linux Terminal:**
+  ```bash
+  ./ggsrun exe2 -i "[YOUR_SCRIPT_ID]" -f ExecutionApi -s test_script.js -v "Hello Google Apps Script!" -j
+  ```
+
+### Test Option B: Execution via Web App (`webapps` mode)
+Run the script using `ggsrun webapps`. Replace `[YOUR_WEB_APP_URL]` with the Web App URL you copied during Step 5.4 (or omit the `-u` flag if you saved the Web App URL in `ggsrun.cfg` during authentication):
+
+* **Windows Command Prompt:**
+  ```cmd
+  ggsrun webapps -u "[YOUR_WEB_APP_URL]" -p pass1 -s test_script.js -v "Hello Google Apps Script!" -j
+  ```
+* **macOS/Linux Terminal:**
+  ```bash
+  ./ggsrun webapps -u "[YOUR_WEB_APP_URL]" -p pass1 -s test_script.js -v "Hello Google Apps Script!" -j
+  ```
+
+### Expected Output
+In both cases, `ggsrun` will securely upload the script payload, run it in the Google Cloud environment, and output a clean JSON result directly to your terminal showing the return string:
+`"Success! Received local message: Hello Google Apps Script!"`. Your local workspace automation is completely operational!
+
+</details>
 
 ### 1. Install ggsrun
 
