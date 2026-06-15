@@ -19,6 +19,7 @@ import (
 	"time"
 
 	json "github.com/goccy/go-json"
+	"ggsrun/internal/utl"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 	"github.com/vbauerster/mpb/v8"
@@ -32,6 +33,7 @@ type uploadJob struct {
 	ParentID   string
 	Size       int64
 	ExistingID string
+	MimeType   string
 }
 
 // buildLocalTree recursively scans the local filesystem to construct a node tree.
@@ -90,6 +92,31 @@ func createDriveFolder(ctx context.Context, name, parentID, token string) (strin
 }
 
 // extractUploadJobsAndCreateFolders traverses the local tree, mimics it on Drive, and flattens file jobs.
+func getUploadMimeType(localPath string, c *cli.Context) (string, error) {
+	noconvert := c.Bool("noconvert")
+	convertto := c.String("convertto")
+
+	if noconvert {
+		return "", nil
+	}
+
+	convto := strings.ToLower(convertto)
+	ext := filepath.Ext(localPath)
+
+	switch {
+	case convto == "":
+		return utl.ExtToGMime(ext)
+	case convto == "document" || convto == "doc" || convto == "docs":
+		return "application/vnd.google-apps.document", nil
+	case convto == "spreadsheet" || convto == "sheet" || convto == "spread":
+		return "application/vnd.google-apps.spreadsheet", nil
+	case convto == "slides" || convto == "slide" || convto == "presentation":
+		return "application/vnd.google-apps.presentation", nil
+	default:
+		return utl.ExtToGMime(convto)
+	}
+}
+
 func extractUploadJobsAndCreateFolders(
 	ctx context.Context,
 	c *cli.Context,
@@ -99,6 +126,7 @@ func extractUploadJobsAndCreateFolders(
 	isMCP bool,
 	driveCache map[string]map[string]driveFileObj,
 	jobs *[]uploadJob,
+	skippedFiles *[]TransferFileMetadata,
 ) error {
 	if node.IsDir {
 		existingFiles, err := getDriveFilesCached(ctx, driveParentID, token, driveCache)
@@ -131,17 +159,28 @@ func extractUploadJobsAndCreateFolders(
 		}
 
 		for _, child := range node.Children {
-			err := extractUploadJobsAndCreateFolders(ctx, c, child, newFolderID, token, conflictMode, isMCP, driveCache, jobs)
+			err := extractUploadJobsAndCreateFolders(ctx, c, child, newFolderID, token, conflictMode, isMCP, driveCache, jobs, skippedFiles)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
+		mimeType, err := getUploadMimeType(node.Path, c)
+		if err != nil {
+			pterm.Warning.Printf("Cannot convert file '%s' to Google Drive format: %v. Skipped.\n", node.Path, err)
+			*skippedFiles = append(*skippedFiles, TransferFileMetadata{
+				Name:   node.Name,
+				Path:   node.Path,
+				Status: fmt.Sprintf("skipped (conversion error: %v)", err),
+			})
+			return nil
+		}
 		*jobs = append(*jobs, uploadJob{
 			LocalPath: node.Path,
 			Name:      node.Name,
 			ParentID:  driveParentID,
 			Size:      node.Size,
+			MimeType:  mimeType,
 		})
 	}
 	return nil
@@ -155,10 +194,17 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	}
 	defer f.Close()
 
-	metaStr := fmt.Sprintf(`{"name":"%s"}`, job.Name)
-	if job.ParentID != "" && job.ExistingID == "" {
-		metaStr = fmt.Sprintf(`{"name":"%s", "parents":["%s"]}`, job.Name, job.ParentID)
+	metaMap := map[string]interface{}{
+		"name": job.Name,
 	}
+	if job.ParentID != "" && job.ExistingID == "" {
+		metaMap["parents"] = []string{job.ParentID}
+	}
+	if job.MimeType != "" {
+		metaMap["mimeType"] = job.MimeType
+	}
+	metaBytes, _ := json.Marshal(metaMap)
+	metaStr := string(metaBytes)
 
 	method := "POST"
 	apiURL := "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true"
@@ -269,7 +315,7 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 	p := a.defUploadContainer(c)
 	filenamesStr := c.String("filename")
 
-	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("convertto") != "" || c.Bool("noconvert") || c.String("parentid") != "" {
+	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("parentid") != "" {
 		return p.Uploader(c), nil
 	}
 
@@ -344,16 +390,27 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 			printTransferTree(rootNode, "", true)
 
 			pterm.Info.Println("\nProvisioning hierarchical folders on Google Drive...")
-			err = extractUploadJobsAndCreateFolders(ctx, c, rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, conflictMode, isMCP, driveCache, &jobs)
+			err = extractUploadJobsAndCreateFolders(ctx, c, rootNode, c.String("parentfolderid"), a.GgsrunCfg.Accesstoken, conflictMode, isMCP, driveCache, &jobs, &skippedFiles)
 			if err != nil {
 				return nil, err
 			}
 		} else {
+			mimeType, err := getUploadMimeType(fname, c)
+			if err != nil {
+				pterm.Warning.Printf("Cannot convert file '%s' to Google Drive format: %v. Skipped.\n", fname, err)
+				skippedFiles = append(skippedFiles, TransferFileMetadata{
+					Name:   fi.Name(),
+					Path:   fname,
+					Status: fmt.Sprintf("skipped (conversion error: %v)", err),
+				})
+				continue
+			}
 			jobs = append(jobs, uploadJob{
 				LocalPath: fname,
 				Name:      fi.Name(),
 				ParentID:  c.String("parentfolderid"),
 				Size:      fi.Size(),
+				MimeType:  mimeType,
 			})
 		}
 	}

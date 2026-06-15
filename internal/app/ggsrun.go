@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.2.3"
+	app.Version = "5.2.4"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -195,7 +195,11 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "extension, e",
-					Usage: "Extension format for exported files (e.g., pdf, xlsx).",
+					Usage: "Extension format for exported files. Supported: docx, pdf, rtf, html, txt, md, odt, epub, zip (Google Docs); xlsx, ods, csv, tsv, pdf, zip (Google Sheets); pptx, pdf, odp, txt (Google Slides); svg, png, pdf, jpeg (Google Drawings); mp4 (Google Video); png, jpeg (Google Photos/Pix).",
+				},
+				&cli.StringFlag{
+					Name:  "destination, d",
+					Usage: "Target local destination directory path for downloaded files (defaults to current directory).",
 				},
 				&cli.StringFlag{
 					Name:  "mimetype, m",
@@ -291,7 +295,7 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "convertto, c",
-					Usage: "Convert files automatically ('doc', 'sheet', 'slide').",
+					Usage: "Convert files automatically to Google Workspace formats. Supported: 'doc' (or 'document', 'docs' for Google Docs), 'sheet' (or 'spreadsheet', 'spread' for Google Sheets), 'slide' (or 'slides', 'presentation' for Google Slides). If not specified, file extensions are automatically mapped (e.g., docx/rtf/html/txt/md/pdf/png/jpeg/bmp/gif -> Google Docs; xlsx/xls/csv/tsv -> Google Sheets; pptx/ppt/odp -> Google Slides; mp4/ogg/mov/webm -> Google Video). Use --noconvert to skip conversion.",
 				},
 				&cli.BoolFlag{
 					Name:  "noconvert, nc",
@@ -365,7 +369,11 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "extension, e",
-					Usage: "Export extension format.",
+					Usage: "Extension format for exported files. Supported: docx, pdf, rtf, html, txt, md, odt, epub, zip (Google Docs); xlsx, ods, csv, tsv, pdf, zip (Google Sheets); pptx, pdf, odp, txt (Google Slides); svg, png, pdf, jpeg (Google Drawings); mp4 (Google Video); png, jpeg (Google Photos/Pix).",
+				},
+				&cli.StringFlag{
+					Name:  "destination, d",
+					Usage: "Target local destination directory path for downloaded files (defaults to current directory).",
 				},
 				&cli.BoolFlag{
 					Name:  "rawdata, r",

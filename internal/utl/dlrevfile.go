@@ -143,7 +143,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 			json.Unmarshal(el, &obj)
 			var extAr []string
 			for e := range obj {
-				ext := mimeToExt(e)
+				ext := MimeToExt(e)
 				extAr = append(extAr, ext)
 			}
 			p.Msgar = append(p.Msgar, fmt.Sprintf("Extensions which can be outputted are '%s'.", strings.Join(extAr, ", ")))
@@ -154,13 +154,13 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 				if rl.Items[i].ID == c.String("download") {
 					ext := strings.ToLower(p.WantExt)
 					if len(ext) > 0 {
-						p.DlMime = extToMime(ext)
+						p.DlMime = ExtToMime(ext)
 						if len(p.DlMime) == 0 {
 							pterm.Error.Printf("'%s' is wrong extension.\n", ext)
 							os.Exit(1)
 						}
 					} else {
-						p.DlMime, ext = defFormat(p.MimeType)
+						p.DlMime, ext = DefFormat(p.MimeType)
 					}
 					dlf, _ := json.Marshal(rl.Items[i])
 					var obj map[string]interface{}
@@ -183,9 +183,9 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 func (p *FileInf) downloadRevisionFile() {
 	ext := strings.ToLower(p.WantExt)
 	if len(ext) > 0 {
-		p.DlMime = extToMime(ext)
+		p.DlMime = ExtToMime(ext)
 	} else {
-		p.DlMime, ext = defFormat(p.MimeType)
+		p.DlMime, ext = DefFormat(p.MimeType)
 	}
 	var dURLq string
 	var gm map[string]interface{}

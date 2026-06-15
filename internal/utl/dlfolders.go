@@ -235,22 +235,22 @@ func (p *FileInf) dupChkFoldersFiles(fileList *fileListDl) {
 					if google2ms(file.MimeType) != "" {
 						cmime := func() string {
 							if (extt == "txt" || extt == "text") && file.MimeType == "application/vnd.google-apps.spreadsheet" {
-								return extToMime("csv")
+								return ExtToMime("csv")
 							} else if extt == "zip" && file.MimeType == "application/vnd.google-apps.presentation" {
-								return extToMime("pptx")
+								return ExtToMime("pptx")
 							} else if extt == "zip" && file.MimeType == "application/vnd.google-apps.script" {
 								return ""
 							}
-							return extToMime(extt)
+							return ExtToMime(extt)
 						}()
 						if cmime != "" {
 							fileList.FileList[i].Files[j].OutMimeType = cmime
 						} else {
-							fileList.FileList[i].Files[j].OutMimeType, _ = defFormat(file.MimeType)
+							fileList.FileList[i].Files[j].OutMimeType, _ = DefFormat(file.MimeType)
 						}
 					}
 				} else {
-					fileList.FileList[i].Files[j].OutMimeType, _ = defFormat(file.MimeType)
+					fileList.FileList[i].Files[j].OutMimeType, _ = DefFormat(file.MimeType)
 				}
 			}
 		}

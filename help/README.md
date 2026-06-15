@@ -970,13 +970,27 @@ $ ggsrun d -f filename
 $ ggsrun d -i fileid
 ```
 
-If you want to convert and download files, you can use an option `-e [extension]`. In the case of conversion from Google Docs to pdf file,
+If you want to convert and download files, you can use the option `-e [extension]`. For example, to convert and download a Google Doc as a PDF:
 
 ```bash
 $ ggsrun d -f filename -e pdf
 ```
 
-You can convert only from Google Docs Files (spreadsheet, slide, documentation and so on). For example, you cannot convert image files and text data.
+If you want to save the downloaded files in a specific local directory, use the `-d [directory]` or `--destination [directory]` option. If the directory does not exist, it will be automatically created. The default is the current directory:
+
+```bash
+$ ggsrun d -i fileId -d ./my_downloads
+```
+
+From **v5.2.4**, a wide range of export formats is supported based on the latest Google Drive API `exportFormats`.
+*   **Google Docs**: `docx`, `pdf`, `rtf`, `html`, `txt` (or `text`), `md` (or `markdown`), `odt`, `epub`, `zip`
+*   **Google Sheets**: `xlsx`, `ods`, `csv`, `tsv`, `pdf`, `zip`
+*   **Google Slides**: `pptx`, `pdf`, `odp`, `txt` (or `text`)
+*   **Google Drawings**: `svg`, `png`, `pdf`, `jpeg` (or `jpg`)
+*   **Google Video**: `mp4`
+*   **Google Photos/Pix**: `png`, `jpeg` (or `jpg`)
+
+If an unsupported extension is specified for a document type, `ggsrun` will output a warning (e.g. `Skipped 'file': Cannot convert Google Drive format '...' to extension '...'`) and gracefully skip the file in the download queue.
 
 - When you download project files which are standalone script and container-bound script, you can use the option of `--raw`. You can download raw files of project by this.
 - When you download a project file, when you use the option `--zip` or `-zip`, you can download the prject as a zip file. This zip file has all scripts in the project. This option was added at v1.5.0.
@@ -1034,8 +1048,13 @@ $ ggsrun d -i folderid
 - About the folder, you can download from not only the folders in your Google Drive, but also the shared folders in other Google Drive. When you want to download the files from the shared folder, please use the folder ID of the shared folder.
 - When the files and folders are downloaded, the folder structure in Google Drive is also created to the working directory on the local PC.
 - When the project of the standalone script script type is downloaded, it is created as a zip file. In the zip file, all scripts are included.
-- When files are downloaded from a folder, you can download Google Docs files with the mimeType you want. For example, when you download files from the folder, if `-e txt` is used, Google Docs are downloaded as the text file. When `-e pdf` is used, they are downloaded as the PDF file. Of course, there are mimeType which cannot be converted.
+- When files are downloaded from a folder, you can download Google Docs files with the extension/mimeType you want. If an unsupported extension is specified for a specific document format inside the folder, `ggsrun` will print a warning and skip that file dynamically, allowing the rest of the queue to download in parallel.
   - `$ ggsrun d -f [folderName] -e txt -j`
+*   **Folder-level Batch Conversion**: When batch-downloading folders, your specified extension (`-e`) is evaluated individually for each file in the folder tree. For instance, running `$ ggsrun d -i folderId -e xlsx` will download Google Sheets as `.xlsx` files, while Docs or Slides will be safely skipped with a warning, ensuring the concurrent queue finishes successfully.
+*   **Destination Directory**: You can download folder trees directly into a specified local directory by passing the `-d` option. All subdirectories will be recursively created within it.
+    ```bash
+    $ ggsrun d -i folderId -d ./my_folder_tree -j
+    ```
 
 #### Sample:
 
@@ -1126,11 +1145,19 @@ $ ggsrun u -f filename
 
 At this time, you can upload files to the specific folder using option `-p [parent folder ID]`. When Microsoft Word, Excel and Powerpoint files are uploaded, they are automatically converted to Google Docs. If you don't want to convert them, please use option `--nc`.
 
-When files are uploaded from your local PC, the files got to be able to be converted to Google Docs. For this, new option of `--convertto`, `-c` is added. For example, when a text file is uploaded, if you use `-c doc`, the text file is uploaded as Google Document. `-c doc`, `-c sheet` and `-c slide` convert to Google document, spreadsheet and slides, respectively.
+When files are uploaded from your local PC, you can automatically convert them to native Google Workspace formats. For this, the option `--convertto`, `-c` is used.
 
-```bash
-$ ggsrun u -f filename -c sheet
-```
+From **v5.2.4**, you can perform these conversions **concurrently** in parallel upload streams without falling back to the legacy uploader.
+*   **Explicit Conversion**: Use `-c doc` (for Google Docs), `-c sheet` (for Google Sheets), or `-c slide` (for Google Slides).
+    ```bash
+    # Concurrently upload and convert Excel spreadsheets into Google Sheets in parallel
+    $ ggsrun u -f "data1.xlsx, data2.csv" -c sheet -w 5
+    ```
+*   **Auto Conversion**: If `-c` is not specified, `ggsrun` automatically maps the file extensions (e.g., `.docx`/`.rtf`/`.html`/`.txt`/`.md`/`.png`/`.jpeg`/`.pdf` -> Google Docs; `.xlsx`/`.xls`/`.csv`/`.tsv` -> Google Sheets; `.pptx`/`.ppt`/`.odp` -> Google Slides; `.mp4`/`.ogg`/`.mov`/`.webm` -> Google Video).
+*   **Skip Conversion**: Use `--noconvert` (or `--nc`) to bypass conversion and upload them in their raw binary formats.
+
+If a file cannot be converted (e.g., unsupported extension or format mismatch), `ggsrun` prints a warning and skips the file, continuing the rest of the parallel upload queue.
+*   **Folder-level Batch Conversion**: If you upload a local directory using `$ ggsrun u -f localFolder -c sheet`, every compatible file found inside the folder structure will be uploaded and converted to Google Sheets concurrently. Files that do not support sheet conversion will log a warning and skip, leaving the rest of the parallel queue unaffected.
 
 **Conflict Resolution Options:**
 From v5.2.3, when a file already exists on Google Drive, the upload behavior is controlled by the `--conflict-mode` (`-cm`) flag:
@@ -1214,7 +1241,7 @@ OPTIONS:
    --googledocname value, --gn value  Filename of Google Docs which is created.
    --projecttype value, --pt value    You can select where it creates a new project. Please input 'spreadsheet', 'document', 'slide' and 'form'. When you select one of them, new project is created as a bound script. If this option is not used, new project is created as a standalone script. This is a default. (default: "standalone")
    --chunksize value, --chunk value   You can also set the maximum chunk size for the resumable upload. This unit is MB. (default: 100)
-   --convertto value, -c value        When you want to upload the file by converting, use this. '-c doc', '-c sheet' and '-c slide' convert to Google document, spreadsheet and slides, respectively. But there are files which cannot be converted. Please be careful this.
+    --convertto value, -c value        Convert files automatically to Google Workspace formats. Supported: 'doc', 'sheet', 'slide'. If not specified, file extensions are automatically mapped (e.g., docx/rtf/html/txt/md/pdf/png/jpeg/bmp/gif -> Google Docs; xlsx/xls/csv/tsv -> Google Sheets; pptx/ppt/odp -> Google Slides; mp4/ogg/mov/webm -> Google Video). If conversion fails, the file is skipped with a warning.
    --noconvert, --nc                  If you don't want to convert file to Google Apps format.
    --jsonparser, -j                   Display results by JSON parser
 ```

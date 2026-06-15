@@ -85,7 +85,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "download",
-						"description": "Download files or folder structures from Google Drive to the local environment using File/Folder IDs.",
+						"description": "Download files or recursive folder trees from Google Drive to the local environment using File/Folder IDs. Supports on-the-fly format conversion (export) for Google Workspace entities (Docs, Sheets, Slides, Drawings, Video, Photos) by specifying the `extension` parameter. If a folder ID is supplied, it recursively retrieves the directory structure and applies format conversion to compatible files. Mismatched conversion requests (e.g., trying to export Slides as xlsx) will print a warning and gracefully skip the file while continuing the parallel queue. Example: download a Document as pdf or md.",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -96,6 +96,14 @@ func runMCP(c *cli.Context) error {
 								"filename": map[string]interface{}{
 									"type":        "string",
 									"description": "Optional local filename or file path to save the downloaded file as. If omitted, uses the remote filename on Google Drive.",
+								},
+								"destination": map[string]interface{}{
+									"type":        "string",
+									"description": "Optional local directory path to save downloaded files into. Defaults to the current working directory.",
+								},
+								"extension": map[string]interface{}{
+									"type":        "string",
+									"description": "Optional file extension format to convert Google Workspace files. Supported mappings: \n- Google Docs -> docx, pdf, rtf, html, txt, md (or markdown), odt, epub, zip\n- Google Sheets -> xlsx, ods, csv, tsv, pdf, zip\n- Google Slides -> pptx, pdf, odp, txt\n- Google Drawings -> svg, png, pdf, jpeg\n- Google Video -> mp4\n- Google Photos/Pix -> png, jpeg\nUnsupported conversions are skipped with a warning. Example: set 'pdf' to convert a Doc/Sheet/Slide to PDF.",
 								},
 								"conflict-mode": map[string]interface{}{
 									"type":        "string",
@@ -108,7 +116,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "upload",
-						"description": "Upload local files or entire recursive directories to Google Drive.",
+						"description": "Upload local files or entire recursive directories to Google Drive. Automatically converts local files to Google Workspace formats by default, or explicitly via the `convertto` parameter. Folders are recursively mapped and uploaded. If a conversion fails (e.g., format mismatch or unsupported extension), it will print a warning and skip that file while keeping the remaining parallel queue active. Example: upload local csv converting to a Google Sheet.",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -124,6 +132,14 @@ func runMCP(c *cli.Context) error {
 									"type":        "string",
 									"description": "Action to perform on conflict when a file with the same name already exists in the destination folder. Values: 'OverwriteIfNewer' (overwrite remote file only if local is newer), 'Ignore' (unconditionally skip), 'Rename' (auto-rename with timestamp/number). Default is 'OverwriteIfNewer'.",
 									"enum":        []string{"OverwriteIfNewer", "Ignore", "Rename"},
+								},
+								"convertto": map[string]interface{}{
+									"type":        "string",
+									"description": "Optional target Google Workspace format. Supported values: 'doc' (converts to Google Docs), 'sheet' (converts to Google Sheets), 'slide' (converts to Google Slides). If omitted, ggsrun automatically maps extensions (e.g., .docx/.rtf/.html/.txt/.md/.png/.jpeg -> Google Docs; .xlsx/.xls/.csv/.tsv -> Google Sheets; .pptx/.ppt/.odp -> Google Slides; .mp4/.ogg/.mov/.webm -> Google Video). Files that cannot be converted are skipped with a warning.",
+								},
+								"noconvert": map[string]interface{}{
+									"type":        "boolean",
+									"description": "If true, bypasses automatic Google Apps format conversion and uploads files in their raw binary format (e.g., uploading .xlsx as a raw binary Excel file instead of a Google Sheet). Default is false.",
 								},
 								"projectname": map[string]interface{}{
 									"type":        "string",
@@ -192,6 +208,12 @@ func runMCP(c *cli.Context) error {
 			cmdArgs = append(cmdArgs, name)
 			for k, v := range argsMap {
 				if v == nil {
+					continue
+				}
+				if boolVal, ok := v.(bool); ok {
+					if boolVal {
+						cmdArgs = append(cmdArgs, "--"+k)
+					}
 					continue
 				}
 				valStr := fmt.Sprintf("%v", v)

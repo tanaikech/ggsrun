@@ -18,6 +18,7 @@ import (
 	"time"
 
 	json "github.com/goccy/go-json"
+	"ggsrun/internal/utl"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 	"github.com/vbauerster/mpb/v8"
@@ -150,31 +151,26 @@ func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 		var exportMime string
 
 		if ext != "" {
-			switch strings.ToLower(ext) {
-			case "xlsx":
-				exportMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-			case "docx":
-				exportMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-			case "pptx":
-				exportMime = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-			case "csv":
-				exportMime = "text/csv"
-			case "json":
-				exportMime = "application/json"
-			default:
-				exportMime = "application/" + ext
+			ext = strings.Replace(strings.ToLower(ext), ".", "", 1)
+			exportMime = utl.ExtToMime(ext)
+			if exportMime == "" {
+				pterm.Warning.Printf("Skipped '%s': Cannot convert. Extension '%s' is not supported.\n", job.Name, ext)
+				return false
+			}
+
+			// Validate export format
+			if !utl.IsExportable(job.MimeType, exportMime) {
+				pterm.Warning.Printf("Skipped '%s': Cannot convert Google Drive format '%s' to extension '%s'.\n", job.Name, job.MimeType, ext)
+				return false
 			}
 		} else {
-			switch job.MimeType {
-			case "application/vnd.google-apps.spreadsheet":
+			var extDef string
+			exportMime, extDef = utl.DefFormat(job.MimeType)
+			if exportMime == "" {
 				ext = "pdf"
 				exportMime = "application/pdf"
-			case "application/vnd.google-apps.document", "application/vnd.google-apps.presentation", "application/vnd.google-apps.drawing":
-				ext = "pdf"
-				exportMime = "application/pdf"
-			default:
-				ext = "pdf"
-				exportMime = "application/pdf"
+			} else {
+				ext = extDef
 			}
 		}
 
@@ -287,6 +283,15 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 		return TransferResult{Message: []string{"No files provided for download."}}, nil
 	}
 
+	destDir := c.String("destination")
+	if destDir == "" {
+		destDir = "."
+	} else {
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create destination directory: %w", err)
+		}
+	}
+
 	filenamesStr := c.String("filename")
 	var filenames []string
 	if filenamesStr != "" {
@@ -327,15 +332,20 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 			pterm.Info.Println("\nTarget Download Structure:")
 			printTransferTree(rootNode, "", true)
 
-			localBase := "."
+			localBase := destDir
 			extractDownloadJobsAndCreateDirs(rootNode, localBase, &jobs)
 		} else {
 			size, _ := strconv.ParseInt(meta.Size, 10, 64)
 			modTime, _ := time.Parse(time.RFC3339, meta.ModifiedTime)
 
-			savePath := meta.Name
+			savePath := filepath.Join(destDir, meta.Name)
 			if len(filenames) > i && strings.TrimSpace(filenames[i]) != "" {
-				savePath = strings.TrimSpace(filenames[i])
+				userPath := strings.TrimSpace(filenames[i])
+				if filepath.IsAbs(userPath) {
+					savePath = userPath
+				} else {
+					savePath = filepath.Join(destDir, userPath)
+				}
 			}
 
 			jobs = append(jobs, downloadJob{

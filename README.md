@@ -423,10 +423,16 @@ Target IDs can belong to Standard Drives, Shared Drives, or Team Drives seamless
 | `$ ggsrun download -i "FILE_ID1, FILE_ID2" -w 5`        | Downloads specific files utilizing 5 parallel channel workers.                                      |
 | `$ ggsrun download -i "FOLDER_ID" -w 10`                | Recursively maps and downloads an entire folder tree concurrently.                                  |
 | `$ ggsrun download -i "SPREADSHEET_ID" -e xlsx`         | Directs the Drive API to transpile and export a native Google Sheet into an `.xlsx` binary.         |
+| `$ ggsrun download -i "DOCUMENT_ID" -e md`              | Directs the Drive API to transpile and export a Google Doc into a Markdown (`.md`) file.             |
+| `$ ggsrun download -i "DOCUMENT_ID" -e pdf`              | Directs the Drive API to transpile and export a Google Doc into a PDF (`.pdf`) file.                 |
 | `$ ggsrun download -i "FOLDER_ID" -m "application/pdf"` | Recursively downloads a folder, but filters specifically to retrieve only PDF files.                |
 | `$ ggsrun download -i "SCRIPT_ID" -z`                   | Downloads an entire GAS project, bundles all `.js`/`.html` files, and saves it as a `.zip` archive. |
 | `$ ggsrun download -i "SCRIPT_ID" -r`                   | Downloads a GAS project natively as raw `.json` payload.                                            |
 | `$ ggsrun download -i "FOLDER_ID" -cm update`            | Recursively downloads a folder, updating only files that are newer on Drive.                        |
+| `$ ggsrun download -i "FOLDER_ID" -d "./downloads"`    | Recursively downloads a folder, saving all files inside the `./downloads` directory (created automatically). |
+
+> [!NOTE]
+> When downloading a folder concurrently, specified export extensions via `-e` are dynamically validated against each file's native format. For example, if you download a folder with `-e xlsx`, Sheets inside the folder will convert to `.xlsx` files while unsupported files (like Slides or Docs) will print a warning and skip, allowing the queue to continue without failure.
 
 ### Massively Parallel Upload
 
@@ -439,8 +445,13 @@ Pushes local hierarchical structures to Google Drive asynchronously. Resumable c
 | `$ ggsrun upload -f "script.js" --projectname "MyAPI"`                       | Uploads a local file and provisions it as a brand new Standalone GAS Project.                                       |
 | `$ ggsrun upload -f "script.js" -pid "SHEET_ID" --projecttype "spreadsheet"` | Uploads a script and provisions it as a **Container-Bound Script** directly attached to the specified Google Sheet. |
 | `$ ggsrun upload -f "data.csv" -c "sheet"`                                   | Uploads a CSV file and automatically commands Google Drive to convert it into a native Google Spreadsheet.          |
+| `$ ggsrun upload -f "document.docx" -c "doc"`                                | Uploads a Word document and converts it to a native Google Doc.                                                     |
+| `$ ggsrun upload -f "slides.pptx" -c "slide"`                                | Uploads a PowerPoint presentation and converts it to a native Google Slide.                                         |
 | `$ ggsrun upload -f "large_file.mp4" --chunksize 250`                        | Accelerates massive file transfers by increasing the Resumable Upload chunk size to 250MB.                          |
 | `$ ggsrun upload -f "/path/to/folder" -p "FOLDER_ID" -cm rename`             | Uploads a directory, appending timestamps to any conflicting filenames on Drive.                                    |
+
+> [!NOTE]
+> Recursive folder uploads natively support batch conversion. When specifying `-c` (or `--convertto`), every eligible file within the uploaded folder tree is evaluated and converted to the target Workspace format concurrently. Files that cannot be converted will log a conversion error warning and skip, leaving other files in the queue unaffected.
 
 ### Conflict Resolution Mode
 
@@ -769,6 +780,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
+  Updated internal MIME type mapping definitions (`googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats`/`exportFormats`. Revamped the CLI options help display for `--extension` (download/revision) and `--convertto` (upload) to explicitly list all supported formats. Overhauled the concurrent upload/download engines to handle `--convertto` / `--noconvert` directly in parallel streams without falling back to the legacy single-threaded uploader, adding validation capability checks and graceful error warning feedback. Added `--destination` (`-d`) option to the `download` and `revision` commands to allow specifying the target local directory for saving downloaded files.
 - **v5.2.3 (June 2026) - Directory Reuse Conflict Resolution, Output Control, and CLI/MCP Alignment**
   Upgraded the directory upload conflict resolution mechanism to silently and recursively reuse existing remote folders without prompting. Aligned the `--conflict-mode` behavior for `-j` / `--jsonparser` CLI runs to match the automated MCP mode (defaulting to `OverwriteIfNewer`, overridable via `--cm`). Muted TUI output and progress bars (`mpb`) when running with the `-j` option to return clean JSON. Supported `--cm` as a shorthand alias for `--conflict-mode` in file transfers.
 - **v5.2.2 (June 2026) - MCP Help Display Expansion, Safety Review Prompt, Dual-Mode Conflict Engine, and File-Level Error Feedback**

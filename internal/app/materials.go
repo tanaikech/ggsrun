@@ -389,7 +389,17 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 	p := &utl.FileInf{
 		Msgar:             a.Msg,
 		Accesstoken:       a.GgsrunCfg.Accesstoken,
-		Workdir:           a.InitVal.workdir,
+		Workdir: func() string {
+			dest := c.String("destination")
+			if dest != "" {
+				absDest, err := filepath.Abs(dest)
+				if err == nil {
+					os.MkdirAll(absDest, 0755)
+					return absDest
+				}
+			}
+			return a.InitVal.workdir
+		}(),
 		PstartTime:        a.InitVal.pstart,
 		UseServiceAccount: a.InitVal.useServiceAccount,
 		FileID:            c.String("fileid"),

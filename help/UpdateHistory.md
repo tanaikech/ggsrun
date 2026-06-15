@@ -99,6 +99,13 @@
   3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
   4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
 
+- **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
+  1. Updated internal MIME type mapping definitions (`extVsmime`, `googlemimetypes`, `defaultformat`, `mimeVsEx` in `googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats` and `exportFormats`.
+  2. Revamped the CLI options help display for `--extension` (`-e` in download/revision commands) and `--convertto` (`-c` in upload command) to list all supported file formats, resolving ambiguity.
+  3. Overhauled the concurrent upload engine (`handler_upload.go`): enabled parallel upload streams to handle `--convertto` and `--noconvert` directly without falling back to the legacy single-threaded uploader, and added robust warning feedback that skips unsupported conversions gracefully.
+  4. Hardened the concurrent download engine (`handler_download.go`): integrated export capability validation via `IsExportable` and `ExtToMime` to verify file format compatibility before requesting Drive API `/export` downloads.
+  5. Added the `--destination` (`-d`) option to the `download` and `revision` commands to allow specifying the target local directory for saving downloaded files, defaulting to the current directory.
+
 - **v5.2.3 (June 2026) - Directory Reuse Conflict Resolution, Output Control, and CLI/MCP Alignment**
   1. Upgraded the directory upload conflict resolution mechanism: the tool now silently and recursively reuses existing remote folders (without prompting) while maintaining strict interactive conflict resolution only for individual files.
   2. Aligned `--conflict-mode` behavior for `-j` / `--jsonparser` CLI runs to match the automated, non-interactive MCP mode (defaulting to `OverwriteIfNewer`, but overridable using `--cm` or `--conflict-mode`).

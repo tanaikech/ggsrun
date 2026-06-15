@@ -341,9 +341,9 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 	}
 	ext := strings.ToLower(p.WantExt)
 	if len(ext) > 0 {
-		p.DlMime = extToMime(ext)
+		p.DlMime = ExtToMime(ext)
 	} else {
-		p.DlMime, ext = defFormat(p.MimeType)
+		p.DlMime, ext = DefFormat(p.MimeType)
 	}
 	if len(p.FileID) > 0 && c.String("deletefile") == "" {
 		var gm map[string]interface{}
@@ -639,16 +639,16 @@ func (p *FileInf) GetFileinf() *FileInf {
 	return p
 }
 
-// extToMime : Convert from extension to mimeType of the file on Local.
-func extToMime(ext string) string {
+// ExtToMime : Convert from extension to mimeType of the file on Local.
+func ExtToMime(ext string) string {
 	var fm map[string]interface{}
 	json.Unmarshal([]byte(extVsmime), &fm)
 	st, _ := fm[strings.Replace(strings.ToLower(ext), ".", "", 1)].(string)
 	return st
 }
 
-// mimeToExt : Convert from mimeType to extension of the file.
-func mimeToExt(mime string) string {
+// MimeToExt : Convert from mimeType to extension of the file.
+func MimeToExt(mime string) string {
 	var fm map[string]interface{}
 	json.Unmarshal([]byte(extVsmime), &fm)
 	var ext string
@@ -661,8 +661,8 @@ func mimeToExt(mime string) string {
 	return ext
 }
 
-// defFormat : Default download format
-func defFormat(mime string) (string, string) {
+// DefFormat : Default download format
+func DefFormat(mime string) (string, string) {
 	var df map[string]interface{}
 	json.Unmarshal([]byte(defaultformat), &df)
 	dmime, _ := df[mime].(string)
@@ -675,6 +675,29 @@ func defFormat(mime string) (string, string) {
 		}
 	}
 	return dmime, ext
+}
+
+// IsExportable checks if a Google Drive mimeType can be exported to a target local mimeType.
+func IsExportable(srcMime, targetMime string) bool {
+	var gm map[string]interface{}
+	json.Unmarshal([]byte(googlemimetypes), &gm)
+	
+	exportFormats, ok := gm["exportFormats"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	
+	targets, ok := exportFormats[srcMime].([]interface{})
+	if !ok {
+		return false
+	}
+	
+	for _, t := range targets {
+		if tStr, ok := t.(string); ok && tStr == targetMime {
+			return true
+		}
+	}
+	return false
 }
 
 // fileUploader : For uploading files.
@@ -823,7 +846,12 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 						convto := strings.ToLower(p.ConvertTo)
 						switch {
 						case convto == "":
-							return extToGMime(filepath.Ext(elm))
+							mime, err := ExtToGMime(filepath.Ext(elm))
+							if err != nil {
+								pterm.Error.Printf("%v\n", err)
+								os.Exit(1)
+							}
+							return mime
 						case convto == "document" || convto == "doc" || convto == "docs":
 							return "application/vnd.google-apps.document"
 						case convto == "spreadsheet" || convto == "sheet" || convto == "spread":
@@ -831,7 +859,12 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 						case convto == "slides" || convto == "slide" || convto == "presentation":
 							return "application/vnd.google-apps.presentation"
 						default:
-							return extToGMime(convto)
+							mime, err := ExtToGMime(convto)
+							if err != nil {
+								pterm.Error.Printf("%v\n", err)
+								os.Exit(1)
+							}
+							return mime
 						}
 					}
 					return ""
@@ -1030,18 +1063,31 @@ func ExtToType(ex string, uppercase bool) string {
 	return scripttype
 }
 
-// extToGMime : Convert from extension to mimeType of the files on Google.
-func extToGMime(ext string) string {
+// ExtToGMime : Convert from extension to mimeType of the files on Google.
+func ExtToGMime(ext string) (string, error) {
 	var fm map[string]interface{}
 	json.Unmarshal([]byte(extVsmime), &fm)
 	st, _ := fm[strings.Replace(strings.ToLower(ext), ".", "", 1)].(string)
 	if len(st) == 0 {
-		pterm.Error.Printf("Extension of '%s' cannot be uploaded. ", ext)
-		os.Exit(1)
+		return "", fmt.Errorf("extension of '%s' cannot be uploaded", ext)
 	}
 	var gm map[string]interface{}
 	json.Unmarshal([]byte(googlemimetypes), &gm)
-	return gm["importFormats"].(map[string]interface{})[st].([]interface{})[0].(string)
+	
+	importFormats, ok := gm["importFormats"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("invalid googlemimetypes config")
+	}
+	targets, ok := importFormats[st].([]interface{})
+	if !ok || len(targets) == 0 {
+		return "", fmt.Errorf("conversion is not supported for extension '%s'", ext)
+	}
+	
+	targetMime, ok := targets[0].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid mapping type")
+	}
+	return targetMime, nil
 }
 
 // GetFileList : Retrieving file list on Google Drive.
