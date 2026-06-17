@@ -59,6 +59,14 @@
     - [Massively Parallel Upload](#massively-parallel-upload)
     - [Conflict Resolution Mode](#conflict-resolution-mode)
     - [Interactive TUI Filer (FD Mode)](#interactive-tui-filer-fd-mode)
+      - [Motivation](#motivation)
+      - [Prompt Used for Development](#prompt-used-for-development)
+      - [Development \& Release Results (v5.3.0)](#development--release-results-v530)
+        - [📊 Consumed Resources](#-consumed-resources)
+        - [💡 Efficiency \& Success Review](#-efficiency--success-review)
+        - [🛠️ Key Improvements \& Hardening](#️-key-improvements--hardening)
+      - [How to Launch](#how-to-launch)
+      - [Keybindings Summary](#keybindings-summary)
   - [Model Context Protocol (MCP) Server \& LLM Integration](#model-context-protocol-mcp-server--llm-integration)
     - [MCP Server Configuration for Antigravity CLI](#mcp-server-configuration-for-antigravity-cli)
     - [1. Exposed Tools](#1-exposed-tools)
@@ -516,21 +524,32 @@ If not specified, `ggsrun` will default to an **interactive CLI prompt** allowin
 
 ### Interactive TUI Filer (FD Mode)
 
+![FD mode](help/images/ggsrun_fd_mode1.jpg)
+
+When you want to test FD mode, please install ggsrun and authorize it.
+
+The FD mode of ggsrun allows you to manage files and folders across both your local drive and Google Drive. For instance, you can copy files from a local PC to Google Drive, or vice versa, directly via the TUI. Furthermore, Google Apps Script on both local and Google Drive environments can be executed directly within the TUI.
+
 #### Motivation
+
 The implementation of the FD mode (TUI Filer) in `ggsrun` stems from two main inspirations:
+
 1. **Nostalgia & Utility:** Drawing inspiration from the classic "FD" filer software used on legacy Japanese PC platforms like the NEC PC-9801 series in the late 1980s and 1990s. The developer recalled the efficiency of dual-pane, keyboard-driven file managers and recognized that bringing a similar lightweight, responsive local-and-remote filer to `ggsrun` would significantly enhance productivity when managing Google Drive files alongside local storage.
 2. **AI Capability Verification:** To evaluate and demonstrate the powerful agentic coding capabilities of the **Antigravity CLI (AI Coding Assistant)**. Building a complex, interactive, cross-platform TUI filer with mock-simulated unit testing is a rigorous test for an AI, and this feature showcases the tool's capacity to deliver robust, production-grade code autonomously.
 
 #### Prompt Used for Development
+
 The entire TUI filer feature set, bug fixes, layout refactor, and platform compatibility fixes were driven by the following unified developer prompt:
 
 ```markdown
 # Goal
+
 Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as "FD mode") for the `ggsrun` Go application. This mode must allow users to manage local files (upper panel) and Google Drive files (lower panel) side-by-side, perform file transfers/operations, and execute Google Apps Script (GAS) directly from the interface. The codebase must compile across all target platforms (Linux 64/32bit/ARM, macOS, Windows) and include comprehensive unit tests.
 
 ---
 
 ## 1. UI Architecture & Responsive Layout
+
 - **Dual-Pane Layout**: Split the main screen vertically or horizontally using `tview` (upper panel for the local filesystem, lower panel for Google Drive).
 - **Status Bar**: Display keybindings and status info at the bottom.
 - **Visual Distinction**:
@@ -546,6 +565,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 ---
 
 ## 2. Navigation & File Operations
+
 - **Keyboard Shortcuts**:
   - `Tab`: Switch focus between the Local and Remote panels.
   - `Up` / `Down`: Navigate the file list. Add **Wrap-around** logic (cursor wraps to the top when going past the last item, and to the bottom when going past the first).
@@ -567,6 +587,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 ---
 
 ## 3. GAS Script Execution Engine (`exe1` / `exe2` / `webapps`)
+
 - Map the `e` key to trigger GAS script execution.
 - Provide a choice between three execution modes:
   1. `exe1`: Update remote project and execute a function.
@@ -581,6 +602,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 ---
 
 ## 4. Cross-Platform Compilation & Fallbacks
+
 - To support multi-architecture building (especially for 32-bit Linux/ARM targets), separate file system creation time metrics into build-tagged files:
   - `file_info_linux.go` (target `linux`, utilizing `stat.Ctim`)
   - `file_info_darwin.go` (target `darwin`, utilizing `stat.Ctimespec`)
@@ -592,6 +614,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 ---
 
 ## 5. Testing Requirements
+
 - Provide a robust mock test suite in `fd_test.go` using `tcell.SimulationScreen`.
 - Ensure all key behaviors (navigation, deletions, sorting, mime conversions, details modal rendering) are fully testable.
 - Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
@@ -600,27 +623,33 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 #### Development & Release Results (v5.3.0)
 
 ##### 📊 Consumed Resources
+
 - **Conversations**: 10 sessions (long-term development across context compactions).
 - **Development Time**: Approx. 1.5 to 2 hours (including investigation, integration tests, and fixing build warnings).
 - **Quota Consumption**: High. Complex layout refactoring, mock testing, and cross-compilation validation resulted in a context size reaching hundreds of thousands of tokens.
 
 ##### 💡 Efficiency & Success Review
+
 - **Mock Simulation Test Environment**: The TUI event-simulation test environment using `tcell.SimulationScreen` in `fd_test.go` was extremely robust. This allowed for instant automatic verification of UI layout changes and key events without needing manual visual validation.
 - **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
 
 ##### 🛠️ Key Improvements & Hardening
+
 - **Popup Refactoring**: Replaced `tview.NewModal` with a custom `tview.Flex` layout (15%:70%:15%) for each dialog (errors, file details, execution prompts, sorting selection, conversion prompts, help menu, and execution results), ensuring no content clips.
 - **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
 - **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
 - **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
 
 #### How to Launch
+
 To open the interactive TUI filer, run:
+
 ```bash
 $ ggsrun fd
 ```
 
 #### Keybindings Summary
+
 - `Tab`: Switch focus between panels.
 - `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).
 - `Space`: Multi-select items.
