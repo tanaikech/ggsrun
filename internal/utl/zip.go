@@ -5,7 +5,6 @@ package utl
 import (
 	"archive/zip"
 	"bytes"
-	"os"
 	"time"
 
 	json "github.com/goccy/go-json"
@@ -39,16 +38,16 @@ func (f *zipFileHeads) doFilesZip(comment string) *bytes.Buffer {
 		zf, err := z.CreateHeader(fh)
 		if err != nil {
 			pterm.Error.Println(err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if _, err = zf.Write(file.Body); err != nil {
 			pterm.Error.Println(err)
-			os.Exit(1)
+			Exit(1)
 		}
 	}
 	if err := z.Close(); err != nil {
 		pterm.Error.Println(err)
-		os.Exit(1)
+		Exit(1)
 	}
 	return b
 }

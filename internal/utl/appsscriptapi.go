@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -107,7 +106,7 @@ func (p *FileInf) getBoundScriptInf(id string) {
 	if err != nil {
 		pterm.Error.Printf("File ID '%s' is not found. ", id)
 		DispScopeError2(body)
-		os.Exit(1)
+		Exit(1)
 	}
 	var i *AppsScriptApiInf
 	json.Unmarshal(body, &i)
@@ -146,7 +145,7 @@ func (p *FileInf) getBoundScript(id string) *ProjectForAppsScriptApi {
 	if err != nil {
 		pterm.Error.Printf("File ID '%s' is not found. ", p.SearchByID)
 		DispScopeError2(body)
-		os.Exit(1)
+		Exit(1)
 	}
 	pf := &ProjectForAppsScriptApi{}
 	json.Unmarshal(body, &pf)
@@ -177,7 +176,7 @@ func (p *FileInf) boundScriptCreator(metadata []byte) *AppsScriptApiInf {
 				pterm.Warning.Println(" - If this error occurs when you try to create project in Google Slides, this may be a bug. https://issuetracker.google.com/issues/72238499")
 			}
 		}
-		os.Exit(1)
+		Exit(1)
 	}
 	var a *AppsScriptApiInf
 	json.Unmarshal(body, &a)
@@ -207,7 +206,7 @@ func (p *FileInf) ProjectUpdateByAppsScriptApi(pr *ProjectForAppsScriptApi) *App
 	if err != nil {
 		pterm.Error.Printf("%v. ", err)
 		DispScopeError2(body)
-		os.Exit(1)
+		Exit(1)
 	}
 	var asi *AppsScriptApiInf
 	json.Unmarshal(body, &asi)
@@ -231,7 +230,7 @@ func (p *FileInf) createProjectForAppsScriptApi(scriptId string) *ProjectForApps
 		}
 		if len(pr.Files) == 0 {
 			pterm.Error.Println("Inputted files cannot be used for GAS project.")
-			os.Exit(1)
+			Exit(1)
 		}
 	} else {
 		filedata := &FilesForAppsScriptApi{
@@ -262,7 +261,7 @@ func (pf *ProjectForAppsScriptApi) getManifests(timeZone string) *FilesForAppsSc
 		umf, err := json.MarshalIndent(mf, "", "  ")
 		if err != nil {
 			pterm.Error.Printf("%s\n", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		manifests.Source = string(umf)
 	}
@@ -333,7 +332,7 @@ func (p *FileInf) getProjectVersionList(ptoken string) ([]byte, error) {
 	if err != nil {
 		pterm.Error.Printf("%v\n%s\n", err, string(body))
 		DispScopeError2(body)
-		os.Exit(1)
+		Exit(1)
 	}
 	return body, err
 }
@@ -356,7 +355,7 @@ func (p *FileInf) createProjectVersion(description string) {
 	if err != nil {
 		pterm.Error.Printf("%v\n%s\n", err, string(body))
 		DispScopeError2(body)
-		os.Exit(1)
+		Exit(1)
 	}
 	var rs map[string]interface{}
 	json.Unmarshal(body, &rs)
@@ -380,4 +379,9 @@ func DispScopeError2(body []byte) {
 			DispScopeError1()
 		}
 	}
+}
+
+// GetBoundScriptExported retrieves the Apps Script project content.
+func (p *FileInf) GetBoundScriptExported(id string) *ProjectForAppsScriptApi {
+	return p.getBoundScript(id)
 }

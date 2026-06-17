@@ -70,6 +70,9 @@ func (i *InitVal) UpdateStatus(msg string) {
 	if i.Spinner != nil {
 		i.Spinner.UpdateText(fmt.Sprintf("%-70s", msg))
 	}
+	if TUIProgressCallback != nil {
+		TUIProgressCallback(msg)
+	}
 }
 
 // SuccessStatus cleanly stops the TUI spinner with a success mark.
@@ -387,8 +390,8 @@ func defExecutionContainerWebApps() *ExecutionContainer {
 // DefDownloadContainer : Struct container for downloading files
 func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 	p := &utl.FileInf{
-		Msgar:             a.Msg,
-		Accesstoken:       a.GgsrunCfg.Accesstoken,
+		Msgar:       a.Msg,
+		Accesstoken: a.GgsrunCfg.Accesstoken,
 		Workdir: func() string {
 			dest := c.String("destination")
 			if dest != "" {

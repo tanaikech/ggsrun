@@ -17,8 +17,9 @@ import (
 	"sync"
 	"time"
 
-	json "github.com/goccy/go-json"
 	"ggsrun/internal/utl"
+
+	json "github.com/goccy/go-json"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 	"github.com/vbauerster/mpb/v8"
@@ -186,6 +187,10 @@ func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 
 // executeDownloadJob safely processes a single download task with fault isolation and explicit API routing.
 func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, c *cli.Context, progress *mpb.Progress) (*TransferFileMetadata, error) {
+	if TUIProgressCallback != nil {
+		TUIProgressCallback(fmt.Sprintf("Downloading: %s", job.Name))
+	}
+
 	var resp2 *http.Response
 	var reqErr error
 	maxRetries := 3
@@ -195,6 +200,9 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 		req2.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		resp2, reqErr = http.DefaultClient.Do(req2)
 		if reqErr != nil {
+			if TUIProgressCallback != nil {
+				TUIProgressCallback(fmt.Sprintf("Download failed for %s: %v", job.Name, reqErr))
+			}
 			return nil, fmt.Errorf("network transport failed for '%s': %w", job.Name, reqErr)
 		}
 
@@ -211,6 +219,9 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 
 			errMsg := fmt.Sprintf("failed (API error Status %d: %s)", resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
 			pterm.Warning.Printf("Download API failed for '%s': %s\n", job.Name, errMsg)
+			if TUIProgressCallback != nil {
+				TUIProgressCallback(fmt.Sprintf("Download API error for %s: %s", job.Name, errMsg))
+			}
 			return &TransferFileMetadata{
 				Name:     job.Name,
 				FileID:   job.DriveID,
@@ -244,6 +255,9 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 
 	out, err := os.Create(job.SavePath)
 	if err != nil {
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Download failed to create local file %s: %v", job.Name, err))
+		}
 		return nil, fmt.Errorf("local FS error creating file '%s': %w", job.SavePath, err)
 	}
 
@@ -255,10 +269,18 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 
 	if err != nil {
 		os.Remove(job.SavePath)
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Download interrupted for %s: %v", job.Name, err))
+		}
 		return nil, fmt.Errorf("I/O stream interrupted for '%s': %w", job.Name, err)
 	}
 
 	bar.SetTotal(written, true)
+
+	if TUIProgressCallback != nil {
+		TUIProgressCallback(fmt.Sprintf("Downloaded: %s", job.Name))
+	}
+
 	return &TransferFileMetadata{
 		Name:     job.Name,
 		FileID:   job.DriveID,

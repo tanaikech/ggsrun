@@ -5,6 +5,7 @@ package app
 import (
 	"bufio"
 	"fmt"
+	"ggsrun/internal/utl"
 	"os"
 	"strconv"
 	"strings"
@@ -24,7 +25,7 @@ func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 	changedIndx, _, err := rearrange.Do(scripts, 3, false, true)
 	if err != nil {
 		pterm.Error.Printf("%v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	var input string
 	pterm.Warning.Println("Please be careful.")
@@ -32,7 +33,7 @@ func (e *ExecutionContainer) rearrangeByTerminal() *ExecutionContainer {
 	fmt.Print("Reflect the rearranged result? [y or n] ... ")
 	if _, err := fmt.Scan(&input); err != nil {
 		pterm.Error.Printf("%v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	if input == "y" {
 		spinner, _ := pterm.DefaultSpinner.Start("Please wait a moment...")
@@ -130,7 +131,7 @@ func getRearrangeTemplate(templateFile string) []string {
 	f, err := os.Open(templateFile)
 	if err != nil {
 		pterm.Error.Printf("Script '%s' is not found.\n", templateFile)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	defer f.Close()
 	scanner := bufio.NewScanner(f)
@@ -144,7 +145,7 @@ func getRearrangeTemplate(templateFile string) []string {
 	}
 	if scanner.Err() != nil {
 		pterm.Error.Printf("%v\n", scanner.Err())
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	return data
 }

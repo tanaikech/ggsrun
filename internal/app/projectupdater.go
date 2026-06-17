@@ -4,7 +4,6 @@ package app
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -97,7 +96,7 @@ func (e *ExecutionContainer) filesInProjectRemover() *ExecutionContainer {
 	}
 	if len(temp.Files) == 1 {
 		pterm.Error.Println("You cannot remove all files except for 'appsscript.json' in the project.")
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	e.Project = temp
 	p := e.convExecutionContainerToFileInf()
@@ -109,7 +108,7 @@ func (e *ExecutionContainer) filesInProjectRemover() *ExecutionContainer {
 	e.Msg = append(e.Msg, fmt.Sprintf("Project ID is '%s'.", e.Scriptid))
 	if len(outr) == 0 {
 		pterm.Warning.Printf("[ %s ] were not found in the project. No files were removed from the project.\n", strings.Join(e.UpFiles, ", "))
-		os.Exit(1)
+		utl.Exit(1)
 	} else {
 		e.Msg = append(e.Msg, fmt.Sprintf("Files of [ %s ] were removed from the project.", strings.Join(outr, ", ")))
 	}

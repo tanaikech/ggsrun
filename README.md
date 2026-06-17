@@ -21,8 +21,31 @@
     - [D. Robust Fault Tolerance \& Auto-Retry](#d-robust-fault-tolerance--auto-retry)
     - [E. MCP (Model Context Protocol) Integration](#e-mcp-model-context-protocol-integration)
   - [Installation \& Setup](#installation--setup)
-    - [Beginner's Guide (Dropdown)](#complete-beginners-guide-how-to-install-authenticate-and-execute-google-apps-script-with-ggsrun)
+- [Complete Beginner's Guide: How to Install, Authenticate, and Execute Google Apps Script with ggsrun](#complete-beginners-guide-how-to-install-authenticate-and-execute-google-apps-script-with-ggsrun)
+  - [Step 1: Install ggsrun on Your Computer](#step-1-install-ggsrun-on-your-computer)
+    - [For Windows Users](#for-windows-users)
+    - [For macOS \& Linux Users](#for-macos--linux-users)
+  - [Step 2: Configure Your Google Cloud Project (Critical Setup)](#step-2-configure-your-google-cloud-project-critical-setup)
+    - [2.1 Create a New Project](#21-create-a-new-project)
+    - [2.2 Enable the Required Google APIs](#22-enable-the-required-google-apis)
+    - [2.3 Configure the OAuth Consent Screen](#23-configure-the-oauth-consent-screen)
+    - [2.4 Download Your Security Credentials](#24-download-your-security-credentials)
+  - [Step 3: Link Your Google Cloud Project to Google Apps Script](#step-3-link-your-google-cloud-project-to-google-apps-script)
+    - [3.1 Get Your Project Number](#31-get-your-project-number)
+    - [3.2 Change the Project in the Google Apps Script Editor](#32-change-the-project-in-the-google-apps-script-editor)
+  - [Step 4: Perform the Automated Authorization](#step-4-perform-the-automated-authorization)
+  - [Step 5: Set Up the Execution Server on Google Apps Script](#step-5-set-up-the-execution-server-on-google-apps-script)
+    - [5.1 Add the Shared Server Library](#51-add-the-shared-server-library)
+    - [5.2 Add the Gateway Code](#52-add-the-gateway-code)
+    - [5.3 Deploy the Script as an API Executable (For `exe1` \& `exe2`)](#53-deploy-the-script-as-an-api-executable-for-exe1--exe2)
+    - [5.4 Deploy the Script as a Web App (For `webapps`)](#54-deploy-the-script-as-a-web-app-for-webapps)
+  - [Step 6: Test Execution from Your Computer](#step-6-test-execution-from-your-computer)
+    - [Test Option A: Execution via API Executable (`exe2` mode)](#test-option-a-execution-via-api-executable-exe2-mode)
+    - [Test Option B: Execution via Web App (`webapps` mode)](#test-option-b-execution-via-web-app-webapps-mode)
+    - [Expected Output](#expected-output)
     - [1. Install ggsrun](#1-install-ggsrun)
+      - [Using Go](#using-go)
+      - [Downloading Pre-built Binaries](#downloading-pre-built-binaries)
     - [2. Obtain Google Cloud Credentials](#2-obtain-google-cloud-credentials)
     - [3. Automated Authorization (OAuth2 Loopback)](#3-automated-authorization-oauth2-loopback)
     - [4. Set Up Execution Server (GAS Side)](#4-set-up-execution-server-gas-side)
@@ -34,11 +57,17 @@
     - [Authentication \& MCP](#authentication--mcp)
     - [Massively Parallel Download](#massively-parallel-download)
     - [Massively Parallel Upload](#massively-parallel-upload)
+    - [Conflict Resolution Mode](#conflict-resolution-mode)
+    - [Interactive TUI Filer (FD Mode)](#interactive-tui-filer-fd-mode)
   - [Model Context Protocol (MCP) Server \& LLM Integration](#model-context-protocol-mcp-server--llm-integration)
     - [MCP Server Configuration for Antigravity CLI](#mcp-server-configuration-for-antigravity-cli)
     - [1. Exposed Tools](#1-exposed-tools)
-    - [2. Standardized JSON Output (TransferResult)](#2-standardized-json-output-transferresult)
+    - [2. Standardized JSON Output (`TransferResult`)](#2-standardized-json-output-transferresult)
+    - [Manual Testing of the MCP Server](#manual-testing-of-the-mcp-server)
     - [3. AI Agent Prompt Scenarios \& Expected Behaviors](#3-ai-agent-prompt-scenarios--expected-behaviors)
+      - [Scenario A: Batch Upload with Interactive Conflict Resolution](#scenario-a-batch-upload-with-interactive-conflict-resolution)
+      - [Scenario B: Granular Metadata Extraction and Parsing](#scenario-b-granular-metadata-extraction-and-parsing)
+    - [4. Sample Prompts to Give to Your AI Agent](#4-sample-prompts-to-give-to-your-ai-agent)
   - [Deep Dive: Executing Google Apps Script (exe1, exe2, webapps)](#deep-dive-executing-google-apps-script-exe1-exe2-webapps)
     - [Mode 1: `exe1` (Stateful Project Execution)](#mode-1-exe1-stateful-project-execution)
       - [Architecture Workflow](#architecture-workflow)
@@ -46,6 +75,7 @@
       - [Architecture Workflow](#architecture-workflow-1)
     - [Mode 3: `webapps` (Anonymous OR Secure Endpoint Execution)](#mode-3-webapps-anonymous-or-secure-endpoint-execution)
       - [Architecture Workflow](#architecture-workflow-2)
+    - [Verification \& Diagnostics](#verification--diagnostics)
   - [Advanced Configurations](#advanced-configurations)
     - [Modifying OAuth Scopes](#modifying-oauth-scopes)
   - [Troubleshooting](#troubleshooting)
@@ -129,9 +159,9 @@ This beginner-friendly, step-by-step guide will walk you through installing **gg
 
 1. Go to the official [ggsrun Releases Page](https://github.com/tanaikech/ggsrun/releases).
 2. Download the appropriate binary for your system:
-   * **macOS (Intel):** `ggsrun_darwin_amd64`
-   * **macOS (Apple Silicon M1/M2/M3):** `ggsrun_darwin_arm64`
-   * **Linux:** `ggsrun_linux_amd64` (or matching CPU architecture)
+   - **macOS (Intel):** `ggsrun_darwin_amd64`
+   - **macOS (Apple Silicon M1/M2/M3):** `ggsrun_darwin_arm64`
+   - **Linux:** `ggsrun_linux_amd64` (or matching CPU architecture)
 3. Rename the downloaded file to simply `ggsrun`.
 4. Move the file to your working folder (e.g., a folder on your Desktop named `ggsrun-workspace`).
 5. Open your Terminal, navigate to your working folder, and grant execution permissions to the binary:
@@ -147,39 +177,44 @@ This beginner-friendly, step-by-step guide will walk you through installing **gg
 To allow `ggsrun` to securely communicate with your Google account, you must create a private connection keyset inside the Google Cloud Console.
 
 ### 2.1 Create a New Project
+
 1. Open your browser and navigate to the [Google Cloud Console](https://console.cloud.google.com/).
 2. Log in with the same Google/Gmail account you use for Google Apps Script.
 3. Click the project dropdown menu at the top left corner of the screen and select **New Project**.
 4. Give your project an easy-to-remember name (e.g., `My-ggsrun-Project`) and click **Create**. Ensure this newly created project is selected in the top dropdown menu before moving forward.
 
 ### 2.2 Enable the Required Google APIs
+
 1. In the search bar at the top, search for **Google Drive API** and click on it from the results.
 2. Click the blue **Enable** button.
 3. Next, search for **Google Apps Script API** in the top search bar, click on it, and click **Enable**.
 
 ### 2.3 Configure the OAuth Consent Screen
+
 Google requires you to set up an authorization screen that pops up when you link your account.
+
 1. Click the **Navigation Menu** (the three horizontal lines at the top-left) and navigate to **APIs & Services > OAuth consent screen**.
 2. Select **User Type**:
-   * If you use a regular `@gmail.com` account, choose **External** and click **Create**.
-   * If you use a Google Workspace business/school account, you can choose **Internal** (which simplifies the process).
+   - If you use a regular `@gmail.com` account, choose **External** and click **Create**.
+   - If you use a Google Workspace business/school account, you can choose **Internal** (which simplifies the process).
 3. Fill out the required App Information fields:
-   * **App name**: `ggsrun Client`
-   * **User support email**: Select your own Gmail address.
-   * **Developer contact information**: Enter your own Gmail address again.
+   - **App name**: `ggsrun Client`
+   - **User support email**: Select your own Gmail address.
+   - **Developer contact information**: Enter your own Gmail address again.
 4. Click **Save and Continue**. Skip the "Scopes" page by clicking **Save and Continue** again.
-5. **CRITICAL STEP (For External Type):** On the **Test users** page, click **+ ADD USERS**. Type your exact Gmail address and click **Add / Save**. 
+5. **CRITICAL STEP (For External Type):** On the **Test users** page, click **+ ADD USERS**. Type your exact Gmail address and click **Add / Save**.
    > ⚠️ **Warning:** If you skip adding your email as a test user, Google will block you with an `Error 400: invalid_scope` later during the authorization process.
 6. Click **Save and Continue** to finish.
 
 ### 2.4 Download Your Security Credentials
+
 1. In the left-hand sidebar, click **Credentials**.
 2. Click the **+ CREATE CREDENTIALS** button at the top and select **OAuth client ID**.
 3. Under **Application type**, select **Desktop app**.
 4. In the **Name** field, type `ggsrun Desktop Client`. Click **Create**.
 5. A popup window will show your Client ID and Client Secret. Click **OK**.
 6. Look at the list under "OAuth 2.0 Client IDs". Click the **Download icon** (a down arrow pointing into a tray) on the far right side of your newly created credentials.
-7. A file with a long name ending in `.json` will download. 
+7. A file with a long name ending in `.json` will download.
 8. Move this downloaded file directly into your working folder (`ggsrun-workspace`).
 9. **Rename the file to exactly:** `client_secret.json`
 
@@ -190,11 +225,13 @@ Google requires you to set up an authorization screen that pops up when you link
 Now, you must tell your Google Apps Script project to use the specific cloud credentials you just generated.
 
 ### 3.1 Get Your Project Number
+
 1. Return to your [Google Cloud Console](https://console.cloud.google.com/).
 2. Click on the **Dashboard** or **Welcome** page of your project.
 3. Look for the **Project Info** card. Copy the **Project number** (this is a long string of numbers, e.g., `123456789012`). Do not copy the Project ID text; you specifically need the numerical number.
 
 ### 3.2 Change the Project in the Google Apps Script Editor
+
 1. Go to the [Google Apps Script Dashboard](https://script.google.com/) and open the specific script project you wish to run, or create a **New Project**.
 2. On the left sidebar of the modern GAS editor, click the gear icon (**Project Settings**).
 3. Scroll down to the section titled **Google Cloud Platform (GCP) Project**.
@@ -207,18 +244,18 @@ Now, you must tell your Google Apps Script project to use the specific cloud cre
 ## Step 4: Perform the Automated Authorization
 
 1. Open your terminal application and change your directory to your working folder where `ggsrun` and `client_secret.json` are placed:
-   * **Windows Command Prompt:** `cd %USERPROFILE%\Desktop\ggsrun-workspace`
-   * **macOS/Linux Terminal:** `cd ~/Desktop/ggsrun-workspace`
+   - **Windows Command Prompt:** `cd %USERPROFILE%\Desktop\ggsrun-workspace`
+   - **macOS/Linux Terminal:** `cd ~/Desktop/ggsrun-workspace`
 2. Run the authentication command:
-   * **Windows:** `ggsrun auth`
-   * **macOS/Linux:** `./ggsrun auth`
+   - **Windows:** `ggsrun auth`
+   - **macOS/Linux:** `./ggsrun auth`
 3. `ggsrun` will automatically open your default web browser and present a standard Google login page.
-4. Select your Google account. You may see a safety warning screen stating *"Google hasn't verified this app"*. Since this is your own private project, click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
+4. Select your Google account. You may see a safety warning screen stating _"Google hasn't verified this app"_. Since this is your own private project, click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
 5. Click **Allow** to grant permission.
 6. The browser will display a success message saying authentication is complete. You can close the browser window.
-7. **Configure Default Values (Highly Recommended):** In the terminal, the latest version of `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional). 
-   * Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
-   * A file named `ggsrun.cfg` is automatically generated in your folder; this stores your login session and configurations securely.
+7. **Configure Default Values (Highly Recommended):** In the terminal, the latest version of `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional).
+   - Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
+   - A file named `ggsrun.cfg` is automatically generated in your folder; this stores your login session and configurations securely.
 
 ---
 
@@ -236,13 +273,15 @@ To let `ggsrun` securely trigger your scripts remotely (necessary for stateless 
 3. Click **Look up**. Select the **latest version** from the dropdown menu, keep the Identifier named exactly as `ggsrunif`, and click **Add**.
 
 ### 5.2 Add the Gateway Code
+
 Open your `Code.gs` file in the script editor and replace the default code with the following wrapper endpoints (for both `exe2` and `webapps` modes):
 
 ```javascript
 const doPost = (e) => ggsrunif.WebApps(e, "pass1");
 const ExecutionApi = (e) => ggsrunif.ExecutionApi(e);
 ```
-*(Note: Change `"pass1"` to a secure custom password if you plan to execute webapps anonymously).*
+
+_(Note: Change `"pass1"` to a secure custom password if you plan to execute webapps anonymously)._
 
 ### 5.3 Deploy the Script as an API Executable (For `exe1` & `exe2`)
 
@@ -260,8 +299,8 @@ const ExecutionApi = (e) => ggsrunif.ExecutionApi(e);
 3. In the description, type `ggsrun Web Engine`.
 4. Set **Execute as** to **Me** (your email address).
 5. Set **Who has access** to:
-   * **Only myself**: Highly recommended for secure execution. This requires the `ggsrun` CLI to be authenticated via `ggsrun auth` with Drive scopes enabled.
-   * **Anyone**: Select this if you need to trigger the webapp anonymously from a CI/CD pipeline without a token. (Access is secured by the password flag `-p`).
+   - **Only myself**: Highly recommended for secure execution. This requires the `ggsrun` CLI to be authenticated via `ggsrun auth` with Drive scopes enabled.
+   - **Anyone**: Select this if you need to trigger the webapp anonymously from a CI/CD pipeline without a token. (Access is secured by the password flag `-p`).
 6. Click **Deploy**.
 7. Copy the generated **Web app URL** (e.g., `https://script.google.com/macros/s/[WEB_APP_ID]/exec`).
 
@@ -282,30 +321,33 @@ Let's test everything to ensure your computer can run scripts inside your Google
 4. Run the test commands below:
 
 ### Test Option A: Execution via API Executable (`exe2` mode)
+
 Run the script using `ggsrun exe2`. Replace `[YOUR_SCRIPT_ID]` with the Script ID you copied during Step 5.3 (or omit the `-i` flag if you saved the Script ID in `ggsrun.cfg` during authentication):
 
-* **Windows Command Prompt:**
+- **Windows Command Prompt:**
   ```cmd
   ggsrun exe2 -i "[YOUR_SCRIPT_ID]" -f ExecutionApi -s test_script.js -v "Hello Google Apps Script!" -j
   ```
-* **macOS/Linux Terminal:**
+- **macOS/Linux Terminal:**
   ```bash
   ./ggsrun exe2 -i "[YOUR_SCRIPT_ID]" -f ExecutionApi -s test_script.js -v "Hello Google Apps Script!" -j
   ```
 
 ### Test Option B: Execution via Web App (`webapps` mode)
+
 Run the script using `ggsrun webapps`. Replace `[YOUR_WEB_APP_URL]` with the Web App URL you copied during Step 5.4 (or omit the `-u` flag if you saved the Web App URL in `ggsrun.cfg` during authentication):
 
-* **Windows Command Prompt:**
+- **Windows Command Prompt:**
   ```cmd
   ggsrun webapps -u "[YOUR_WEB_APP_URL]" -p pass1 -s test_script.js -v "Hello Google Apps Script!" -j
   ```
-* **macOS/Linux Terminal:**
+- **macOS/Linux Terminal:**
   ```bash
   ./ggsrun webapps -u "[YOUR_WEB_APP_URL]" -p pass1 -s test_script.js -v "Hello Google Apps Script!" -j
   ```
 
 ### Expected Output
+
 In both cases, `ggsrun` will securely upload the script payload, run it in the Google Cloud environment, and output a clean JSON result directly to your terminal showing the return string:
 `"Success! Received local message: Hello Google Apps Script!"`. Your local workspace automation is completely operational!
 
@@ -327,23 +369,23 @@ Alternatively, you can download pre-built binaries directly from the [Releases p
 
 The following compiled binaries are available:
 
-* **macOS (Darwin)**
-  * `ggsrun_darwin_amd64`
-  * `ggsrun_darwin_arm64`
-* **Linux**
-  * `ggsrun_linux_386`
-  * `ggsrun_linux_amd64`
-  * `ggsrun_linux_arm64`
-  * `ggsrun_linux_arm7`
-  * `ggsrun_linux_mips`
-  * `ggsrun_linux_mipsle`
-* **FreeBSD**
-  * `ggsrun_freebsd_amd64`
-  * `ggsrun_freebsd_arm64`
-* **Windows**
-  * `ggsrun_windows_386.exe`
-  * `ggsrun_windows_amd64.exe`
-  * `ggsrun_windows_arm64.exe`
+- **macOS (Darwin)**
+  - `ggsrun_darwin_amd64`
+  - `ggsrun_darwin_arm64`
+- **Linux**
+  - `ggsrun_linux_386`
+  - `ggsrun_linux_amd64`
+  - `ggsrun_linux_arm64`
+  - `ggsrun_linux_arm7`
+  - `ggsrun_linux_mips`
+  - `ggsrun_linux_mipsle`
+- **FreeBSD**
+  - `ggsrun_freebsd_amd64`
+  - `ggsrun_freebsd_arm64`
+- **Windows**
+  - `ggsrun_windows_386.exe`
+  - `ggsrun_windows_amd64.exe`
+  - `ggsrun_windows_arm64.exe`
 
 ### 2. Obtain Google Cloud Credentials
 
@@ -418,18 +460,18 @@ _(Note: Change `"pass1"` to a secure custom password if you plan to execute weba
 
 Target IDs can belong to Standard Drives, Shared Drives, or Team Drives seamlessly. `ggsrun` natively handles the recursive mapping of folders and parallel byte-streaming.
 
-| Command                                                 | Action                                                                                              |
-| :------------------------------------------------------ | :-------------------------------------------------------------------------------------------------- |
-| `$ ggsrun download -i "FILE_ID1, FILE_ID2" -w 5`        | Downloads specific files utilizing 5 parallel channel workers.                                      |
-| `$ ggsrun download -i "FOLDER_ID" -w 10`                | Recursively maps and downloads an entire folder tree concurrently.                                  |
-| `$ ggsrun download -i "SPREADSHEET_ID" -e xlsx`         | Directs the Drive API to transpile and export a native Google Sheet into an `.xlsx` binary.         |
-| `$ ggsrun download -i "DOCUMENT_ID" -e md`              | Directs the Drive API to transpile and export a Google Doc into a Markdown (`.md`) file.             |
-| `$ ggsrun download -i "DOCUMENT_ID" -e pdf`              | Directs the Drive API to transpile and export a Google Doc into a PDF (`.pdf`) file.                 |
-| `$ ggsrun download -i "FOLDER_ID" -m "application/pdf"` | Recursively downloads a folder, but filters specifically to retrieve only PDF files.                |
-| `$ ggsrun download -i "SCRIPT_ID" -z`                   | Downloads an entire GAS project, bundles all `.js`/`.html` files, and saves it as a `.zip` archive. |
-| `$ ggsrun download -i "SCRIPT_ID" -r`                   | Downloads a GAS project natively as raw `.json` payload.                                            |
-| `$ ggsrun download -i "FOLDER_ID" -cm update`            | Recursively downloads a folder, updating only files that are newer on Drive.                        |
-| `$ ggsrun download -i "FOLDER_ID" -d "./downloads"`    | Recursively downloads a folder, saving all files inside the `./downloads` directory (created automatically). |
+| Command                                                 | Action                                                                                                       |
+| :------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------- |
+| `$ ggsrun download -i "FILE_ID1, FILE_ID2" -w 5`        | Downloads specific files utilizing 5 parallel channel workers.                                               |
+| `$ ggsrun download -i "FOLDER_ID" -w 10`                | Recursively maps and downloads an entire folder tree concurrently.                                           |
+| `$ ggsrun download -i "SPREADSHEET_ID" -e xlsx`         | Directs the Drive API to transpile and export a native Google Sheet into an `.xlsx` binary.                  |
+| `$ ggsrun download -i "DOCUMENT_ID" -e md`              | Directs the Drive API to transpile and export a Google Doc into a Markdown (`.md`) file.                     |
+| `$ ggsrun download -i "DOCUMENT_ID" -e pdf`             | Directs the Drive API to transpile and export a Google Doc into a PDF (`.pdf`) file.                         |
+| `$ ggsrun download -i "FOLDER_ID" -m "application/pdf"` | Recursively downloads a folder, but filters specifically to retrieve only PDF files.                         |
+| `$ ggsrun download -i "SCRIPT_ID" -z`                   | Downloads an entire GAS project, bundles all `.js`/`.html` files, and saves it as a `.zip` archive.          |
+| `$ ggsrun download -i "SCRIPT_ID" -r`                   | Downloads a GAS project natively as raw `.json` payload.                                                     |
+| `$ ggsrun download -i "FOLDER_ID" -cm update`           | Recursively downloads a folder, updating only files that are newer on Drive.                                 |
+| `$ ggsrun download -i "FOLDER_ID" -d "./downloads"`     | Recursively downloads a folder, saving all files inside the `./downloads` directory (created automatically). |
 
 > [!NOTE]
 > When downloading a folder concurrently, specified export extensions via `-e` are dynamically validated against each file's native format. For example, if you download a folder with `-e xlsx`, Sheets inside the folder will convert to `.xlsx` files while unsupported files (like Slides or Docs) will print a warning and skip, allowing the queue to continue without failure.
@@ -459,12 +501,12 @@ Both `download` and `upload` commands support the `--conflict-mode` (or `-cm`) f
 
 If not specified, `ggsrun` will default to an **interactive CLI prompt** allowing you to dynamically select the resolution per collision.
 
-| Conflict Mode | Behavior (Download) | Behavior (Upload) |
-| :--- | :--- | :--- |
-| `skip` | Skips downloading the file if it already exists locally. | Skips uploading the file if it already exists on Google Drive. |
-| `overwrite` | Overwrites the local file. | Overwrites the remote file on Google Drive (triggers a `PATCH` request). |
-| `rename` | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename locally. | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename on Google Drive. |
-| `update` | Downloads only if the remote file is newer than the local file. | Uploads/updates only if the local file is newer than the remote file. |
+| Conflict Mode | Behavior (Download)                                               | Behavior (Upload)                                                         |
+| :------------ | :---------------------------------------------------------------- | :------------------------------------------------------------------------ |
+| `skip`        | Skips downloading the file if it already exists locally.          | Skips uploading the file if it already exists on Google Drive.            |
+| `overwrite`   | Overwrites the local file.                                        | Overwrites the remote file on Google Drive (triggers a `PATCH` request).  |
+| `rename`      | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename locally. | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to the filename on Google Drive. |
+| `update`      | Downloads only if the remote file is newer than the local file.   | Uploads/updates only if the local file is newer than the remote file.     |
 
 > [!NOTE]
 > The legacy `--overwrite` (`-o`) and `--skip` (`-s`) flags in `download` are deprecated. Please migrate to `--conflict-mode`.
@@ -472,11 +514,136 @@ If not specified, `ggsrun` will default to an **interactive CLI prompt** allowin
 > Naming collisions on directories/folders do not trigger prompts. They are silently reused, applying file-level conflict resolution strictly to the items within.
 > When `-j` (`--jsonparser`) is active, TUI logs and progress bars are fully muted and interactive prompts are bypassed, defaulting to `OverwriteIfNewer` unless overriden by `--cm`/`--conflict-mode`.
 
+### Interactive TUI Filer (FD Mode)
+
+#### Motivation
+The implementation of the FD mode (TUI Filer) in `ggsrun` stems from two main inspirations:
+1. **Nostalgia & Utility:** Drawing inspiration from the classic "FD" filer software used on legacy Japanese PC platforms like the NEC PC-9801 series in the late 1980s and 1990s. The developer recalled the efficiency of dual-pane, keyboard-driven file managers and recognized that bringing a similar lightweight, responsive local-and-remote filer to `ggsrun` would significantly enhance productivity when managing Google Drive files alongside local storage.
+2. **AI Capability Verification:** To evaluate and demonstrate the powerful agentic coding capabilities of the **Antigravity CLI (AI Coding Assistant)**. Building a complex, interactive, cross-platform TUI filer with mock-simulated unit testing is a rigorous test for an AI, and this feature showcases the tool's capacity to deliver robust, production-grade code autonomously.
+
+#### Prompt Used for Development
+The entire TUI filer feature set, bug fixes, layout refactor, and platform compatibility fixes were driven by the following unified developer prompt:
+
+```markdown
+# Goal
+Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as "FD mode") for the `ggsrun` Go application. This mode must allow users to manage local files (upper panel) and Google Drive files (lower panel) side-by-side, perform file transfers/operations, and execute Google Apps Script (GAS) directly from the interface. The codebase must compile across all target platforms (Linux 64/32bit/ARM, macOS, Windows) and include comprehensive unit tests.
+
+---
+
+## 1. UI Architecture & Responsive Layout
+- **Dual-Pane Layout**: Split the main screen vertically or horizontally using `tview` (upper panel for the local filesystem, lower panel for Google Drive).
+- **Status Bar**: Display keybindings and status info at the bottom.
+- **Visual Distinction**:
+  - Differentiate directories and files by color (e.g., color folders green/yellow).
+  - Render file details columns clearly, including Name, Size, Modified Date, and Permissions (human-readable system permissions for local, owner/sharing state for Google Drive).
+  - Ensure column values (like directory name or file ID) do not disappear or glitch during scroll navigation.
+- **70% Responsive Dialogs & Popups**:
+  - All popup windows (errors, execution prompts, sorting selection, conversion prompts, operation help, file details, and execution results) must occupy exactly 70% of the terminal width (using a `tview.Flex` layout with 15% margins on both sides).
+  - For long-text dialogs like "File Details" (`showFileDetails`) and "Error Messages" (`showError`), use a scrollable `tview.TextView` inside the 70% container instead of standard fixed-width modals, ensuring no content clips.
+  - In `showExecutionResult`, center the execution logs inside a 70% width and 70% height responsive popup window.
+  - For text input prompts (`promptTextInput`), set the input field width to fill the dialog width (`SetFieldWidth(0)`).
+
+---
+
+## 2. Navigation & File Operations
+- **Keyboard Shortcuts**:
+  - `Tab`: Switch focus between the Local and Remote panels.
+  - `Up` / `Down`: Navigate the file list. Add **Wrap-around** logic (cursor wraps to the top when going past the last item, and to the bottom when going past the first).
+  - `Space`: Toggle multi-selection.
+  - `Enter`: Enter directories, preview text files (local), open non-script files in a browser, or open script explorers (remote).
+  - `F5` / `F6` / `F8`: Copy, Move, or Delete selected items between panels.
+  - `c` / `m`: Copy or Move items within the same panel.
+  - `n`: Rename file/folder.
+  - `t`: Edit last modified timestamp.
+  - `d`: Edit description (remote files only).
+  - `x`: Convert and save file formats in place (remote only).
+  - `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the system clipboard.
+  - `i`: Open the 70% responsive detailed file metadata inspector.
+  - `r`: Refresh file lists.
+  - `q`: Safely exit TUI mode.
+- **Focus Persistence**:
+  - Crucial UX Requirement: The active panel and cursor focus must remain unchanged before and after any operations (such as file deletions, transfers, or script executions). Do not automatically shift focus to the local panel after remote operations.
+
+---
+
+## 3. GAS Script Execution Engine (`exe1` / `exe2` / `webapps`)
+- Map the `e` key to trigger GAS script execution.
+- Provide a choice between three execution modes:
+  1. `exe1`: Update remote project and execute a function.
+  2. `exe2`: Execute local script directly via Google API (executes `main` function only).
+  3. `webapps`: Execute local script via Web Apps URL (executes `main` function only).
+- **Execution Workflow**:
+  - Before running, prompt the user to input the target `Script ID` (for exe1/exe2) or `Web Apps URL` (for webapps). If these parameters are already configured in `ggsrun.cfg`, display them as the default placeholder value.
+  - Show the script ID or Web Apps URL being utilized during the execution.
+  - Clearly state in the UI that `exe2` and `webapps` only execute the `main` function.
+  - If execution fails or is cancelled, safely return the focus to the previous panel/table.
+
+---
+
+## 4. Cross-Platform Compilation & Fallbacks
+- To support multi-architecture building (especially for 32-bit Linux/ARM targets), separate file system creation time metrics into build-tagged files:
+  - `file_info_linux.go` (target `linux`, utilizing `stat.Ctim`)
+  - `file_info_darwin.go` (target `darwin`, utilizing `stat.Ctimespec`)
+  - `file_info_windows.go` (target `windows`, utilizing `syscall.Win32FileAttributeData`)
+  - `file_info_fallback.go` (default fallback returning standard modification time)
+- **Safe Type Casting**:
+  - Ensure all system-specific `Sec` and `Nsec` fields are explicitly cast to `int64` (e.g., `int64(stat.Ctim.Sec)`) before passing them to `time.Unix()` to prevent compilation failures on architectures where they are represented as `int32`.
+
+---
+
+## 5. Testing Requirements
+- Provide a robust mock test suite in `fd_test.go` using `tcell.SimulationScreen`.
+- Ensure all key behaviors (navigation, deletions, sorting, mime conversions, details modal rendering) are fully testable.
+- Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
+```
+
+#### Development & Release Results (v5.3.0)
+
+##### 📊 Consumed Resources
+- **Conversations**: 10 sessions (long-term development across context compactions).
+- **Development Time**: Approx. 1.5 to 2 hours (including investigation, integration tests, and fixing build warnings).
+- **Quota Consumption**: High. Complex layout refactoring, mock testing, and cross-compilation validation resulted in a context size reaching hundreds of thousands of tokens.
+
+##### 💡 Efficiency & Success Review
+- **Mock Simulation Test Environment**: The TUI event-simulation test environment using `tcell.SimulationScreen` in `fd_test.go` was extremely robust. This allowed for instant automatic verification of UI layout changes and key events without needing manual visual validation.
+- **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
+
+##### 🛠️ Key Improvements & Hardening
+- **Popup Refactoring**: Replaced `tview.NewModal` with a custom `tview.Flex` layout (15%:70%:15%) for each dialog (errors, file details, execution prompts, sorting selection, conversion prompts, help menu, and execution results), ensuring no content clips.
+- **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
+- **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
+- **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
+
+#### How to Launch
+To open the interactive TUI filer, run:
+```bash
+$ ggsrun fd
+```
+
+#### Keybindings Summary
+- `Tab`: Switch focus between panels.
+- `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).
+- `Space`: Multi-select items.
+- `Enter`: Open/enter directory, preview local text files, open Google Drive files in browser (WSL2 optimized), or browse Google Apps Script source files.
+- `F5`: Copy selected item(s) to the opposite panel.
+- `F6`: Move selected item(s) to the opposite panel.
+- `F8`: Delete selected item(s).
+- `c` / `m`: Copy or move items within the same panel.
+- `n`: Rename file or directory.
+- `t`: Change timestamp (Last Modified).
+- `d`: Edit description (Google Drive files only).
+- `x`: Convert MIME type and save in place (Google Drive only).
+- `e`: Execute Google Apps Script (select `exe1`, `exe2`, or `webapps` dynamically).
+- `i`: Show detailed file metadata in a 70% responsive centered popup window.
+- `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the clipboard.
+- `r`: Refresh local and remote panels.
+- `q`: Exit FD mode.
+
 ---
 
 ## Model Context Protocol (MCP) Server & LLM Integration
 
-Running `$ ggsrun mcp` transforms `ggsrun` into a native **Model Context Protocol (MCP) Server**, communicating with LLM clients (such as Claude Desktop, Cursor, or specialized AI agents) over standard I/O (`stdin`/`stdout`). 
+Running `$ ggsrun mcp` transforms `ggsrun` into a native **Model Context Protocol (MCP) Server**, communicating with LLM clients (such as Claude Desktop, Cursor, or specialized AI agents) over standard I/O (`stdin`/`stdout`).
 
 With the release of **v5.1.1**, the MCP capabilities are enhanced to fully expose modern conflict resolution and deliver deeply structured JSON results.
 
@@ -498,7 +665,9 @@ Add the following JSON configuration snippet, ensuring that the `command` value 
 ```
 
 ### 1. Exposed Tools
+
 The MCP server exposes the following high-level tools to your AI agent:
+
 - `searchfiles`: Search Google Drive files using standard Google Drive API v3 queries (e.g., `name='target' and trashed=false`). Supports optional regex filename filtering.
 - `download`: Download files or folders by File ID. Includes a `--conflict-mode` option to handle name collisions, and supports custom local filename mapping.
 - `upload`: Upload a local file or recursive folder to a Google Drive location. Includes a `--conflict-mode` option and `--projectname` for GAS scripts.
@@ -506,14 +675,14 @@ The MCP server exposes the following high-level tools to your AI agent:
 - `filelist`: Exact name or ID search for files, returning Google Drive File details and names.
 
 ### 2. Standardized JSON Output (`TransferResult`)
+
 When executing transfer operations (uploads/downloads), `ggsrun` outputs a standardized JSON payload structure named `TransferResult`. This allows your AI agent to reliably parse the result, extract metadata, and identify multi-turn actions like conflict resolution.
 
 **Example `TransferResult` JSON structure:**
+
 ```json
 {
-  "message": [
-    "Upload processed successfully."
-  ],
+  "message": ["Upload processed successfully."],
   "files": [
     {
       "name": "file_2.txt",
@@ -543,22 +712,26 @@ When executing transfer operations (uploads/downloads), `ggsrun` outputs a stand
 You can manually test the MCP server configuration and schemas directly on your command line by piping JSON-RPC payloads into the standard input of `ggsrun mcp`.
 
 **1. Test MCP Server Initialization**
+
 ```bash
 $ echo '{"jsonrpc": "2.0", "method": "initialize", "id": 1}' | ggsrun mcp
 ```
 
 **2. List All Available Tools and Schemas**
+
 ```bash
 $ echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 2}' | ggsrun mcp
 ```
 
 **3. Test Drive Search (`searchfiles` tool)**
+
 ```bash
 $ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "searchfiles", "arguments": {"query": "name = '\''test_script.gs'\'' and trashed = false"}}, "id": 3}' | ggsrun mcp
 ```
 
 **4. Test Stateful GAS Script Execution (`exe1` tool)**
 This invokes the `main` function using the local configuration fallback for `scriptid`:
+
 ```bash
 $ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "exe1", "arguments": {"scriptfile": "./my_script.js", "function": "main"}}, "id": 4}' | ggsrun mcp
 ```
@@ -568,39 +741,41 @@ $ echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "exe1", "a
 To help your AI agent interact effectively with the `ggsrun` MCP server, use the following standardized and optimized prompts.
 
 #### Scenario A: Batch Upload with Interactive Conflict Resolution
+
 Test how the AI coordinates partial execution and handles unexpected collisions when some files already exist in Google Drive while others do not.
 
-* **Setup:** Ensure `file_1.txt` already exists on your Google Drive, while `file_2.txt` is a brand-new local file.
-* **Agent Prompt:**
+- **Setup:** Ensure `file_1.txt` already exists on your Google Drive, while `file_2.txt` is a brand-new local file.
+- **Agent Prompt:**
   > "Please upload `file_1.txt` and `file_2.txt` to Google Drive using the `upload` tool. Do not specify the conflict mode initially. If there are pending conflicts, ask me how to resolve them."
-* **Expected Interaction Flow:**
+- **Expected Interaction Flow:**
   1. The AI invokes the `upload` tool for both files without passing the `--conflict-mode` argument.
   2. The `ggsrun` backend uploads `file_2.txt` successfully and populates it in the `files` array, but registers `file_1.txt` under `pendingConflicts` with `"status": "pending_conflict"`.
-  3. The AI parses the `TransferResult` and successfully reports: *"I have uploaded `file_2.txt` (ID: ...). However, `file_1.txt` already exists. Would you like to skip, overwrite, rename, or update it?"*
-  4. You reply: *"Please overwrite it."*
+  3. The AI parses the `TransferResult` and successfully reports: _"I have uploaded `file_2.txt` (ID: ...). However, `file_1.txt` already exists. Would you like to skip, overwrite, rename, or update it?"_
+  4. You reply: _"Please overwrite it."_
   5. The AI intelligently invokes the `upload` tool specifically for `file_1.txt` with `conflict-mode` set to `"overwrite"`.
 
 #### Scenario B: Granular Metadata Extraction and Parsing
+
 Test if the AI can retrieve full file metadata from `TransferResult` and report specific file properties precisely.
 
-* **Agent Prompt:**
+- **Agent Prompt:**
   > "Please download the file with ID `[YOUR_FILE_ID]` from Google Drive. Tell me exactly where it was saved (`localPath`) and its `size` from the result."
-* **Expected Interaction Flow:**
+- **Expected Interaction Flow:**
   1. The AI invokes the `download` tool passing the target file ID.
   2. `ggsrun` performs the parallel download and returns a standardized JSON structure containing the file array.
-  3. The AI successfully parses the `files` array in `TransferResult` and replies to you with clear, accurate metadata: *"The file has been saved to `[localPath]` and its size is `[size]` bytes."*
+  3. The AI successfully parses the `files` array in `TransferResult` and replies to you with clear, accurate metadata: _"The file has been saved to `[localPath]` and its size is `[size]` bytes."_
 
 ### 4. Sample Prompts to Give to Your AI Agent
 
 You can use the following sample prompts to instruct an AI Agent (e.g. Claude Desktop, Cursor, or Gemini Agent) connected to your `ggsrun` MCP server:
 
-* **Find and download a script file by name:**
+- **Find and download a script file by name:**
   > "Please search my Google Drive for a file named 'backup_utility.js'. If you find it, download it to my local workspace and let me know the path where you saved it."
-* **Run a local GAS script on Google Drive statefully:**
+- **Run a local GAS script on Google Drive statefully:**
   > "Upload the local script file `./main.gs` to my Google Apps Script project (Script ID is `1IRpZ4Hu...`) and execute the `main` function. Please return the output payload."
-* **Search files with Drive API v3 queries:**
+- **Search files with Drive API v3 queries:**
   > "Search for folders modified within the last 7 days that do not contain 'archive' in their name. Give me a list of their names and IDs."
-* **Upload local files and handle conflicts dynamically:**
+- **Upload local files and handle conflicts dynamically:**
   > "Upload the local file `./data/report_2026.csv` to the Drive folder `1a2b3c...`. If a file with the same name already exists in that folder, ask me whether to overwrite, skip, or rename it, and then proceed with my choice."
 
 ---

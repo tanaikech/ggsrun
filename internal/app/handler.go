@@ -3,7 +3,7 @@
 package app
 
 import (
-	"os"
+	"ggsrun/internal/utl"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -103,5 +103,5 @@ func checkStatus(c *cli.Context) error {
 // commandNotFound :
 func commandNotFound(c *cli.Context, command string) {
 	pterm.Error.Printf("'%s' is not a %s command. Check '%s --help' or '%s -h'.\n", command, c.App.Name, c.App.Name, c.App.Name)
-	os.Exit(2)
+	utl.Exit(2)
 }

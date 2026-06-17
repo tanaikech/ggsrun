@@ -45,7 +45,7 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 		if err != nil {
 			e.FailStatus("Stdin Read Error")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		isTemp = true
 	} else if c.String("scriptfile") != "" {
@@ -87,7 +87,7 @@ func (e *ExecutionContainer) exe2Function(c *cli.Context) *ExecutionContainer {
 		if len(c.String("value")) == 0 {
 			e.FailStatus("Validation Error")
 			pterm.Error.Println("No File ID. Please set it using '-v [ File ID ]'.")
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		rawScript = "function main(e){return new ggsrun(e, null, null).nodocsdownloader();}"
 	} else if len(c.String("stringscript")) > 0 {
@@ -98,14 +98,14 @@ func (e *ExecutionContainer) exe2Function(c *cli.Context) *ExecutionContainer {
 		if err != nil {
 			e.FailStatus("Stdin Read Error")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 	} else {
 		scriptFile := c.String("scriptfile")
 		if scriptFile == "" {
 			e.FailStatus("Validation Error")
 			pterm.Error.Println("No script. Please set GAS script using '-s' or '--stringscript'.")
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		rawScript = utl.ConvGasToPut(c)
 	}
@@ -165,7 +165,7 @@ func (e *ExecutionContainer) executionAPIwithServer(sendscript string, serverFun
 	if len(sendscript) == 0 {
 		e.FailStatus("Validation Error")
 		pterm.Error.Println("No script payload provided.")
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	// Set the API target endpoint to the specified GAS wrapper
@@ -191,54 +191,43 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 		if e.FeedBackData.Error.Status == "UNAUTHENTICATED" {
 			if len(e.chkAtoken().Error) > 0 {
 				pterm.Error.Printf("Invalid Access token. Please retrieve it again using command '%s auth'.\nCurrent access token is '%s'.\n", appname, e.GgsrunCfg.Accesstoken)
-				os.Exit(1)
+				utl.Exit(1)
 			}
 			pterm.Error.Printf("Authorization Error: Please check SCOPEs of your GAS script and server using GAS Script Editor.\nIf the SCOPEs have changed, modify them in '%s' and delete a line of 'refresh_token', then, execute '%s' again. You can retrieve new access token with modified SCOPEs.\n", cfgFile, appname)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		if e.FeedBackData.Error.Message == "PERMISSION_DENIED" &&
 			e.FeedBackData.Error.Code == 403 {
 			pterm.Error.Println("Please check Execution API at Developer console.\nIf Execution API is unable, please enable it. Or please check 'client_secret.json'. It might be that that is not for the project with Execution API.")
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		if e.FeedBackData.Error.Message == "Requested entity was not found." &&
 			e.FeedBackData.Error.Code == 404 {
 			pterm.Error.Println("Please check the deployment of API executable and/or the ggsrun server.\n - If you use command 'e1', please deploy API executable again. If you use command 'e2', please check both again.\n - After deployed API executable, please save each scripts on the project again. This is very important point!\n - When you use the server as library, please confirm server.\n - Also you can use 'Logger.log(ggsrunif.Beacon())' at Google Apps Script Editor to confirm server condition.\n - Also, please check the script ID.")
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		if len(e.FeedBackData.Error.Detailes) > 0 && e.FeedBackData.Error.Detailes[0].ErrorMessage == "The script completed but the returned value is not a supported return type." &&
 			e.FeedBackData.Error.Code == 500 {
 			pterm.Error.Printf("%s\n", e.FeedBackData.Error.Detailes[0].ErrorMessage)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		pterm.Error.Printf("%s.\n%s\n", err, body)
-		os.Exit(1)
+		utl.Exit(1)
 	}
-}
-
-// MarshalJSON : For exe1
-func (e *e1para) MarshalJSON() ([]byte, error) {
-	var outd string
-	if len(e.Parameters) > 0 {
-		if regexp.MustCompile(`^[+-]?[0-9]*[\.]?[0-9]+$`).Match([]byte(e.Parameters[0].(string))) ||
-			regexp.MustCompile(`^\[|\]$`).Match([]byte(e.Parameters[0].(string))) ||
-			regexp.MustCompile("^{|}$").Match([]byte(e.Parameters[0].(string))) {
-			outd = fmt.Sprintf("{\"devMode\":%t, \"parameters\":%v, \"function\":%q}", e.DevMode, e.Parameters, e.Function)
-		} else if regexp.MustCompile("([a-zA-Z]|[0-9].*[a-zA-Z]|[a-zA-Z].*[0-9])").Match([]byte(e.Parameters[0].(string))) {
-			outd = fmt.Sprintf("{\"devMode\":%t, \"parameters\":%q, \"function\":%q}", e.DevMode, e.Parameters, e.Function)
-		}
-	} else {
-		outd = fmt.Sprintf("{\"devMode\":%t, \"function\":%q}", e.DevMode, e.Function)
-	}
-	return []byte(outd), nil
 }
 
 // EsenderForExe1 : Sends GAS to Google and retrieves results.
 func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer {
 	e.UpdateStatus("Executing GAS function via Execution API...")
 	var paraint []interface{}
-	if len(c.String("value")) > 0 {
-		paraint = []interface{}{c.String("value")}
+	valStr := c.String("value")
+	if len(valStr) > 0 {
+		var parsedVal interface{}
+		if err := json.Unmarshal([]byte(valStr), &parsedVal); err == nil {
+			paraint = []interface{}{parsedVal}
+		} else {
+			paraint = []interface{}{valStr}
+		}
 	}
 	epara := &e1para{
 		Function:   e.Param.Function,
@@ -249,7 +238,7 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	if len(re) == 0 {
 		e.FailStatus("Validation Error")
 		pterm.Error.Printf("Format of values is wrong. Double and single quotates have to be escaped.\n - Inputted value was  %s\n", c.String("value"))
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	r := &utl.RequestParams{
 		Method:      "POST",
@@ -300,7 +289,7 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 		Dtime:       370,
 	}
 	body, err := r.FetchAPI()
-	
+
 	// Pre-inspect for function not found error to trigger self-healing
 	var testFeedBack FeedBackData
 	json.Unmarshal(body, &testFeedBack)
@@ -411,7 +400,7 @@ func (e *ExecutionContainer) projectUpdate2() *ExecutionContainer {
 		e.FailStatus("Project Upload Failed")
 		pterm.Error.Printf("%v. ", err)
 		utl.DispScopeError2(res)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	e.Msg = append(e.Msg, "Project was updated.")
 	return e
@@ -438,7 +427,7 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 		pterm.Error.Printf("%v.\n%v\n\n", err, string(res))
 		pterm.Warning.Println("One of reasons of error :\n Was the inputted project ID correct?")
 		utl.DispScopeError2(res)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	json.Unmarshal(res, &e.Project)
 	if c.Bool("backup") {
@@ -461,7 +450,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	if len(targetURL) == 0 {
 		e.FailStatus("Validation Error")
 		pterm.Error.Println("No URL for Web Apps. Please supply it via option '-u [Web Apps URL]' or configure it in ggsrun.cfg.")
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	tokenparams := url.Values{}
@@ -513,7 +502,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	if err != nil {
 		e.FailStatus("Network Initialization Failed")
 		pterm.Error.Printf("Failed to create request: %v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if accessToken != "" {
@@ -524,7 +513,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	if err != nil {
 		e.FailStatus("Network Transport Failed")
 		pterm.Error.Println("Please check Web Apps Service and/or URL of it. Web Apps Service might not be deployed.")
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	defer resp.Body.Close()
 
@@ -532,7 +521,7 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	if err != nil {
 		e.FailStatus("I/O Error")
 		pterm.Error.Printf("Failed to read response: %v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	// Catch the scenario where a user sets it to "Only myself" but has no valid token,
@@ -540,14 +529,14 @@ func (e *ExecutionContainer) webAppswithServerForExe3(script string, c *cli.Cont
 	if resp.StatusCode != http.StatusOK {
 		e.FailStatus("Authentication Boundary Hit")
 		pterm.Error.Printf("Web Apps returned Status Code %d.\nIf you set 'Who has access' to 'Only myself', ensure you have executed 'ggsrun auth' and have Drive scopes.\nResponse: %s\n", resp.StatusCode, string(body))
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	err = json.Unmarshal(body, &e.FeedBackData.Response.Result)
 	if err != nil {
 		e.FailStatus("Format Parsing Error")
 		pterm.Error.Printf("Failed to parse Web Apps response. (Are you hitting a login wall? Ensure your OAuth scopes are correct or set access to 'Anyone').\nError: %v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
@@ -676,9 +665,9 @@ func (e *ExecutionContainer) autoValidateAndDeployManifest(c *cli.Context, mode 
 		}
 		if !foundLib {
 			newLib := map[string]interface{}{
-				"userSymbol": "ggsrunif",
-				"libraryId": "115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov",
-				"version": "0",
+				"userSymbol":      "ggsrunif",
+				"libraryId":       "115-19njNHlbT-NI0hMPDnVO1sdrw2tJKCAJgOTIAPbi_jq3tOo4lVRov",
+				"version":         "0",
 				"developmentMode": true,
 			}
 			libs = append(libs, newLib)
@@ -692,7 +681,7 @@ func (e *ExecutionContainer) autoValidateAndDeployManifest(c *cli.Context, mode 
 		if _, ok := manifest["webapp"]; !ok {
 			manifest["webapp"] = map[string]interface{}{
 				"executeAs": "USER_DEPLOYING",
-				"access": "MYSELF",
+				"access":    "MYSELF",
 			}
 			modified = true
 		}

@@ -30,7 +30,7 @@ func (a *AuthContainer) goauth() *AuthContainer {
 		if err := a.getAtFromSa(); err != nil {
 			a.FailStatus("Authentication Failed")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		a.Msg = append(a.Msg, "Service Account was used.")
 		return a
@@ -220,7 +220,7 @@ func (a *AuthContainer) reAuth() {
 	fmt.Scanln(&confirm)
 	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
 		pterm.Info.Println("Authentication setup aborted.")
-		os.Exit(0)
+		utl.Exit(0)
 	}
 
 	a.getNewAccesstoken().makecfgfile()
@@ -295,7 +295,7 @@ func (a *AuthContainer) getAtoken() *AuthContainer {
 		a.FailStatus("Token Refresh Failed")
 		pterm.Error.Printf("%v. %s\n", err, body)
 		pterm.Info.Println("Hint: Try clearing your existing config manually or invoke 'ggsrun auth'.")
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	json.Unmarshal(body, &a.Atoken)
 	a.GgsrunCfg.Accesstoken = a.Atoken.Accesstoken
@@ -317,7 +317,7 @@ func (a *AuthContainer) chkAtoken() int64 {
 	if err != nil {
 		a.FailStatus("Token Check Failed")
 		pterm.Error.Printf("%v. ", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	json.Unmarshal(body, &a.ChkAt)
 	if len(a.ChkAt.Error) > 0 {
@@ -458,7 +458,7 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	if err != nil {
 		a.FailStatus("Authorization Flow Error")
 		pterm.Error.Printf("Error during authorization flow: %v\n", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	tokenparams := url.Values{}
@@ -479,7 +479,7 @@ func (a *AuthContainer) getNewAccesstoken() *AuthContainer {
 	if err != nil {
 		a.FailStatus("Token Issuance Failed")
 		pterm.Error.Printf("[ %v ] - Authorization token issuance failed. ", err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	json.Unmarshal(body, &a.Atoken)
 	a.GgsrunCfg.Clientid = a.Cs.Cid.ClientID
@@ -537,4 +537,3 @@ func getWslBrowserCmd(codeurl string) *exec.Cmd {
 	}
 	return exec.Command("xdg-open", codeurl)
 }
-

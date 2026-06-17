@@ -51,6 +51,7 @@
   - Show Folder Tree
   - Experiment 1
   - [Trial Usage](#trialusage)
+- [Interactive TUI Filer (FD Mode)](#interactive-tui-filer-fd-mode)
 - [Q&A](#Q&A)
 
 <a name="Overview"></a>
@@ -2205,6 +2206,135 @@ Here, it introduces a Quickstart for ggsrun. So please also check [the detail in
 6. Run ggsrun at terminal or command prompt. If the server information is displayed, it's done.
    - `$ ggsrun w -s sample.gs -p password -j -u [URL of web apps]`
 7. After this trial was done, <font color="Red"><u>**Please stop the deployed Web Apps.**</u></font> Because the web apps is deployed for anyone.
+
+<a name="interactive-tui-filer-fd-mode"></a>
+
+# Interactive TUI Filer (FD Mode)
+
+#### Motivation
+The implementation of the FD mode (TUI Filer) in `ggsrun` stems from two main inspirations:
+1. **Nostalgia & Utility:** Drawing inspiration from the classic "FD" filer software used on legacy Japanese PC platforms like the NEC PC-9801 series in the late 1980s and 1990s. The developer recalled the efficiency of dual-pane, keyboard-driven file managers and recognized that bringing a similar lightweight, responsive local-and-remote filer to `ggsrun` would significantly enhance productivity when managing Google Drive files alongside local storage.
+2. **AI Capability Verification:** To evaluate and demonstrate the powerful agentic coding capabilities of the **Antigravity CLI (AI Coding Assistant)**. Building a complex, interactive, cross-platform TUI filer with mock-simulated unit testing is a rigorous test for an AI, and this feature showcases the tool's capacity to deliver robust, production-grade code autonomously.
+
+#### Prompt Used for Development
+The entire TUI filer feature set, bug fixes, layout refactor, and platform compatibility fixes were driven by the following unified developer prompt:
+
+```markdown
+# Goal
+Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as "FD mode") for the `ggsrun` Go application. This mode must allow users to manage local files (upper panel) and Google Drive files (lower panel) side-by-side, perform file transfers/operations, and execute Google Apps Script (GAS) directly from the interface. The codebase must compile across all target platforms (Linux 64/32bit/ARM, macOS, Windows) and include comprehensive unit tests.
+
+---
+
+## 1. UI Architecture & Responsive Layout
+- **Dual-Pane Layout**: Split the main screen vertically or horizontally using `tview` (upper panel for the local filesystem, lower panel for Google Drive).
+- **Status Bar**: Display keybindings and status info at the bottom.
+- **Visual Distinction**:
+  - Differentiate directories and files by color (e.g., color folders green/yellow).
+  - Render file details columns clearly, including Name, Size, Modified Date, and Permissions (human-readable system permissions for local, owner/sharing state for Google Drive).
+  - Ensure column values (like directory name or file ID) do not disappear or glitch during scroll navigation.
+- **70% Responsive Dialogs & Popups**:
+  - All popup windows (errors, execution prompts, sorting selection, conversion prompts, operation help, file details, and execution results) must occupy exactly 70% of the terminal width (using a `tview.Flex` layout with 15% margins on both sides).
+  - For long-text dialogs like "File Details" (`showFileDetails`) and "Error Messages" (`showError`), use a scrollable `tview.TextView` inside the 70% container instead of standard fixed-width modals, ensuring no content clips.
+  - In `showExecutionResult`, center the execution logs inside a 70% width and 70% height responsive popup window.
+  - For text input prompts (`promptTextInput`), set the input field width to fill the dialog width (`SetFieldWidth(0)`).
+
+---
+
+## 2. Navigation & File Operations
+- **Keyboard Shortcuts**:
+  - `Tab`: Switch focus between the Local and Remote panels.
+  - `Up` / `Down`: Navigate the file list. Add **Wrap-around** logic (cursor wraps to the top when going past the last item, and to the bottom when going past the first).
+  - `Space`: Toggle multi-selection.
+  - `Enter`: Enter directories, preview text files (local), open non-script files in a browser, or open script explorers (remote).
+  - `F5` / `F6` / `F8`: Copy, Move, or Delete selected items between panels.
+  - `c` / `m`: Copy or Move items within the same panel.
+  - `n`: Rename file/folder.
+  - `t`: Edit last modified timestamp.
+  - `d`: Edit description (remote files only).
+  - `x`: Convert and save file formats in place (remote only).
+  - `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the system clipboard.
+  - `i`: Open the 70% responsive detailed file metadata inspector.
+  - `r`: Refresh file lists.
+  - `q`: Safely exit TUI mode.
+- **Focus Persistence**:
+  - Crucial UX Requirement: The active panel and cursor focus must remain unchanged before and after any operations (such as file deletions, transfers, or script executions). Do not automatically shift focus to the local panel after remote operations.
+
+---
+
+## 3. GAS Script Execution Engine (`exe1` / `exe2` / `webapps`)
+- Map the `e` key to trigger GAS script execution.
+- Provide a choice between three execution modes:
+  1. `exe1`: Update remote project and execute a function.
+  2. `exe2`: Execute local script directly via Google API (executes `main` function only).
+  3. `webapps`: Execute local script via Web Apps URL (executes `main` function only).
+- **Execution Workflow**:
+  - Before running, prompt the user to input the target `Script ID` (for exe1/exe2) or `Web Apps URL` (for webapps). If these parameters are already configured in `ggsrun.cfg`, display them as the default placeholder value.
+  - Show the script ID or Web Apps URL being utilized during the execution.
+  - Clearly state in the UI that `exe2` and `webapps` only execute the `main` function.
+  - If execution fails or is cancelled, safely return the focus to the previous panel/table.
+
+---
+
+## 4. Cross-Platform Compilation & Fallbacks
+- To support multi-architecture building (especially for 32-bit Linux/ARM targets), separate file system creation time metrics into build-tagged files:
+  - `file_info_linux.go` (target `linux`, utilizing `stat.Ctim`)
+  - `file_info_darwin.go` (target `darwin`, utilizing `stat.Ctimespec`)
+  - `file_info_windows.go` (target `windows`, utilizing `syscall.Win32FileAttributeData`)
+  - `file_info_fallback.go` (default fallback returning standard modification time)
+- **Safe Type Casting**:
+  - Ensure all system-specific `Sec` and `Nsec` fields are explicitly cast to `int64` (e.g., `int64(stat.Ctim.Sec)`) before passing them to `time.Unix()` to prevent compilation failures on architectures where they are represented as `int32`.
+
+---
+
+## 5. Testing Requirements
+- Provide a robust mock test suite in `fd_test.go` using `tcell.SimulationScreen`.
+- Ensure all key behaviors (navigation, deletions, sorting, mime conversions, details modal rendering) are fully testable.
+- Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
+```
+
+#### Development & Release Results (v5.3.0)
+
+##### 📊 Consumed Resources
+- **Conversations**: 10 sessions (long-term development across context compactions).
+- **Development Time**: Approx. 1.5 to 2 hours (including investigation, integration tests, and fixing build warnings).
+- **Quota Consumption**: High. Complex layout refactoring, mock testing, and cross-compilation validation resulted in a context size reaching hundreds of thousands of tokens.
+
+##### 💡 Efficiency & Success Review
+- **Mock Simulation Test Environment**: The TUI event-simulation test environment using `tcell.SimulationScreen` in `fd_test.go` was extremely robust. This allowed for instant automatic verification of UI layout changes and key events without needing manual visual validation.
+- **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
+
+##### 🛠️ Key Improvements & Hardening
+- **Popup Refactoring**: Replaced `tview.NewModal` with a custom `tview.Flex` layout (15%:70%:15%) for each dialog (errors, file details, execution prompts, sorting selection, conversion prompts, help menu, and execution results), ensuring no content clips.
+- **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
+- **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
+- **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
+
+#### How to Launch
+To open the interactive TUI filer, run:
+```bash
+$ ggsrun fd
+```
+
+#### Keybindings Summary
+- `Tab`: Switch focus between panels.
+- `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).
+- `Space`: Multi-select items.
+- `Enter`: Open/enter directory, preview local text files, open Google Drive files in browser (WSL2 optimized), or browse Google Apps Script source files.
+- `F5`: Copy selected item(s) to the opposite panel.
+- `F6`: Move selected item(s) to the opposite panel.
+- `F8`: Delete selected item(s).
+- `c` / `m`: Copy or move items within the same panel.
+- `n`: Rename file or directory.
+- `t`: Change timestamp (Last Modified).
+- `d`: Edit description (Google Drive files only).
+- `x`: Convert MIME type and save in place (Google Drive only).
+- `e`: Execute Google Apps Script (select `exe1`, `exe2`, or `webapps` dynamically).
+- `i`: Show detailed file metadata in a 70% responsive centered popup window.
+- `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the clipboard.
+- `r`: Refresh local and remote panels.
+- `q`: Exit FD mode.
+
+---
 
 ---
 

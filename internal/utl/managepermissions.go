@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 
 	json "github.com/goccy/go-json"
@@ -148,7 +147,7 @@ func (p *FileInf) ManagePermissions() *FileInf {
 	}
 	if err != nil {
 		pterm.Error.Println(err)
-		os.Exit(1)
+		Exit(1)
 	}
 	return p
 }

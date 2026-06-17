@@ -99,6 +99,14 @@
   3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
   4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
 
+- **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**
+  1. Refactored TUI Filer (FD Mode) popup layouts to be responsive. Custom-implemented 70% width centering using `tview.Flex` for error messages, sorting lists, text inputs, MIME conversions, help menu, and file details, preventing text clipping.
+  2. Implemented focus persistence across filer operations: focus remains locked on the pre-action panel and table after file transfers, deletions, and GAS executions.
+  3. Added wrap-around navigation to local and remote file tables.
+  4. Mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
+  5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
+  6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
+
 - **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
   1. Updated internal MIME type mapping definitions (`extVsmime`, `googlemimetypes`, `defaultformat`, `mimeVsEx` in `googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats` and `exportFormats`.
   2. Revamped the CLI options help display for `--extension` (`-e` in download/revision commands) and `--convertto` (`-c` in upload command) to list all supported file formats, resolving ambiguity.

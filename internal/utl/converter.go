@@ -44,14 +44,14 @@ func ConvGasToPut(c *cli.Context) string {
 	scriptfile, err := chkScript(c)
 	if err != nil {
 		pterm.Error.Printf("Compile/Validation error of script. Please check the script.\n%s\n", err.Error())
-		os.Exit(1)
+		Exit(1)
 	}
 	var res string
 	if len(scriptfile) > 0 {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
 			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
-			os.Exit(1)
+			Exit(1)
 		}
 		defer fp.Close()
 		scripts := []string{}
@@ -63,7 +63,7 @@ func ConvGasToPut(c *cli.Context) string {
 		}
 		if s.Err() != nil {
 			pterm.Error.Printf("%v .", s.Err())
-			os.Exit(1)
+			Exit(1)
 		}
 		mem := make([]byte, 0, 100)
 		for _, v := range scripts {
@@ -81,7 +81,7 @@ func ConvGasToRun(c *cli.Context) string {
 	scriptfile, err := chkScript(c)
 	if err != nil {
 		pterm.Error.Printf("Compile error of CoffeeScript. Please check the script.\n%s\n", err.Error())
-		os.Exit(1)
+		Exit(1)
 	}
 	senddata := c.String("value")
 	var res string
@@ -89,7 +89,7 @@ func ConvGasToRun(c *cli.Context) string {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
 			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
-			os.Exit(1)
+			Exit(1)
 		}
 		defer fp.Close()
 		scripts := []string{}
@@ -110,7 +110,7 @@ func ConvGasToRun(c *cli.Context) string {
 		}
 		if s.Err() != nil {
 			pterm.Error.Printf("%v .", s.Err())
-			os.Exit(1)
+			Exit(1)
 		}
 		mem := make([]byte, 0, 100)
 		for _, v := range scripts {
@@ -167,7 +167,7 @@ func ConvStringToRun(c *cli.Context, stringscript string) string {
 		}
 		if s.Err() != nil {
 			pterm.Error.Printf("%v .", s.Err())
-			os.Exit(1)
+			Exit(1)
 		}
 		mem := make([]byte, 0, 100)
 		for _, v := range scripts {
@@ -208,7 +208,7 @@ func ConvGasToUpload(scriptfile string) string {
 		fp, err := os.Open(scriptfile)
 		if err != nil {
 			pterm.Error.Printf("Script '%s' is not found. ", scriptfile)
-			os.Exit(1)
+			Exit(1)
 		}
 		defer fp.Close()
 		scripts := []string{}
@@ -220,7 +220,7 @@ func ConvGasToUpload(scriptfile string) string {
 		}
 		if s.Err() != nil {
 			pterm.Error.Printf("%v .", s.Err())
-			os.Exit(1)
+			Exit(1)
 		}
 		mem := make([]byte, 0, 100)
 		for _, v := range scripts {

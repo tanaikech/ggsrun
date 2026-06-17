@@ -4,7 +4,6 @@ package utl
 
 import (
 	"net/url"
-	"os"
 	"path"
 
 	"github.com/pterm/pterm"
@@ -35,7 +34,7 @@ func (p *FileInf) getDriveInf() error {
 func (p *FileInf) GetDriveInformation() *FileInf {
 	if err := p.getDriveInf(); err != nil {
 		pterm.Error.Println(err)
-		os.Exit(1)
+		Exit(1)
 	}
 	return p
 }

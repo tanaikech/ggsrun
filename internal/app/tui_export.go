@@ -1,0 +1,373 @@
+package app
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"ggsrun/internal/utl"
+	"time"
+
+	json "github.com/goccy/go-json"
+	"github.com/urfave/cli"
+)
+
+// RunTUIFunc is a callback initialized by the internal/tui package.
+var RunTUIFunc func(c *cli.Context) error
+
+// TUIProgressCallback is a function that can be set by the TUI to receive status updates.
+var TUIProgressCallback func(string)
+
+
+// GetAuthenticatedAuthContainer initializes and returns an authenticated AuthContainer.
+func GetAuthenticatedAuthContainer(c *cli.Context) *AuthContainer {
+	return defAuthContainer(c).ggsrunIni(c).goauth()
+}
+
+// DefDownloadContainerExported returns a FileInf initialized for downloads using defDownloadContainer.
+func (a *AuthContainer) DefDownloadContainerExported(c *cli.Context) *utl.FileInf {
+	return a.defDownloadContainer(c)
+}
+
+// DefUploadContainerExported returns a FileInf initialized for uploads using defUploadContainer.
+func (a *AuthContainer) DefUploadContainerExported(c *cli.Context) *utl.FileInf {
+	return a.defUploadContainer(c)
+}
+
+// TuiUpload performs a file or directory upload using concurrentUpload.
+func TuiUpload(c *cli.Context, a *AuthContainer) (interface{}, error) {
+	return concurrentUpload(context.Background(), c, a)
+}
+
+// TuiDownload performs a file or directory download using concurrentDownload.
+func TuiDownload(c *cli.Context, a *AuthContainer) (interface{}, error) {
+	return concurrentDownload(context.Background(), c, a)
+}
+
+// TuiExecuteGas invokes a function in the Google Apps Script project.
+func TuiExecuteGas(scriptID string, functionName string, args []interface{}, a *AuthContainer) (string, error) {
+	epara := struct {
+		Function   string        `json:"function"`
+		Parameters []interface{} `json:"parameters,omitempty"`
+		DevMode    bool          `json:"devMode"`
+	}{
+		Function:   functionName,
+		Parameters: args,
+		DevMode:    true,
+	}
+	re, err := json.Marshal(epara)
+	if err != nil {
+		return "", err
+	}
+	r := &utl.RequestParams{
+		Method:      "POST",
+		APIURL:      "https://script.googleapis.com/v1/scripts/" + scriptID + ":run",
+		Data:        bytes.NewBuffer(re),
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: a.GgsrunCfg.Accesstoken,
+		Dtime:       370,
+	}
+	body, err := r.FetchAPI()
+	if err != nil {
+		return string(body), err
+	}
+	return string(body), nil
+}
+
+// TuiUpdateDriveMetadata updates name, description, and/or modifiedTime of a Drive file.
+func TuiUpdateDriveMetadata(fileID string, name string, description string, modTime *time.Time, a *AuthContainer) error {
+	metadata := map[string]interface{}{}
+	if name != "" {
+		metadata["name"] = name
+	}
+	if description != "" {
+		metadata["description"] = description
+	}
+	if modTime != nil {
+		metadata["modifiedTime"] = modTime.Format(time.RFC3339)
+	}
+
+	re, err := json.Marshal(metadata)
+	if err != nil {
+		return err
+	}
+
+	r := &utl.RequestParams{
+		Method:      "PATCH",
+		APIURL:      "https://www.googleapis.com/drive/v3/files/" + fileID,
+		Data:        bytes.NewBuffer(re),
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: a.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+	_, err = r.FetchAPI()
+	return err
+}
+
+// TuiCopyDriveFile copies a Drive file to a new parent folder, optionally renaming it.
+func TuiCopyDriveFile(fileID string, newName string, parentID string, a *AuthContainer) (string, error) {
+	metadata := map[string]interface{}{}
+	if newName != "" {
+		metadata["name"] = newName
+	}
+	if parentID != "" {
+		metadata["parents"] = []string{parentID}
+	}
+
+	re, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+
+	r := &utl.RequestParams{
+		Method:      "POST",
+		APIURL:      "https://www.googleapis.com/drive/v3/files/" + fileID + "/copy",
+		Data:        bytes.NewBuffer(re),
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: a.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+	body, err := r.FetchAPI()
+	if err != nil {
+		return "", err
+	}
+	var res struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(body, &res)
+	return res.ID, nil
+}
+
+// TuiCreateDriveFolder creates a new folder on Google Drive.
+func TuiCreateDriveFolder(name string, parentID string, a *AuthContainer) (string, error) {
+	metadata := map[string]interface{}{
+		"name":     name,
+		"mimeType": "application/vnd.google-apps.folder",
+	}
+	if parentID != "" {
+		metadata["parents"] = []string{parentID}
+	}
+
+	re, err := json.Marshal(metadata)
+	if err != nil {
+		return "", err
+	}
+
+	r := &utl.RequestParams{
+		Method:      "POST",
+		APIURL:      "https://www.googleapis.com/drive/v3/files",
+		Data:        bytes.NewBuffer(re),
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: a.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+	body, err := r.FetchAPI()
+	if err != nil {
+		return "", err
+	}
+	var res struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(body, &res)
+	return res.ID, nil
+}
+
+// TuiRunExe1 runs the exe1 command logic and returns the response payload as a JSON string.
+func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("internal process exited: %v", r)
+		}
+	}()
+
+	e := a.defExecutionContainer()
+
+	// Handle script ID override if provided
+	if c.String("scriptid") != "" {
+		e.GgsrunCfg.Scriptid = c.String("scriptid")
+	}
+
+	// Defer cleanup of temporary file if it was uploaded
+	defer func() {
+		if e.InitVal.tempFileNameToCleanup != "" {
+			var newFiles []File
+			for _, f := range e.Project.Files {
+				if f.Name != e.InitVal.tempFileNameToCleanup {
+					newFiles = append(newFiles, f)
+				}
+			}
+			e.Project.Files = newFiles
+			e.projectUpdate2()
+		}
+	}()
+
+	if err := e.autoValidateAndDeployManifest(c, "e1"); err != nil {
+		return "", err
+	}
+
+	e.exe1Function(c).
+		executionAPIwithoutServer(c).
+		esenderForExe1(c)
+
+	if len(e.FeedBackData.Error.Message) > 0 {
+		var errMsg string
+		if len(e.FeedBackData.Error.Detailes) > 0 && e.FeedBackData.Error.Detailes[0].ErrorMessage != "" {
+			errMsg = e.FeedBackData.Error.Detailes[0].ErrorMessage
+		} else {
+			errMsg = e.FeedBackData.Error.Message
+		}
+		b, _ := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+		return string(b), fmt.Errorf("Script Error on GAS side: %s (code: %d)", errMsg, e.FeedBackData.Error.Code)
+	}
+
+	b, err := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// TuiRunExe2 runs the exe2 command logic and returns the response payload as a JSON string.
+func TuiRunExe2(c *cli.Context, a *AuthContainer) (resp string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("internal process exited: %v", r)
+		}
+	}()
+
+	e := a.defExecutionContainer()
+
+	// Handle script ID override if provided
+	if c.String("scriptid") != "" {
+		e.GgsrunCfg.Scriptid = c.String("scriptid")
+	}
+
+	if err := e.autoValidateAndDeployManifest(c, "e2"); err != nil {
+		return "", err
+	}
+
+	e.exe2Function(c)
+
+	if len(e.FeedBackData.Error.Message) > 0 {
+		var errMsg string
+		if len(e.FeedBackData.Error.Detailes) > 0 && e.FeedBackData.Error.Detailes[0].ErrorMessage != "" {
+			errMsg = e.FeedBackData.Error.Detailes[0].ErrorMessage
+		} else {
+			errMsg = e.FeedBackData.Error.Message
+		}
+		b, _ := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+		return string(b), fmt.Errorf("Script Error on GAS side: %s (code: %d)", errMsg, e.FeedBackData.Error.Code)
+	}
+
+	b, err := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// TuiRunWebApps runs the webapps command logic and returns the response payload as a JSON string.
+func TuiRunWebApps(c *cli.Context, a *AuthContainer) (resp string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("internal process exited: %v", r)
+		}
+	}()
+
+	e := a.defExecutionContainer()
+
+	// Handle script ID override if provided
+	if c.String("scriptid") != "" {
+		e.GgsrunCfg.Scriptid = c.String("scriptid")
+	}
+
+	var rawScript string
+	var isTemp bool
+	var tempFileName string
+
+	if c.String("stringscript") != "" {
+		rawScript = c.String("stringscript")
+		isTemp = true
+	} else {
+		scriptFile := c.String("scriptfile")
+		if scriptFile == "" {
+			return "", fmt.Errorf("no script. Please set GAS script using '-s' or '--stringscript'")
+		}
+		rawScript = utl.ConvGasToPut(c)
+		isTemp = true
+	}
+
+	if isTemp && e.GgsrunCfg.Scriptid != "" && e.GgsrunCfg.Accesstoken != "" && c.String("scriptfile") != "" {
+		timestamp := time.Now().Format("20060102150405")
+		tempFileName = "ggsrun_web_temp_" + timestamp
+
+		e.projectBackup(c)
+
+		defer func() {
+			var newFiles []File
+			for _, f := range e.Project.Files {
+				if f.Name != tempFileName {
+					newFiles = append(newFiles, f)
+				}
+			}
+			e.Project.Files = newFiles
+			e.projectUpdate2()
+			e.autoValidateAndDeployManifest(c, "w")
+		}()
+
+		filedata := File{
+			Name:   tempFileName,
+			Type:   "SERVER_JS",
+			Source: rawScript,
+		}
+		e.Project.Files = append(e.Project.Files, filedata)
+		e.projectUpdate2()
+
+		if err := e.autoValidateAndDeployManifest(c, "w"); err != nil {
+			return "", err
+		}
+	} else {
+		if err := e.autoValidateAndDeployManifest(c, "w"); err != nil {
+			return "", err
+		}
+	}
+
+	val := c.String("value")
+	var argStr string
+	if val != "" {
+		if numRe.MatchString(val) || arrayRe.MatchString(val) || objRe.MatchString(val) || val == "true" || val == "false" || val == "null" {
+			argStr = val
+		} else {
+			argStr = fmt.Sprintf("%q", val)
+		}
+	}
+
+	wrappedScript := fmt.Sprintf(`(function() {
+%s
+if (typeof main !== 'undefined') {
+	return main(%s);
+}
+return "Execution completed, but main() was not defined in the local script.";
+})()`, rawScript, argStr)
+
+	quotedBytes, _ := json.Marshal(wrappedScript)
+	quotedScript := string(quotedBytes)
+
+	e.webAppswithServerForExe3(quotedScript, c)
+
+	if len(e.FeedBackData.Error.Message) > 0 {
+		var errMsg string
+		if len(e.FeedBackData.Error.Detailes) > 0 && e.FeedBackData.Error.Detailes[0].ErrorMessage != "" {
+			errMsg = e.FeedBackData.Error.Detailes[0].ErrorMessage
+		} else {
+			errMsg = e.FeedBackData.Error.Message
+		}
+		b, _ := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+		return string(b), fmt.Errorf("Script Error on GAS side: %s (code: %d)", errMsg, e.FeedBackData.Error.Code)
+	}
+
+	b, err := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}

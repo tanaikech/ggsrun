@@ -139,6 +139,7 @@ type fileS struct {
 	ID                string     `json:"id,omitempty"`
 	Name              string     `json:"name,omitempty"`
 	MimeType          string     `json:"mimeType,omitempty"`
+	Description       string     `json:"description,omitempty"`
 	Starred           bool       `json:"starred,omitempty"`
 	Trashed           bool       `json:"trashed,omitempty"`
 	ExplicitlyTrashed bool       `json:"explicitlyTrashed,omitempty"`
@@ -226,7 +227,7 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 		if chkFile(filename) && !p.OverWrite {
 			if !p.Skip {
 				pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", filename)
-				os.Exit(1)
+				Exit(1)
 			} else {
 				if p.Progress {
 					pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", filename)
@@ -282,7 +283,7 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 			if chkFile(zipFileName) && !p.OverWrite {
 				if !p.Skip {
 					pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", zipFileName)
-					os.Exit(1)
+					Exit(1)
 				} else {
 					if p.Progress {
 						pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", baseName)
@@ -302,7 +303,7 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 				if chkFile(scriptFileName) && !p.OverWrite {
 					if !p.Skip {
 						pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", scriptFileName)
-						os.Exit(1)
+						Exit(1)
 					} else {
 						if p.Progress {
 							pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", scriptFileName)
@@ -334,7 +335,7 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 		err := p.DlFolders()
 		if err != nil {
 			pterm.Error.Printf("%s", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 		return p
@@ -361,7 +362,7 @@ func (p *FileInf) Downloader(c *cli.Context) *FileInf {
 			if len(p.SaveName) == 0 {
 				dispRes, _ := json.MarshalIndent(gm["exportFormats"], "", "  ")
 				pterm.Error.Printf("Bad extension or No extension. It supports as follows.\n%s ", string(dispRes))
-				os.Exit(1)
+				Exit(1)
 			}
 			if p.MimeType == "application/vnd.google-apps.script" {
 				u, _ := url.Parse(appsscriptapi)
@@ -426,7 +427,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	}(strconv.ParseInt(p.FileSize, 10, 64))
 	if err != nil {
 		pterm.Error.Printf("%v. ", err)
-		os.Exit(1)
+		Exit(1)
 	}
 	r := &RequestParams{
 		Method:      "GET",
@@ -440,11 +441,11 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	if err != nil {
 		errmsg, er := io.ReadAll(res.Body)
 		if er != nil {
-			os.Exit(1)
+			Exit(1)
 		}
 		defer res.Body.Close()
 		pterm.Error.Printf("%v. %s", err, errmsg)
-		os.Exit(1)
+		Exit(1)
 	}
 	var body []byte
 	var dFileName string
@@ -452,7 +453,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 		body, err = io.ReadAll(res.Body)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		defer res.Body.Close()
 		var er dlError
@@ -462,7 +463,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 			if er.Error.Message == "Request had insufficient authentication scopes." {
 				DispScopeError1()
 			}
-			os.Exit(1)
+			Exit(1)
 		}
 		return p.saveScript(body)
 	}
@@ -470,7 +471,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 	if chkFile(dFileName) && !p.OverWrite {
 		if !p.Skip {
 			pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", dFileName)
-			os.Exit(1)
+			Exit(1)
 		} else {
 			if p.Progress {
 				pterm.Warning.Printf("File of '%s' is not saved and skipped, because the file is duplicated.\n", p.SaveName)
@@ -481,7 +482,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 		file, err := os.Create(dFileName)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if p.Progress {
 			chunks := &chunks{
@@ -501,12 +502,12 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 		}
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		fileInfo, err := file.Stat()
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if p.Progress {
 			fmt.Printf("\n")
@@ -534,7 +535,7 @@ func (p *FileInf) deleteFile(id string) {
 	body, err := r.FetchAPI()
 	if err != nil {
 		pterm.Error.Printf("%s\n%s\n", err, body)
-		os.Exit(1)
+		Exit(1)
 	}
 }
 
@@ -579,13 +580,13 @@ func (p *FileInf) ChkBoundOrStandalone(fileId string) ([]byte, error, bool) {
 		return body, err, false
 	} else if err != nil && len(fileId) < lengthOfProjectId {
 		pterm.Error.Printf("File ID '%s' Not found. %v .", fileId, err)
-		os.Exit(1)
+		Exit(1)
 	}
 	var er dlError
 	json.Unmarshal(body, &er)
 	if err != nil || er.Error.Code-300 >= 0 {
 		pterm.Error.Printf("%s Status code is %d. ", er.Error.Message, er.Error.Code)
-		os.Exit(1)
+		Exit(1)
 	}
 	return body, err, true
 }
@@ -602,7 +603,7 @@ func (p *FileInf) GetFileinf() *FileInf {
 		finf, err := p.nameToID(p.WantName)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		var fl fileListSt
 		json.Unmarshal(finf, &fl)
@@ -630,10 +631,10 @@ func (p *FileInf) GetFileinf() *FileInf {
 				rd, _ := json.MarshalIndent(dd, "", "  ")
 				fmt.Printf("%s\n", rd)
 			}
-			os.Exit(1)
+			Exit(1)
 		} else {
 			pterm.Error.Printf("File name '%s' is not found. ", p.WantName)
-			os.Exit(1)
+			Exit(1)
 		}
 	}
 	return p
@@ -681,17 +682,17 @@ func DefFormat(mime string) (string, string) {
 func IsExportable(srcMime, targetMime string) bool {
 	var gm map[string]interface{}
 	json.Unmarshal([]byte(googlemimetypes), &gm)
-	
+
 	exportFormats, ok := gm["exportFormats"].(map[string]interface{})
 	if !ok {
 		return false
 	}
-	
+
 	targets, ok := exportFormats[srcMime].([]interface{})
 	if !ok {
 		return false
 	}
-	
+
 	for _, t := range targets {
 		if tStr, ok := t.(string); ok && tStr == targetMime {
 			return true
@@ -708,13 +709,13 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 		fs, err = os.Open(file)
 		if err != nil {
 			pterm.Error.Printf("%v.\n", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		defer fs.Close()
 		fstatus, err := fs.Stat()
 		if err != nil {
 			pterm.Error.Printf("%v.\n", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if fstatus.Size() > maxSizeForMultipart {
 			rbody := p.ResumableUpload(metadata, fs, fstatus)
@@ -734,22 +735,22 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	data, err := w.CreatePart(part)
 	if err != nil {
 		pterm.Error.Printf("%v. ", err)
-		os.Exit(1)
+		Exit(1)
 	}
 	re, _ := json.Marshal(metadata)
 	if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
 		pterm.Error.Printf("%v. ", err)
-		os.Exit(1)
+		Exit(1)
 	}
 	if file != "" {
 		data, err = w.CreateFormFile("file", file)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if _, err = io.Copy(data, fs); err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 	}
 	w.Close()
@@ -764,7 +765,7 @@ func (p *FileInf) fileUploader(metadata map[string]interface{}, file string) *Fi
 	body, err := r.FetchAPI()
 	if err != nil {
 		pterm.Error.Printf("%s\n%s\n", err, body)
-		os.Exit(1)
+		Exit(1)
 	}
 	var uf uploadedFile
 	json.Unmarshal(body, &uf)
@@ -792,21 +793,21 @@ func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{},
 		data, err := w.CreatePart(part)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		re, _ := json.Marshal(metadata)
 		if _, err = io.Copy(data, bytes.NewReader(re)); err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		data, err = w.CreatePart(part)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		if _, err = io.Copy(data, bytes.NewReader(pr)); err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		urlStr = updateurl + p.FileID + "?uploadType=multipart&" + query.Encode()
 		r.Data = &b
@@ -824,7 +825,7 @@ func (p *FileInf) fileUpdater(query url.Values, metadata map[string]interface{},
 	body, err := r.FetchAPI()
 	if err != nil {
 		pterm.Error.Printf("%s\n%s\n", err, body)
-		os.Exit(1)
+		Exit(1)
 	}
 	var uf uploadedFile
 	json.Unmarshal(body, &uf)
@@ -849,7 +850,7 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 							mime, err := ExtToGMime(filepath.Ext(elm))
 							if err != nil {
 								pterm.Error.Printf("%v\n", err)
-								os.Exit(1)
+								Exit(1)
 							}
 							return mime
 						case convto == "document" || convto == "doc" || convto == "docs":
@@ -862,7 +863,7 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 							mime, err := ExtToGMime(convto)
 							if err != nil {
 								pterm.Error.Printf("%v\n", err)
-								os.Exit(1)
+								Exit(1)
 							}
 							return mime
 						}
@@ -904,7 +905,7 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 				p.createProjectInGoogleDocs(c, p.ParentID)
 			} else {
 				pterm.Error.Println("No project name. Please input project name using '--projectname' or '-pn' and try again.")
-				os.Exit(1)
+				Exit(1)
 			}
 		}
 	}
@@ -1014,7 +1015,7 @@ func (p *FileInf) createProject(timeZone string) []byte {
 		}
 		if len(pr.Files) == 0 {
 			pterm.Error.Println("Inputted files cannot be used for GAS project.")
-			os.Exit(1)
+			Exit(1)
 		}
 	} else {
 		filedata := &filea{
@@ -1073,7 +1074,7 @@ func ExtToGMime(ext string) (string, error) {
 	}
 	var gm map[string]interface{}
 	json.Unmarshal([]byte(googlemimetypes), &gm)
-	
+
 	importFormats, ok := gm["importFormats"].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("invalid googlemimetypes config")
@@ -1082,7 +1083,7 @@ func ExtToGMime(ext string) (string, error) {
 	if !ok || len(targets) == 0 {
 		return "", fmt.Errorf("conversion is not supported for extension '%s'", ext)
 	}
-	
+
 	targetMime, ok := targets[0].(string)
 	if !ok {
 		return "", fmt.Errorf("invalid mapping type")
@@ -1097,7 +1098,7 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 		body, err := p.nameToID(p.SearchByName)
 		if err != nil {
 			pterm.Error.Printf("%v. ", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		var fl fileListSt
 		json.Unmarshal(body, &fl)
@@ -1121,10 +1122,10 @@ func (p *FileInf) GetFileList(c *cli.Context) *FileInf {
 					fl.Files[i].WebView,
 				)
 			}
-			os.Exit(1)
+			Exit(1)
 		} else {
 			pterm.Error.Printf("File name '%s' is not found. How about trying this using file ID, again?", p.SearchByName)
-			os.Exit(1)
+			Exit(1)
 		}
 		p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 		return p

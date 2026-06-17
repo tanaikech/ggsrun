@@ -48,7 +48,7 @@ func (p *FileInf) initResumableUpload(metadata map[string]interface{}) string {
 	res, err := r.FetchAPIres()
 	if res.StatusCode != 200 || err != nil {
 		pterm.Error.Printf("%v\n%v\n", err, res)
-		os.Exit(1)
+		Exit(1)
 	}
 	return res.Header["Location"][0]
 }
@@ -125,7 +125,7 @@ func resToBody(res *http.Response) []byte {
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		pterm.Error.Printf("%v\n", err)
-		os.Exit(1)
+		Exit(1)
 	}
 	defer res.Body.Close()
 	return body
@@ -170,7 +170,7 @@ func (cP *chunkPot) resumableMultipleRequest(location string, fileBytes []byte, 
 		res, err := r.FetchAPIres()
 		if err != nil {
 			pterm.Error.Printf("%v\n", err)
-			os.Exit(1)
+			Exit(1)
 		}
 		switch res.StatusCode {
 		case 308:
@@ -194,7 +194,7 @@ func (p *FileInf) ResumableUpload(metadata map[string]interface{}, fs *os.File, 
 	fileBytes, err := io.ReadAll(fs)
 	if err != nil {
 		pterm.Error.Printf("%v\n", err)
-		os.Exit(1)
+		Exit(1)
 	}
 	defer fs.Close()
 	var r []byte
@@ -205,7 +205,7 @@ func (p *FileInf) ResumableUpload(metadata map[string]interface{}, fs *os.File, 
 	}
 	if err != nil {
 		pterm.Error.Printf("%v\n%v\n", err, string(r))
-		os.Exit(1)
+		Exit(1)
 	}
 	return r
 }

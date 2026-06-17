@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.2.4"
+	app.Version = "5.3.0"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -542,6 +542,19 @@ func Run() {
 			Description: "Quick health diagnostic tool for tokens and environment resolution.",
 			Action:      checkStatus,
 			Flags:       getCommonFlags(),
+		},
+		{
+			Name:        "fd",
+			Usage:       "Launches the interactive split-screen TUI file manager.",
+			Description: "Launches the PC-98 style split-screen TUI file manager bridging local system and Google Drive.",
+			Action: func(c *cli.Context) error {
+				if RunTUIFunc != nil {
+					return RunTUIFunc(c)
+				}
+				pterm.Error.Println("TUI module not initialized.")
+				return nil
+			},
+			Flags: getCommonFlags(),
 		},
 		{
 			Name:        "mcp",

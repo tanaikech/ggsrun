@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -124,7 +123,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 		json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
 			pterm.Error.Printf("%s (Status code is %d)\n", er.Error.Message, er.Error.Code)
-			os.Exit(1)
+			Exit(1)
 		}
 		var rl revisionListv2
 		json.Unmarshal(body, &rl)
@@ -157,7 +156,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 						p.DlMime = ExtToMime(ext)
 						if len(p.DlMime) == 0 {
 							pterm.Error.Printf("'%s' is wrong extension.\n", ext)
-							os.Exit(1)
+							Exit(1)
 						}
 					} else {
 						p.DlMime, ext = DefFormat(p.MimeType)
@@ -173,7 +172,7 @@ func (p *FileInf) getRevFromGoogleDocs(c *cli.Context) {
 			}
 			if len(p.SaveName) == 0 {
 				pterm.Error.Printf("'%s' is wrong revision number.\n", c.String("download"))
-				os.Exit(1)
+				Exit(1)
 			}
 		}
 	}
@@ -198,7 +197,7 @@ func (p *FileInf) downloadRevisionFile() {
 		}
 		if p.MimeType == "application/vnd.google-apps.script" {
 			pterm.Error.Println("I think that the project file does NOT support revisions yet. If you know how to get revisions for projects using API, please tell me. I'm glad.")
-			os.Exit(1)
+			Exit(1)
 		} else {
 			params := url.Values{}
 			params.Set("revisions", p.RevisionID)
@@ -232,7 +231,7 @@ func (p *FileInf) getRevFromExGoogleDocs(c *cli.Context) {
 		json.Unmarshal(body, &er)
 		if err != nil || er.Error.Code-300 >= 0 {
 			pterm.Error.Printf("%s (Status code is %d)\n", er.Error.Message, er.Error.Code)
-			os.Exit(1)
+			Exit(1)
 		}
 		var rl revisionList
 		json.Unmarshal(body, &rl)

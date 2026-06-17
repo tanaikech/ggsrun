@@ -38,17 +38,17 @@ func readAllStdin() (string, error) {
 // Safeguard helpers
 func showE1HelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	os.Exit(1)
+	utl.Exit(1)
 }
 
 func showE2HelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	os.Exit(1)
+	utl.Exit(1)
 }
 
 func showWHelpAndExit(c *cli.Context) {
 	cli.ShowCommandHelp(c, c.Command.Name)
-	os.Exit(1)
+	utl.Exit(1)
 }
 
 // exeAPIWithout : exe1
@@ -88,7 +88,7 @@ func exeAPIWithout(c *cli.Context) error {
 	if err := e.autoValidateAndDeployManifest(c, "e1"); err != nil {
 		e.FailStatus("Manifest Validation Error")
 		pterm.Error.Println(err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	e.exe1Function(c).
@@ -143,7 +143,7 @@ func exeAPIWith(c *cli.Context) error {
 	if err := e.autoValidateAndDeployManifest(c, "e2"); err != nil {
 		e.FailStatus("Manifest Validation Error")
 		pterm.Error.Println(err)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 
 	e.exe2Function(c).
@@ -199,7 +199,7 @@ func webAppsWith(c *cli.Context) error {
 	if !c.Bool("jsonparser") {
 		a.Spinner, _ = pterm.DefaultSpinner.WithRemoveWhenDone(false).Start("Initializing Web Apps execution...")
 	}
-	
+
 	// 2. Pass cli.Context to tryLoadAuth
 	a.tryLoadAuth(c)
 	e := a.defExecutionContainer()
@@ -223,7 +223,7 @@ func webAppsWith(c *cli.Context) error {
 		if err != nil {
 			e.FailStatus("Stdin Read Error")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		isTemp = true
 	} else {
@@ -231,13 +231,14 @@ func webAppsWith(c *cli.Context) error {
 		if scriptFile == "" {
 			e.FailStatus("Initialization failed")
 			pterm.Error.Println("No script. Please set GAS script using '-s' or '--stringscript'.")
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		rawScript = utl.ConvGasToPut(c)
+		isTemp = true
 	}
 
 	// 5. If isTemp in webapps (w), upload and deploy
-	if isTemp && e.GgsrunCfg.Scriptid != "" && e.GgsrunCfg.Accesstoken != "" {
+	if isTemp && e.GgsrunCfg.Scriptid != "" && e.GgsrunCfg.Accesstoken != "" && c.String("scriptfile") != "" {
 		timestamp := time.Now().Format("20060102150405")
 		tempFileName = "ggsrun_web_temp_" + timestamp
 
@@ -254,7 +255,7 @@ func webAppsWith(c *cli.Context) error {
 			}
 			e.Project.Files = newFiles
 			e.projectUpdate2()
-			
+
 			// Deploy the clean state
 			e.autoValidateAndDeployManifest(c, "w")
 			if !c.Bool("jsonparser") {
@@ -274,13 +275,13 @@ func webAppsWith(c *cli.Context) error {
 		if err := e.autoValidateAndDeployManifest(c, "w"); err != nil {
 			e.FailStatus("Deployment Error")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 	} else {
 		if err := e.autoValidateAndDeployManifest(c, "w"); err != nil {
 			e.FailStatus("Manifest Validation Error")
 			pterm.Error.Println(err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 	}
 

@@ -4,6 +4,7 @@ package app
 
 import (
 	"fmt"
+	"ggsrun/internal/utl"
 	"os"
 	"path/filepath"
 
@@ -64,14 +65,14 @@ func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
 		if err != nil {
 			a.FailStatus("Configuration Error")
 			pterm.Error.Printf("Format parsing failure for '%s'.\n", cfgPath)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		if c.Command.Name == "exe1" || c.Command.Name == "exe2" || c.Command.Name == "webapps" {
 			if c.Command.Name != "webapps" {
 				if len(c.String("scriptid")) == 0 && len(a.GgsrunCfg.Scriptid) == 0 {
 					a.FailStatus("Validation Error")
 					pterm.Error.Println("No script id. Please supply option '-i [Script ID]'.")
-					os.Exit(1)
+					utl.Exit(1)
 				}
 			}
 			originalScriptID := a.GgsrunCfg.Scriptid
@@ -98,7 +99,7 @@ func (a *AuthContainer) readClientSecret() *AuthContainer {
 		if err != nil || (len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) == 0) {
 			a.FailStatus("Configuration Error")
 			pterm.Error.Printf("Credentials schema mismatch in '%s'.\nError trace: %s.\n", credPath, err)
-			os.Exit(1)
+			utl.Exit(1)
 		}
 		if len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) > 0 {
 			a.Cs.Cid = a.Cs.Ciw
@@ -106,7 +107,7 @@ func (a *AuthContainer) readClientSecret() *AuthContainer {
 	} else {
 		a.FailStatus("Configuration Error")
 		pterm.Error.Printf("No authentication materials located at '%s'.\n", credPath)
-		os.Exit(1)
+		utl.Exit(1)
 	}
 	return a
 }

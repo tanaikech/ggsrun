@@ -18,8 +18,9 @@ import (
 	"sync"
 	"time"
 
-	json "github.com/goccy/go-json"
 	"ggsrun/internal/utl"
+
+	json "github.com/goccy/go-json"
 	"github.com/pterm/pterm"
 	"github.com/urfave/cli"
 	"github.com/vbauerster/mpb/v8"
@@ -112,6 +113,9 @@ func getUploadMimeType(localPath string, c *cli.Context) (string, error) {
 		return "application/vnd.google-apps.spreadsheet", nil
 	case convto == "slides" || convto == "slide" || convto == "presentation":
 		return "application/vnd.google-apps.presentation", nil
+	case strings.Contains(convto, "/"):
+		// Full MIME type string (e.g. "application/vnd.google-apps.document")
+		return convto, nil
 	default:
 		return utl.ExtToGMime(convto)
 	}
@@ -188,8 +192,15 @@ func extractUploadJobsAndCreateFolders(
 
 // executeUploadJob safely processes a single upload task with Shared Drive routing.
 func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, progress *mpb.Progress) (*TransferFileMetadata, error) {
+	if TUIProgressCallback != nil {
+		TUIProgressCallback(fmt.Sprintf("Uploading: %s (%d bytes)", job.Name, job.Size))
+	}
+
 	f, err := os.Open(job.LocalPath)
 	if err != nil {
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Failed to open local file %s: %v", job.Name, err))
+		}
 		return nil, fmt.Errorf("local FS read error '%s': %w", job.LocalPath, err)
 	}
 	defer f.Close()
@@ -213,15 +224,31 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 		apiURL = "https://www.googleapis.com/upload/drive/v3/files/" + job.ExistingID + "?uploadType=resumable&supportsAllDrives=true"
 	}
 
+	// Detect source MIME type based on file extension
+	srcMime := ""
+	ext := filepath.Ext(job.LocalPath)
+	if extMime := utl.ExtToMime(ext); extMime != "" {
+		srcMime = extMime
+	} else {
+		srcMime = "application/octet-stream"
+	}
+
 	var location string
 	maxRetries := 3
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		req, _ := http.NewRequestWithContext(ctx, method, apiURL, strings.NewReader(metaStr))
 		req.Header.Set("Authorization", "Bearer "+a.GgsrunCfg.Accesstoken)
 		req.Header.Set("Content-Type", "application/json")
+		if srcMime != "" {
+			req.Header.Set("X-Upload-Content-Type", srcMime)
+		}
+		req.Header.Set("X-Upload-Content-Length", strconv.FormatInt(job.Size, 10))
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
+			if TUIProgressCallback != nil {
+				TUIProgressCallback(fmt.Sprintf("Upload init failed for %s: %v", job.Name, err))
+			}
 			return nil, fmt.Errorf("network transport init failed for '%s': %w", job.Name, err)
 		}
 
@@ -235,6 +262,9 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 
 			errMsg := fmt.Sprintf("failed (Upload Init error Status %d: %s)", resp.StatusCode, strings.TrimSpace(string(bodyBytes)))
 			pterm.Warning.Printf("Upload API init failed for '%s': %s\n", job.Name, errMsg)
+			if TUIProgressCallback != nil {
+				TUIProgressCallback(fmt.Sprintf("Upload init error for %s: %s", job.Name, errMsg))
+			}
 			return &TransferFileMetadata{
 				Name:   job.Name,
 				Path:   job.LocalPath,
@@ -250,6 +280,9 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	if location == "" {
 		errMsg := "failed (Failed to resolve resumable location URI)"
 		pterm.Warning.Printf("Failed to resolve resumable location URI for '%s'. Skipping.\n", job.Name)
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Upload failed for %s: %s", job.Name, errMsg))
+		}
 		return &TransferFileMetadata{
 			Name:   job.Name,
 			Path:   job.LocalPath,
@@ -273,8 +306,14 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 
 	req2, _ := http.NewRequestWithContext(ctx, "PUT", location, proxyReader)
 	req2.Header.Set("Content-Length", strconv.FormatInt(job.Size, 10))
+	if srcMime != "" {
+		req2.Header.Set("Content-Type", srcMime)
+	}
 	resp2, err := http.DefaultClient.Do(req2)
 	if err != nil {
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Upload transfer failed for %s: %v", job.Name, err))
+		}
 		return nil, fmt.Errorf("network transfer broken for '%s': %w", job.Name, err)
 	}
 	defer resp2.Body.Close()
@@ -284,6 +323,9 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	if resp2.StatusCode >= 400 {
 		errMsg := fmt.Sprintf("failed (Upload Transfer error Status %d: %s)", resp2.StatusCode, strings.TrimSpace(string(bodyBytes)))
 		pterm.Warning.Printf("Upload API transfer failed for '%s': %s\n", job.Name, errMsg)
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Upload transfer error for %s: %s", job.Name, errMsg))
+		}
 		return &TransferFileMetadata{
 			Name:   job.Name,
 			Path:   job.LocalPath,
@@ -298,6 +340,10 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	mimeType, _ := resMap["mimeType"].(string)
 
 	bar.SetTotal(job.Size, true)
+
+	if TUIProgressCallback != nil {
+		TUIProgressCallback(fmt.Sprintf("Uploaded: %s", job.Name))
+	}
 
 	return &TransferFileMetadata{
 		Name:     job.Name,
