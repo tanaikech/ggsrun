@@ -987,6 +987,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.2 (June 2026) - Script Upload Flag Registration and TUI Focus Fallbacks**
+  Fixed a TUI upload crash where converting and uploading `.js`/`.gs` files to standalone Apps Script projects threw a panic: `internal process exited with code 1` due to unregistered `projectname` and `googledocname` flags in `createOpContext`. Integrated full text file previews on Enter for remote files, and implemented dynamic `importFormats` MIME type lookup via `utl.GetImportTargets` to automatically bypass conversion prompts for unconvertible file types, as well as robust focus restoration.
 - **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
   Fixed a bug in `concurrentUpload` that caused `.js`/`.gs`/`.gas` uploads to throw HTTP 400 Bad Request by redirecting script project uploads to the Apps Script project builder and overriding raw script uploads to `text/plain`. Allowed non-Workspace files (such as `.zip` or `.mp3`) to bypass conversion checks and upload as-is when no conversion format is requested. Integrated `TransferResult` and `FileInf` error inspections in the TUI filer (`ggsrun fd`) to propagate upload/download failures to the user instead of failing silently.
 - **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**

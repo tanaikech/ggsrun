@@ -126,7 +126,7 @@ func setupTestTUI(t *testing.T, localFilesData []FileEntry, remoteFilesData []Fi
 	testScreen = simScreen
 
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.1"
+	appObj.Version = "5.3.2"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -201,9 +201,9 @@ func setupTestTUI(t *testing.T, localFilesData []FileEntry, remoteFilesData []Fi
 
 func TestTUI_FilerVersion(t *testing.T) {
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.1"
-	if appObj.Version != "5.3.1" {
-		t.Errorf("Expected version 5.3.1, got %s", appObj.Version)
+	appObj.Version = "5.3.2"
+	if appObj.Version != "5.3.2" {
+		t.Errorf("Expected version 5.3.2, got %s", appObj.Version)
 	}
 }
 

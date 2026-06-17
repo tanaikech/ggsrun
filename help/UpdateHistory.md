@@ -134,6 +134,12 @@
   5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
   6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
 
+- **v5.3.2 (June 2026) - Script Upload Flag Registration and TUI Focus Fallbacks**
+  1. Fixed a TUI crash (`panic: internal 1`) on converting and uploading `.js`/`.gs` files to standalone Apps Script projects, caused by unregistered `"projectname"` and `"googledocname"` flags in `createOpContext` which led to empty title creation calls.
+  2. Implemented remote text file previewing on Enter inside `ggsrun fd` (TUI), automatically downloading and showing the contents for MIME types starting with `text/` or matching JSON, XML, or JavaScript.
+  3. Overhauled focus restoration inside `showTextPreview` to fall back to the global `lastActiveTable` variable when restoring focus, preventing focus from being lost to closed loading overlays.
+  4. Replaced hardcoded conversion switch cases in `getConvertOptions` with dynamic checks calling `utl.GetImportTargets` to align convertible options with the official specification, automatically bypassing conversion prompts for unsupported types.
+
 - **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
   1. Fixed a bug in `concurrentUpload` where uploading `.js`/`.gs`/`.gas` files without `--noconvert` attempted a resumable binary upload (resulting in HTTP 400 Bad Request); redirected these script uploads to the legacy script uploader (`p.Uploader`) to correctly create/update Google Apps Script projects.
   2. Overrode script source MIME type resolution to `text/plain` when uploading raw `.js`/`.gs`/`.gas` files as-is (with `--noconvert`) to prevent API errors.

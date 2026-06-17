@@ -859,6 +859,8 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 							return "application/vnd.google-apps.spreadsheet"
 						case convto == "slides" || convto == "slide" || convto == "presentation":
 							return "application/vnd.google-apps.presentation"
+						case strings.Contains(convto, "/"):
+							return p.ConvertTo
 						default:
 							mime, err := ExtToGMime(convto)
 							if err != nil {
@@ -1090,6 +1092,30 @@ func ExtToGMime(ext string) (string, error) {
 	}
 	return targetMime, nil
 }
+
+// GetImportTargets returns the target MIME types for a given source MIME type based on importFormats.
+func GetImportTargets(srcMime string) []string {
+	var gm map[string]interface{}
+	if err := json.Unmarshal([]byte(googlemimetypes), &gm); err != nil {
+		return nil
+	}
+	importFormats, ok := gm["importFormats"].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	targets, ok := importFormats[srcMime].([]interface{})
+	if !ok {
+		return nil
+	}
+	var res []string
+	for _, t := range targets {
+		if s, ok := t.(string); ok {
+			res = append(res, s)
+		}
+	}
+	return res
+}
+
 
 // GetFileList : Retrieving file list on Google Drive.
 func (p *FileInf) GetFileList(c *cli.Context) *FileInf {

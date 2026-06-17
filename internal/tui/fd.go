@@ -846,6 +846,8 @@ func createOpContext(mainCtx *cli.Context, extraFlags map[string]string) *cli.Co
 	set.String("projecttype", "", "")
 	set.String("destination", "", "")
 	set.String("parentfolderid", "", "")
+	set.String("projectname", "", "")
+	set.String("googledocname", "", "")
 	set.String("config", "", "")
 	set.String("credentials", "", "")
 	set.String("extension", "", "")
@@ -1074,6 +1076,9 @@ func readTextPreview(path string) (string, error) {
 
 func showTextPreview(title string, text string) {
 	prevFocus := tuiApp.GetFocus()
+	if lastActiveTable != nil {
+		prevFocus = lastActiveTable
+	}
 
 	textView := tview.NewTextView().
 		SetText(text).
@@ -1656,61 +1661,28 @@ func getConvertOptions(srcMime string) map[string]string {
 		options["Microsoft PowerPoint (.pptx)"] = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 		options["PDF Document (.pdf)"] = "application/pdf"
 		options["ZIP Archive (.zip)"] = "application/zip"
-	case "image/gif",
-		"application/vnd.openxmlformats-officedocument.wordprocessingml.template",
-		"application/vnd.ms-word.template.macroenabled.12",
-		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		"text/rtf",
-		"application/x-vnd.oasis.opendocument.text",
-		"application/msword",
-		"application/pdf",
-		"text/markdown",
-		"image/x-bmp",
-		"application/rtf",
-		"text/html",
-		"application/vnd.oasis.opendocument.text",
-		"image/jpg",
-		"text/richtext",
-		"image/jpeg",
-		"image/bmp",
-		"text/x-markdown",
-		"application/vnd.ms-word.document.macroenabled.12",
-		"text/plain",
-		"image/png",
-		"image/x-png",
-		"image/pjpeg":
-		options["Google Docs (.gdoc)"] = "application/vnd.google-apps.document"
-	case "text/tab-separated-values",
-		"application/vnd.ms-excel.sheet.macroenabled.12",
-		"application/vnd.ms-excel",
-		"text/csv",
-		"text/comma-separated-values",
-		"application/vnd.oasis.opendocument.spreadsheet",
-		"application/x-vnd.oasis.opendocument.spreadsheet",
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.template",
-		"application/vnd.ms-excel.template.macroenabled.12",
-		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-		options["Google Sheets (.gsheet)"] = "application/vnd.google-apps.spreadsheet"
-	case "application/x-vnd.oasis.opendocument.presentation",
-		"application/vnd.oasis.opendocument.presentation",
-		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		"application/vnd.ms-powerpoint.presentation.macroenabled.12",
-		"application/vnd.ms-powerpoint.slideshow.macroenabled.12",
-		"application/vnd.ms-powerpoint",
-		"application/vnd.openxmlformats-officedocument.presentationml.template",
-		"application/vnd.openxmlformats-officedocument.presentationml.slideshow",
-		"application/vnd.ms-powerpoint.template.macroenabled.12":
-		options["Google Slides (.gslides)"] = "application/vnd.google-apps.presentation"
-	case "application/x-msmetafile":
-		options["Google Drawings (.gdraw)"] = "application/vnd.google-apps.drawing"
-	case "video/ogg",
-		"video/quicktime",
-		"video/mp4",
-		"video/webm":
-		options["Google Video (.gvid)"] = "application/vnd.google-apps.vid"
-	case "application/vnd.google-apps.script+text/plain",
-		"application/vnd.google-apps.script+json":
-		options["Google Apps Script (.gas)"] = "application/vnd.google-apps.script"
+	default:
+		targets := utl.GetImportTargets(srcMime)
+		if len(targets) > 0 {
+			for _, target := range targets {
+				switch target {
+				case "application/vnd.google-apps.document":
+					options["Google Docs (.gdoc)"] = target
+				case "application/vnd.google-apps.spreadsheet":
+					options["Google Sheets (.gsheet)"] = target
+				case "application/vnd.google-apps.presentation":
+					options["Google Slides (.gslides)"] = target
+				case "application/vnd.google-apps.drawing":
+					options["Google Drawings (.gdraw)"] = target
+				case "application/vnd.google-apps.vid":
+					options["Google Video (.gvid)"] = target
+				case "application/vnd.google-apps.script":
+					options["Google Apps Script (.gas)"] = target
+				default:
+					options[target] = target
+				}
+			}
+		}
 	}
 	return options
 }
@@ -2245,6 +2217,24 @@ func onEnterRemote() {
 			}
 		} else if selected.MimeType == "application/vnd.google-apps.script" {
 			showGasProject(selected.Name, selected.Path)
+		} else if strings.HasPrefix(selected.MimeType, "text/") ||
+			selected.MimeType == "application/json" ||
+			selected.MimeType == "application/javascript" ||
+			selected.MimeType == "application/x-javascript" ||
+			selected.MimeType == "application/xml" {
+
+			var fileContent []byte
+			runTask("Downloading text file content...", func() error {
+				var err error
+				fileContent, err = app.TuiGetFileContent(selected.Path, authContainer)
+				if err != nil {
+					return err
+				}
+				tuiApp.QueueUpdateDraw(func() {
+					showTextPreview(selected.Name, string(fileContent))
+				})
+				return nil
+			})
 		} else {
 			if selected.WebViewLink != "" {
 				err := openBrowserFn(selected.WebViewLink)

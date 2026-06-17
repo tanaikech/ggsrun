@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.1"
+	app.Version = "5.3.2"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",

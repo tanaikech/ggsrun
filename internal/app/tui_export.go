@@ -371,3 +371,19 @@ return "Execution completed, but main() was not defined in the local script.";
 	}
 	return string(b), nil
 }
+
+// TuiGetFileContent downloads the raw content of a Google Drive file.
+func TuiGetFileContent(fileID string, a *AuthContainer) ([]byte, error) {
+	r := &utl.RequestParams{
+		Method:      "GET",
+		APIURL:      "https://www.googleapis.com/drive/v3/files/" + fileID + "?alt=media",
+		Accesstoken: a.GgsrunCfg.Accesstoken,
+		Dtime:       60,
+	}
+	body, err := r.FetchAPI()
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
