@@ -984,6 +984,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**
+  Refactored TUI Filer (FD Mode) popup layouts using `tview.Flex` to center dialogs (errors, sorting, details, help) and prevent text clipping. Implemented focus locking to preserve active panel focus post-action. Added wrap-around to lists and mapped the `y` key to yank (copy) selected file paths or File IDs to the clipboard. Resolved compilation errors on 32-bit Linux platforms (e.g. `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside build-tagged files, and adapted the mock simulation test suite (`fd_test.go`) to match the new responsive structures.
 - **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
   Updated internal MIME type mapping definitions (`googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats`/`exportFormats`. Revamped the CLI options help display for `--extension` (download/revision) and `--convertto` (upload) to explicitly list all supported formats. Overhauled the concurrent upload/download engines to handle `--convertto` / `--noconvert` directly in parallel streams without falling back to the legacy single-threaded uploader, adding validation capability checks and graceful error warning feedback. Added `--destination` (`-d`) option to the `download` and `revision` commands to allow specifying the target local directory for saving downloaded files.
 - **v5.2.3 (June 2026) - Directory Reuse Conflict Resolution, Output Control, and CLI/MCP Alignment**

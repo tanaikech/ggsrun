@@ -99,27 +99,9 @@
   3. Integrated WSL 2 environment detection to prompt the user to choose between the Windows host browser (via `wslview` or `cmd.exe`), WSL/Ubuntu native browser, or manual URL copy-pasting.
   4. Upgraded `ggsrun e1`, `ggsrun e2`, and `ggsrun w` commands to dynamically print full CLI flag helps alongside custom usage examples when executed without arguments.
 
-- **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**
-  1. Refactored TUI Filer (FD Mode) popup layouts to be responsive. Custom-implemented 70% width centering using `tview.Flex` for error messages, sorting lists, text inputs, MIME conversions, help menu, and file details, preventing text clipping.
-  2. Implemented focus persistence across filer operations: focus remains locked on the pre-action panel and table after file transfers, deletions, and GAS executions.
-  3. Added wrap-around navigation to local and remote file tables.
-  4. Mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
-  5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
-  6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
-
-- **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
-  1. Updated internal MIME type mapping definitions (`extVsmime`, `googlemimetypes`, `defaultformat`, `mimeVsEx` in `googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats` and `exportFormats`.
-  2. Revamped the CLI options help display for `--extension` (`-e` in download/revision commands) and `--convertto` (`-c` in upload command) to list all supported file formats, resolving ambiguity.
-  3. Overhauled the concurrent upload engine (`handler_upload.go`): enabled parallel upload streams to handle `--convertto` and `--noconvert` directly without falling back to the legacy single-threaded uploader, and added robust warning feedback that skips unsupported conversions gracefully.
-  4. Hardened the concurrent download engine (`handler_download.go`): integrated export capability validation via `IsExportable` and `ExtToMime` to verify file format compatibility before requesting Drive API `/export` downloads.
-  5. Added the `--destination` (`-d`) option to the `download` and `revision` commands to allow specifying the target local directory for saving downloaded files, defaulting to the current directory.
-
-- **v5.2.3 (June 2026) - Directory Reuse Conflict Resolution, Output Control, and CLI/MCP Alignment**
-  1. Upgraded the directory upload conflict resolution mechanism: the tool now silently and recursively reuses existing remote folders (without prompting) while maintaining strict interactive conflict resolution only for individual files.
-  2. Aligned `--conflict-mode` behavior for `-j` / `--jsonparser` CLI runs to match the automated, non-interactive MCP mode (defaulting to `OverwriteIfNewer`, but overridable using `--cm` or `--conflict-mode`).
-  3. Hardened the output control engine for upload and download operations: when executing with the `-j` (`--jsonparser`) option, all human-readable TUI outputs (e.g. pterm logs, directory structure visual trees, success alerts) and concurrent progress bars (`mpb`) are completely suppressed, returning only clean JSON.
-  4. Enabled `--cm` as a valid shorthand alias for `--conflict-mode` inside download and upload routines to ensure CLI parameter compatibility.
-  5. Strictly adhered to Go 1.26 best-practice context propagation and wrapped error reporting.
+- **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
+  1. Integrated comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays for `e1`, `e2`, and `w` modes.
+  2. Resolved a namespace issue where evaluated scripts calling `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.
 
 - **v5.2.2 (June 2026) - MCP Help Display Expansion, Safety Review Prompt, Dual-Mode Conflict Engine, and File-Level Error Feedback**
   1. Expanded `ggsrun mcp -h` (and `--help`) to display all exposed MCP tool names and their detailed description outputs directly.
@@ -130,9 +112,27 @@
   4. Enhanced file-level error feedback inside concurrent download and upload loops. Non-fatal transfer failures (e.g. API HTTP errors 400, 403, 404, or 429) no longer crash the queue but are returned with explicit error details inside the JSON `files` metadata array.
   5. Strictly adhered to Go 1.26 best practices: implemented context propagation to folders/files APIs and applied structured error wrapping via `fmt.Errorf` and `%w`.
 
-- **v5.2.1 (June 2026) - Dynamic CLI Help Customization, Beacon Script Integration, and Namespace Binding**
-  1. Integrated comprehensive execution command examples (including stateless beacon checks) dynamically within both the `--help` flag screens and optionless execution error overlays for `e1`, `e2`, and `w` modes.
-  2. Resolved a namespace issue where evaluated scripts calling `ggsrunif.Beacon()` inside the library threw a `ggsrunif is not defined` ReferenceError, by binding `ggsrunif` to the library's global execution context.
+- **v5.2.3 (June 2026) - Directory Reuse Conflict Resolution, Output Control, and CLI/MCP Alignment**
+  1. Upgraded the directory upload conflict resolution mechanism: the tool now silently and recursively reuses existing remote folders (without prompting) while maintaining strict interactive conflict resolution only for individual files.
+  2. Aligned `--conflict-mode` behavior for `-j` / `--jsonparser` CLI runs to match the automated, non-interactive MCP mode (defaulting to `OverwriteIfNewer`, but overridable using `--cm` or `--conflict-mode`).
+  3. Hardened the output control engine for upload and download operations: when executing with the `-j` (`--jsonparser`) option, all human-readable TUI outputs (e.g. pterm logs, directory structure visual trees, success alerts) and concurrent progress bars (`mpb`) are completely suppressed, returning only clean JSON.
+  4. Enabled `--cm` as a valid shorthand alias for `--conflict-mode` inside download and upload routines to ensure CLI parameter compatibility.
+  5. Strictly adhered to Go 1.26 best-practice context propagation and wrapped error reporting.
+
+- **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**
+  1. Updated internal MIME type mapping definitions (`extVsmime`, `googlemimetypes`, `defaultformat`, `mimeVsEx` in `googlemimetypes.go`) to synchronize with the latest Google Drive API `importFormats` and `exportFormats`.
+  2. Revamped the CLI options help display for `--extension` (`-e` in download/revision commands) and `--convertto` (`-c` in upload command) to list all supported file formats, resolving ambiguity.
+  3. Overhauled the concurrent upload engine (`handler_upload.go`): enabled parallel upload streams to handle `--convertto` and `--noconvert` directly without falling back to the legacy single-threaded uploader, and added robust warning feedback that skips unsupported conversions gracefully.
+  4. Hardened the concurrent download engine (`handler_download.go`): integrated export capability validation via `IsExportable` and `ExtToMime` to verify file format compatibility before requesting Drive API `/export` downloads.
+  5. Added the `--destination` (`-d`) option to the `download` and `revision` commands to allow specifying the target local directory for saving downloaded files, defaulting to the current directory.
+
+- **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**
+  1. Refactored TUI Filer (FD Mode) popup layouts to be responsive. Custom-implemented 70% width centering using `tview.Flex` for error messages, sorting lists, text inputs, MIME conversions, help menu, and file details, preventing text clipping.
+  2. Implemented focus persistence across filer operations: focus remains locked on the pre-action panel and table after file transfers, deletions, and GAS executions.
+  3. Added wrap-around navigation to local and remote file tables.
+  4. Mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
+  5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
+  6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
 
 ## Server
 
