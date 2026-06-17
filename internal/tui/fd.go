@@ -1834,6 +1834,7 @@ func runBatchTransfer(jobs []TransferJob, isUpload bool, isMove bool) {
 		for _, job := range jobs {
 			go func(j TransferJob) {
 				var err error
+				var res interface{}
 				if isUpload {
 					flags := map[string]string{
 						"filename":       j.SourcePath,
@@ -1847,7 +1848,24 @@ func runBatchTransfer(jobs []TransferJob, isUpload bool, isMove bool) {
 						flags["noconvert"] = "true"
 					}
 					opCtx := createOpContext(mainCtx, flags)
-					_, err = tuiUploadFn(opCtx, authContainer)
+					res, err = tuiUploadFn(opCtx, authContainer)
+					if err == nil {
+						if tr, ok := res.(app.TransferResult); ok {
+							for _, f := range tr.Files {
+								if strings.HasPrefix(f.Status, "failed") {
+									err = fmt.Errorf("upload failed for '%s': %s", f.Name, f.Status)
+									break
+								}
+							}
+						} else if fi, ok := res.(*utl.FileInf); ok {
+							for _, msg := range fi.Msgar {
+								if strings.HasPrefix(strings.ToLower(msg), "error") {
+									err = fmt.Errorf("%s", msg)
+									break
+								}
+							}
+						}
+					}
 				} else {
 					flags := map[string]string{
 						"fileid":      j.SourcePath,
@@ -1861,7 +1879,24 @@ func runBatchTransfer(jobs []TransferJob, isUpload bool, isMove bool) {
 						}
 					}
 					opCtx := createOpContext(mainCtx, flags)
-					_, err = tuiDownloadFn(opCtx, authContainer)
+					res, err = tuiDownloadFn(opCtx, authContainer)
+					if err == nil {
+						if tr, ok := res.(app.TransferResult); ok {
+							for _, f := range tr.Files {
+								if strings.HasPrefix(f.Status, "failed") {
+									err = fmt.Errorf("download failed for '%s': %s", f.Name, f.Status)
+									break
+								}
+							}
+						} else if fi, ok := res.(*utl.FileInf); ok {
+							for _, msg := range fi.Msgar {
+								if strings.HasPrefix(strings.ToLower(msg), "error") {
+									err = fmt.Errorf("%s", msg)
+									break
+								}
+							}
+						}
+					}
 				}
 				errChan <- err
 			}(job)

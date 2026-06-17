@@ -106,7 +106,13 @@ func getUploadMimeType(localPath string, c *cli.Context) (string, error) {
 
 	switch {
 	case convto == "":
-		return utl.ExtToGMime(ext)
+		targetMime, err := utl.ExtToGMime(ext)
+		if err != nil {
+			// If no conversion mapping exists and we are in default auto-convert mode,
+			// upload the file as-is without converting.
+			return "", nil
+		}
+		return targetMime, nil
 	case convto == "document" || convto == "doc" || convto == "docs":
 		return "application/vnd.google-apps.document", nil
 	case convto == "spreadsheet" || convto == "sheet" || convto == "spread":
@@ -211,7 +217,7 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	if job.ParentID != "" && job.ExistingID == "" {
 		metaMap["parents"] = []string{job.ParentID}
 	}
-	if job.MimeType != "" {
+	if job.MimeType != "" && job.MimeType != "application/vnd.google-apps.script" {
 		metaMap["mimeType"] = job.MimeType
 	}
 	metaBytes, _ := json.Marshal(metaMap)
@@ -231,6 +237,9 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 		srcMime = extMime
 	} else {
 		srcMime = "application/octet-stream"
+	}
+	if srcMime == "application/vnd.google-apps.script+json" {
+		srcMime = "text/plain"
 	}
 
 	var location string
@@ -361,7 +370,18 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 	p := a.defUploadContainer(c)
 	filenamesStr := c.String("filename")
 
-	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("parentid") != "" {
+	hasScript := false
+	if !c.Bool("noconvert") {
+		for _, fname := range regexp.MustCompile(`\s*,\s*`).Split(filenamesStr, -1) {
+			ext := filepath.Ext(strings.TrimSpace(fname))
+			if ext == ".js" || ext == ".gs" || ext == ".gas" {
+				hasScript = true
+				break
+			}
+		}
+	}
+
+	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("parentid") != "" || c.String("projectname") != "" || hasScript {
 		return p.Uploader(c), nil
 	}
 

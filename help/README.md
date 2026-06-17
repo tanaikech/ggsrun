@@ -2292,7 +2292,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
 ```
 
-#### Development & Release Results (v5.3.0)
+#### Development & Release Results (v5.3.1)
 
 ##### 📊 Consumed Resources
 - **Conversations**: 10 sessions (long-term development across context compactions).
@@ -2308,6 +2308,9 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
 - **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
 - **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
+- **Script Upload Routing & Fallback (v5.3.1)**: Programmed correct routing for `.js`/`.gs`/`.gas` files to use the GAS project uploader instead of throwing 400 Bad Request on resumable uploads, and ensured raw script uploads override their MIME type to `text/plain`.
+- **Unsupported Conversion Fallback (v5.3.1)**: Modified default auto-convert mode so files without Google Workspace mapping (like `.zip`) are successfully uploaded as-is rather than skipped.
+- **TUI Filer Error Alerts (v5.3.1)**: Extended the TUI filer (`ggsrun fd`) to inspect transfer result statuses and raise clear error popups instead of failing silently.
 
 #### How to Launch
 To open the interactive TUI filer, run:

@@ -61,7 +61,7 @@
     - [Interactive TUI Filer (FD Mode)](#interactive-tui-filer-fd-mode)
       - [Motivation](#motivation)
       - [Prompt Used for Development](#prompt-used-for-development)
-      - [Development \& Release Results (v5.3.0)](#development--release-results-v530)
+      - [Development \& Release Results (v5.3.1)](#development--release-results-v531)
         - [📊 Consumed Resources](#-consumed-resources)
         - [💡 Efficiency \& Success Review](#-efficiency--success-review)
         - [🛠️ Key Improvements \& Hardening](#️-key-improvements--hardening)
@@ -620,7 +620,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
 ```
 
-#### Development & Release Results (v5.3.0)
+#### Development & Release Results (v5.3.1)
 
 ##### 📊 Consumed Resources
 
@@ -639,6 +639,9 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
 - **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
 - **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
+- **Script Upload Routing & Fallback (v5.3.1)**: Programmed correct routing for `.js`/`.gs`/`.gas` files to use the GAS project uploader instead of throwing 400 Bad Request on resumable uploads, and ensured raw script uploads override their MIME type to `text/plain`.
+- **Unsupported Conversion Fallback (v5.3.1)**: Modified default auto-convert mode so files without Google Workspace mapping (like `.zip`) are successfully uploaded as-is rather than skipped.
+- **TUI Filer Error Alerts (v5.3.1)**: Extended the TUI filer (`ggsrun fd`) to inspect transfer result statuses and raise clear error popups instead of failing silently.
 
 #### How to Launch
 
@@ -984,6 +987,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
+  Fixed a bug in `concurrentUpload` that caused `.js`/`.gs`/`.gas` uploads to throw HTTP 400 Bad Request by redirecting script project uploads to the Apps Script project builder and overriding raw script uploads to `text/plain`. Allowed non-Workspace files (such as `.zip` or `.mp3`) to bypass conversion checks and upload as-is when no conversion format is requested. Integrated `TransferResult` and `FileInf` error inspections in the TUI filer (`ggsrun fd`) to propagate upload/download failures to the user instead of failing silently.
 - **v5.3.0 (June 2026) - Responsive TUI Filer (FD Mode) Enhancements, Focus Persistence, and Platform Compatibility Fixes**
   Refactored TUI Filer (FD Mode) popup layouts using `tview.Flex` to center dialogs (errors, sorting, details, help) and prevent text clipping. Implemented focus locking to preserve active panel focus post-action. Added wrap-around to lists and mapped the `y` key to yank (copy) selected file paths or File IDs to the clipboard. Resolved compilation errors on 32-bit Linux platforms (e.g. `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside build-tagged files, and adapted the mock simulation test suite (`fd_test.go`) to match the new responsive structures.
 - **v5.2.4 (June 2026) - Latest MIME Type Formats, CLI Option Help Details, Concurrent Conversion Overhaul, and Destination Directory Support**

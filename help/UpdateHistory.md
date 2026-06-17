@@ -134,6 +134,12 @@
   5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
   6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
 
+- **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
+  1. Fixed a bug in `concurrentUpload` where uploading `.js`/`.gs`/`.gas` files without `--noconvert` attempted a resumable binary upload (resulting in HTTP 400 Bad Request); redirected these script uploads to the legacy script uploader (`p.Uploader`) to correctly create/update Google Apps Script projects.
+  2. Overrode script source MIME type resolution to `text/plain` when uploading raw `.js`/`.gs`/`.gas` files as-is (with `--noconvert`) to prevent API errors.
+  3. Resolved a bug where uploading files without Workspace conversion mappings (e.g., `.zip`, `.mp3`) were skipped from uploads by default; updated the conversion detection logic to upload them as-is (with no conversion) when no explicit conversion format is requested.
+  4. Programmatically caught silent transfer failures in the TUI filer (`ggsrun fd`) by asserting and inspecting returned `TransferResult` and `FileInf` objects, correctly raising error alerts to the user rather than failing without reaction.
+
 ## Server
 
 - v1.0.0 (April 24, 2017)
