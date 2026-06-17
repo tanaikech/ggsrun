@@ -3,8 +3,10 @@ module ggsrun
 go 1.26.4
 
 require (
+	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/goccy/go-json v0.10.2
 	github.com/pterm/pterm v0.12.69
+	github.com/rivo/tview v0.42.0
 	github.com/tanaikech/go-gettokenbyserviceaccount v1.0.1
 	github.com/tanaikech/go-rearrange v1.0.2
 	github.com/urfave/cli v1.22.17
@@ -21,13 +23,11 @@ require (
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
-	github.com/gdamore/tcell/v2 v2.13.10 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/nsf/termbox-go v1.1.1 // indirect
-	github.com/rivo/tview v0.42.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
