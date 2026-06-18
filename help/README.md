@@ -1361,15 +1361,24 @@ This command retrieves files with Google Spreadsheet and the filename of `sample
 
 ## 11. Update Project
 
-It updates existing project on Google Drive. You can update standalone script and container-bound script.
+It updates an existing Google Apps Script (GAS) project on Google Drive. You can update standalone scripts and container-bound scripts.
+
+Starting from **v5.3.3**, this command (alias `ud`) recursively walks local directory paths specified with `-f`/`--filename`, automatically detecting and staging all nested script files.
 
 **Run :**
 
 ```bash
-$ ggsrun ud -p [Project ID on Google Drive] -f [script .gs, .gas, .htm, .html]
+$ ggsrun ud -p [Project ID on Google Drive] -f [script or local directory path]
 ```
 
-If it is not used `-p`, the project ID is used the script ID in "ggsrun.cfg". When a script for updating is the same to a script name in the project, it is overwritten. Other scripts in the project is not changed. So this can be also used for updating a script in the project.
+If `-p` is not used, the project ID is retrieved from the script ID in "ggsrun.cfg". When a local script is named identically to a script in the remote project, it is overwritten. Other scripts in the project are not modified.
+
+### 🛡️ Safety Confirmation Prompt (v5.3.3)
+
+Because the `updateproject` command performs a destructive overwrite of remote script files, `ggsrun` implements strict safety procedures:
+1. **Target File Listing**: The CLI lists all staged local files (including those found during recursive directory walks) as a beautiful bullet list on your terminal.
+2. **Interactive Confirmation**: Standard CLI runs will pause and prompt: `Are you sure you want to overwrite the remote GAS project with these files? [y/N]`. If you select No or abort, the process exits cleanly without any mutation.
+3. **MCP Mode Safety**: Standard MCP tool calls instruct Large Language Model (LLM) agents to display the target file list and obtain your explicit confirmation before calling the tool.
 
 **Delete files in project**
 
@@ -2292,11 +2301,11 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
 ```
 
-#### Development & Release Results (v5.3.2)
+#### Development & Release Results (v5.3.3)
 
 ##### 📊 Consumed Resources
-- **Conversations**: 11 sessions (long-term development across context compactions).
-- **Development Time**: Approx. 2 to 2.5 hours (including investigation, integration tests, and fixing build warnings).
+- **Conversations**: 12 sessions (long-term development across context compactions).
+- **Development Time**: Approx. 3 hours (including investigation, integration tests, and fixing build warnings).
 - **Quota Consumption**: High. Complex layout refactoring, mock testing, and cross-compilation validation resulted in a context size reaching hundreds of thousands of tokens.
 
 ##### 💡 Efficiency & Success Review
@@ -2304,6 +2313,11 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
 
 ##### 🛠️ Key Improvements & Hardening
+- **Recursive GAS Project Updates (v5.3.3)**: Implemented recursive directory walks when executing project updates (`ggsrun updateproject -f <dir>`), allowing easy batch updates of nested files to a remote Apps Script project.
+- **Bullet-List Overwrite Warnings (v5.3.3)**: Integrated visual targeted local file listing utilizing `pterm.BulletListPrinter` before triggering project update transfers.
+- **CLI/TUI Overwrite Protection (v5.3.3)**: Added a hard interactive confirmation prompt (Y/N) before project updates mutate files, protecting remote repositories from accidental loss.
+- **GAS ZIP Download Support (v5.3.3)**: Supported downloading Apps Script projects as packaged local ZIP files via `ggsrun download -i <fileId> -z`.
+- **Comprehensive Integration Testing (v5.3.3)**: Added a complete automated integration testing suite (`cli_test.go`) validating recursive ZIP/JSON/folder downloads, conversions, standalone uploads, and binary fallbacks.
 - **Popup Refactoring**: Replaced `tview.NewModal` with a custom `tview.Flex` layout (15%:70%:15%) for each dialog (errors, file details, execution prompts, sorting selection, conversion prompts, help menu, and execution results), ensuring no content clips.
 - **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
 - **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.

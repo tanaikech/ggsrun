@@ -220,8 +220,22 @@ func (p *FileInf) createProjectForAppsScriptApi(scriptId string) *ProjectForApps
 	if len(p.UpFilename) > 0 {
 		for _, elm := range p.UpFilename {
 			if ChkExtention(filepath.Ext(elm)) {
+				var name string
+				if p.IsDirUpload && p.DirUploadRoot != "" {
+					rel, err := filepath.Rel(p.DirUploadRoot, elm)
+					if err == nil {
+						name = strings.Replace(filepath.ToSlash(rel), filepath.Ext(rel), "", -1)
+						if strings.ToLower(name) == "appsscript" {
+							name = "appsscript"
+						}
+					} else {
+						name = strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1)
+					}
+				} else {
+					name = strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1)
+				}
 				filedata := &FilesForAppsScriptApi{
-					Name:   strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
+					Name:   name,
 					Type:   ExtToType(filepath.Ext(elm), true),
 					Source: ConvGasToUpload(elm),
 				}

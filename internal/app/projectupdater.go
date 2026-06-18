@@ -4,6 +4,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -19,14 +20,32 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 	if len(c.String("projectid")) > 0 {
 		e.GgsrunCfg.Scriptid = c.String("projectid")
 		if len(c.String("filename")) > 0 {
+			e.defUpdateProjectContainer(c)
+			isMCP := os.Getenv("GGSRUN_MCP_MODE") == "true" || c.Bool("jsonparser")
+			if !isMCP {
+				pterm.Info.Println("Target files to overwrite the remote GAS project:")
+				list := pterm.BulletListPrinter{}
+				for _, f := range e.UpFiles {
+					list.Items = append(list.Items, pterm.BulletListItem{Level: 0, Text: f})
+				}
+				list.Render()
+				confirm, err := pterm.DefaultInteractiveConfirm.
+					WithDefaultText("Are you sure you want to overwrite the remote GAS project with these files?").
+					Show()
+				if err != nil || !confirm {
+					pterm.Warning.Println("Operation cancelled by user.")
+					utl.Exit(1)
+				}
+			}
+
 			if !c.Bool("deletefiles") {
-				return e.defUpdateProjectContainer(c).
+				return e.
 					projectBackup(c).
 					ProjectMaker().
 					projectUpdate2().
 					dispUpdateProjectContainer()
 			}
-			return e.defUpdateProjectContainer(c).
+			return e.
 				projectBackup(c).
 				filesInProjectRemover().
 				projectUpdate2().

@@ -4,6 +4,7 @@ package utl
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -86,6 +87,8 @@ type FileInf struct {
 	WantName          string        `json:"-"`
 	Workdir           string        `json:"-"`
 	Zip               bool          `json:"-"`
+	IsDirUpload       bool          `json:"-"`
+	DirUploadRoot     string        `json:"-"`
 }
 
 // owners : Owners of file
@@ -208,7 +211,8 @@ type dispDup struct {
 }
 
 // saveScript : Back up a project. Save a project as a raw, each file and zip.
-func (p *FileInf) saveScript(data []byte) *FileInf {
+// SaveScript : Back up a project. Save a project as a raw, each file and zip.
+func (p *FileInf) SaveScript(data []byte) *FileInf {
 	var f project
 	json.Unmarshal(data, &f)
 
@@ -241,33 +245,51 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 			os.WriteFile(filename, btok, 0777)
 		}
 	} else {
-		p.SaveName = ""
+		p.SaveName = baseName // Store the folder name
+		projectDir := filepath.Join(p.Workdir, baseName)
+		if err := os.MkdirAll(projectDir, 0755); err != nil {
+			pterm.Error.Printf("Failed to create directory %s: %v\n", projectDir, err)
+			Exit(1)
+		}
+
 		if len(f.Files) == 1 {
 			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d script.", baseName, len(f.Files)))
 		} else {
 			p.Msgar = append(p.Msgar, fmt.Sprintf("%s has %d scripts.", baseName, len(f.Files)))
 		}
+
 		zh := &zipFileHeads{}
 		for _, e := range f.Files {
 			eType := strings.ToLower(e.Type)
-			saveName := baseName + "_" + e.Name + "." + func(ex, ty string) string {
-				var eext string
-				if len(ex) > 0 {
-					eext = ex
-				} else {
-					switch ty {
-					case "server_js":
-						eext = "gs"
-					case "html":
-						eext = "html"
-					case "json":
-						eext = "json"
-					default:
-						eext = "txt"
-					}
-				}
-				return eext
-			}(p.WantExt, eType)
+			relPath := e.Name
+
+			// Determine local extension
+			var ext string
+			switch eType {
+			case "server_js":
+				ext = ".js" // Convert server_js (previously .gs) to .js
+			case "html":
+				ext = ".html"
+			case "json":
+				ext = ".json"
+			default:
+				ext = ".txt"
+			}
+
+			// Clean any existing extensions from the name to append cleanly
+			if strings.HasSuffix(strings.ToLower(relPath), ".gs") {
+				relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath))
+			} else if strings.HasSuffix(strings.ToLower(relPath), ".js") {
+				relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath))
+			} else if strings.HasSuffix(strings.ToLower(relPath), ".html") {
+				relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath))
+			} else if strings.HasSuffix(strings.ToLower(relPath), ".json") {
+				relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath))
+			}
+
+			relPath = relPath + ext
+			saveName := relPath
+
 			z := &zipFileHead{
 				Name:     saveName,
 				Modified: p.PstartTime,
@@ -276,6 +298,7 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 			}
 			zh.Files = append(zh.Files, *z)
 		}
+
 		if p.Zip {
 			buf := zh.doFilesZip(p.zipComment())
 			zn := baseName + ".zip"
@@ -299,7 +322,13 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 			}
 		} else {
 			for _, e := range zh.Files {
-				scriptFileName := filepath.Join(p.Workdir, e.Name)
+				scriptFileName := filepath.Join(projectDir, e.Name)
+				parentDir := filepath.Dir(scriptFileName)
+				if err := os.MkdirAll(parentDir, 0755); err != nil {
+					pterm.Error.Printf("Failed to create parent directory %s: %v\n", parentDir, err)
+					Exit(1)
+				}
+
 				if chkFile(scriptFileName) && !p.OverWrite {
 					if !p.Skip {
 						pterm.Error.Printf("'%s' is exsinting. If you want to overwrite the file, please use option '--overwrite'.", scriptFileName)
@@ -314,7 +343,7 @@ func (p *FileInf) saveScript(data []byte) *FileInf {
 					if p.Progress {
 						pterm.Info.Printf("Script '%s' is downloaded.\n", e.Name)
 					}
-					os.WriteFile(scriptFileName, e.Body, 0777)
+					os.WriteFile(scriptFileName, e.Body, 0644)
 					p.Msgar = append(p.Msgar, fmt.Sprintf("Script was downloaded as '%s'.", e.Name))
 				}
 			}
@@ -465,7 +494,7 @@ func (p *FileInf) writeFile(durl string) *FileInf {
 			}
 			Exit(1)
 		}
-		return p.saveScript(body)
+		return p.SaveScript(body)
 	}
 	dFileName = filepath.Join(p.Workdir, p.SaveName)
 	if chkFile(dFileName) && !p.OverWrite {
@@ -911,6 +940,37 @@ func (p *FileInf) Uploader(c *cli.Context) *FileInf {
 			}
 		}
 	}
+	if p.FileID != "" {
+		meta, err := p.FetchDetailedFileMetadata(p.FileID)
+		if err == nil && meta != nil {
+			p.FileName = meta.FileName
+			p.CreatedTime = meta.CreatedTime
+			p.ModifiedTime = meta.ModifiedTime
+			p.WebView = meta.WebView
+			p.Owners = meta.Owners
+		}
+		if !c.Bool("jsonparser") {
+			p.PrintDetailedFileMetadata(p.FileID)
+		}
+	} else if len(p.UppedFiles) > 0 {
+		if p.UppedFiles[0].ID != "" {
+			meta, err := p.FetchDetailedFileMetadata(p.UppedFiles[0].ID)
+			if err == nil && meta != nil {
+				p.FileName = meta.FileName
+				p.CreatedTime = meta.CreatedTime
+				p.ModifiedTime = meta.ModifiedTime
+				p.WebView = meta.WebView
+				p.Owners = meta.Owners
+			}
+		}
+		if !c.Bool("jsonparser") {
+			for _, uf := range p.UppedFiles {
+				if uf.ID != "" {
+					p.PrintDetailedFileMetadata(uf.ID)
+				}
+			}
+		}
+	}
 	p.TotalEt = math.Trunc(time.Since(p.PstartTime).Seconds()*1000) / 1000
 	return p
 }
@@ -1007,8 +1067,22 @@ func (p *FileInf) createProject(timeZone string) []byte {
 	if len(p.UpFilename) > 0 {
 		for _, elm := range p.UpFilename {
 			if ChkExtention(filepath.Ext(elm)) {
+				var name string
+				if p.IsDirUpload && p.DirUploadRoot != "" {
+					rel, err := filepath.Rel(p.DirUploadRoot, elm)
+					if err == nil {
+						name = strings.Replace(filepath.ToSlash(rel), filepath.Ext(rel), "", -1)
+						if strings.ToLower(name) == "appsscript" {
+							name = "appsscript"
+						}
+					} else {
+						name = strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1)
+					}
+				} else {
+					name = strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1)
+				}
 				filedata := &filea{
-					Name:   strings.Replace(filepath.Base(elm), filepath.Ext(elm), "", -1),
+					Name:   name,
 					Type:   ExtToType(filepath.Ext(elm), false),
 					Source: ConvGasToUpload(elm),
 				}
@@ -1277,4 +1351,60 @@ func (p *FileInf) reqAndGetRawResponse(r *RequestParams) {
 		return
 	}
 	p.saveResponse(res)
+}
+
+// FetchDetailedFileMetadata : Retrieve detailed metadata for a file ID.
+func (p *FileInf) FetchDetailedFileMetadata(fileID string) (*FileInf, error) {
+	if fileID == "" {
+		return nil, errors.New("file ID is empty")
+	}
+	apiURL := driveapiurl + fileID + "?fields=id,name,createdTime,modifiedTime,webViewLink,owners(displayName)&supportsAllDrives=true"
+	r := &RequestParams{
+		Method:      "GET",
+		APIURL:      apiURL,
+		Data:        nil,
+		Accesstoken: p.Accesstoken,
+		Dtime:       30,
+	}
+	body, err := r.FetchAPI()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch detailed metadata for file %s: %w", fileID, err)
+	}
+
+	var meta FileInf
+	if err := json.Unmarshal(body, &meta); err != nil {
+		return nil, fmt.Errorf("failed to parse metadata response: %w", err)
+	}
+
+	return &meta, nil
+}
+
+// PrintDetailedFileMetadata : Retrieve and print detailed file metadata for a file ID.
+func (p *FileInf) PrintDetailedFileMetadata(fileID string) {
+	meta, err := p.FetchDetailedFileMetadata(fileID)
+	if err != nil {
+		pterm.Warning.Printf("Could not retrieve detailed file metadata for ID %s: %v\n", fileID, err)
+		return
+	}
+
+	pterm.DefaultSection.Println("Detailed File Metadata from Google Drive")
+	pterm.Printf("  File Name    : %s\n", meta.FileName)
+	if meta.CreatedTime != nil {
+		pterm.Printf("  Created Time : %s\n", meta.CreatedTime.Local().Format(time.RFC3339))
+	}
+	if meta.ModifiedTime != nil {
+		pterm.Printf("  Modified Time: %s\n", meta.ModifiedTime.Local().Format(time.RFC3339))
+	}
+	pterm.Printf("  File ID      : %s\n", meta.FileID)
+	pterm.Printf("  File URL     : %s\n", meta.WebView)
+	if len(meta.Owners) > 0 {
+		var ownerNames []string
+		for _, o := range meta.Owners {
+			if o.Name != "" {
+				ownerNames = append(ownerNames, o.Name)
+			}
+		}
+		pterm.Printf("  Owner(s)     : %s\n", strings.Join(ownerNames, ", "))
+	}
+	pterm.Println()
 }

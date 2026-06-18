@@ -129,9 +129,11 @@ func extractDownloadJobsAndCreateDirs(node *transferNode, localParentPath string
 func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 	if job.MimeType == "application/vnd.google-apps.script" {
 		job.ExportURL = "https://script.googleapis.com/v1/projects/" + job.DriveID + "/content"
-		ext := "json"
-		job.SavePath += "." + ext
-		job.Name += "." + ext
+		if c.Bool("rawdata") {
+			ext := "json"
+			job.SavePath += "." + ext
+			job.Name += "." + ext
+		}
 		return true
 	} else if strings.Contains(job.MimeType, "application/vnd.google-apps") {
 		// Prevent guaranteed 400 Bad Request by skipping inherently un-exportable types
@@ -234,6 +236,51 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 	}
 	defer resp2.Body.Close()
 
+	if job.MimeType == "application/vnd.google-apps.script" {
+		bodyBytes, err := io.ReadAll(resp2.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read Apps Script body: %w", err)
+		}
+
+		// Configure FileInf using defDownloadContainer
+		p := a.defDownloadContainer(c)
+		p.FileID = job.DriveID
+		// Use the correct project name
+		p.FileName = job.Name
+		p.RawProject = c.Bool("rawdata")
+		p.OverWrite = c.Bool("overwrite")
+		p.Skip = c.Bool("skip")
+		p.Zip = c.Bool("zip")
+
+		destDir := c.String("destination")
+		if destDir == "" {
+			destDir = "."
+		}
+		p.Workdir = destDir
+
+		p.SaveScript(bodyBytes)
+
+		// Create a mock size for progress bar completion
+		bar := progress.AddBar(1,
+			mpb.PrependDecorators(decor.Name(job.Name+": ", decor.WCSyncSpaceR)),
+			mpb.AppendDecorators(decor.Percentage()),
+		)
+		bar.Increment()
+		bar.SetTotal(1, true)
+
+		if TUIProgressCallback != nil {
+			TUIProgressCallback(fmt.Sprintf("Downloaded script project: %s", job.Name))
+		}
+
+		return &TransferFileMetadata{
+			Name:     job.Name,
+			FileID:   job.DriveID,
+			MimeType: job.MimeType,
+			Path:     job.SavePath,
+			Status:   "completed",
+		}, nil
+	}
+
 	size := job.Size
 	if size == 0 {
 		size = resp2.ContentLength
@@ -296,7 +343,7 @@ func concurrentDownload(ctx context.Context, c *cli.Context, a *AuthContainer) (
 	p := a.defDownloadContainer(c)
 	fileIDsStr := c.String("fileid")
 
-	if fileIDsStr == "" || c.Bool("zip") || c.Bool("rawdata") || c.String("query") != "" || c.Bool("showfilelist") || c.String("mimetype") != "" {
+	if fileIDsStr == "" || c.Bool("zip") || c.String("query") != "" || c.Bool("showfilelist") || c.String("mimetype") != "" {
 		return p.GetFileinf().Downloader(c), nil
 	}
 

@@ -134,17 +134,25 @@
   5. Resolved cross-compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files (`file_info_linux.go`, `file_info_darwin.go`).
   6. Updated the test suite (`fd_test.go`) to accommodate the new `TextView`-based popup structures.
 
+- **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
+  1. Fixed a bug in `concurrentUpload` where uploading `.js`/`.gs`/`.gas` files without `--noconvert` attempted a resumable binary upload (resulting in HTTP 400 Bad Request); redirected these script uploads to the legacy script uploader (`p.Uploader`) to correctly create/update Google Apps Script projects.
+  2. Overrode script source MIME type resolution to `text/plain` when uploading raw `.js`/`.gs`/`.gas` files as-is (with `--noconvert`) to prevent API errors.
+  3. Resolved a bug where uploading files without Workspace conversion mappings (e.g., `.zip`, `.mp3`) were skipped from uploads by default; updated the conversion detection logic to upload them as-is (with no conversion) when no explicit conversion format is requested.
+  4. Programmatically caught silent transfer failures in the TUI filer (`ggsrun fd`) by asserting and inspecting returned `TransferResult` and `FileInf` objects, correctly raising error alerts to the user rather than failing without reaction.
+
 - **v5.3.2 (June 2026) - Script Upload Flag Registration and TUI Focus Fallbacks**
   1. Fixed a TUI crash (`panic: internal 1`) on converting and uploading `.js`/`.gs` files to standalone Apps Script projects, caused by unregistered `"projectname"` and `"googledocname"` flags in `createOpContext` which led to empty title creation calls.
   2. Implemented remote text file previewing on Enter inside `ggsrun fd` (TUI), automatically downloading and showing the contents for MIME types starting with `text/` or matching JSON, XML, or JavaScript.
   3. Overhauled focus restoration inside `showTextPreview` to fall back to the global `lastActiveTable` variable when restoring focus, preventing focus from being lost to closed loading overlays.
   4. Replaced hardcoded conversion switch cases in `getConvertOptions` with dynamic checks calling `utl.GetImportTargets` to align convertible options with the official specification, automatically bypassing conversion prompts for unsupported types.
 
-- **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
-  1. Fixed a bug in `concurrentUpload` where uploading `.js`/`.gs`/`.gas` files without `--noconvert` attempted a resumable binary upload (resulting in HTTP 400 Bad Request); redirected these script uploads to the legacy script uploader (`p.Uploader`) to correctly create/update Google Apps Script projects.
-  2. Overrode script source MIME type resolution to `text/plain` when uploading raw `.js`/`.gs`/`.gas` files as-is (with `--noconvert`) to prevent API errors.
-  3. Resolved a bug where uploading files without Workspace conversion mappings (e.g., `.zip`, `.mp3`) were skipped from uploads by default; updated the conversion detection logic to upload them as-is (with no conversion) when no explicit conversion format is requested.
-  4. Programmatically caught silent transfer failures in the TUI filer (`ggsrun fd`) by asserting and inspecting returned `TransferResult` and `FileInf` objects, correctly raising error alerts to the user rather than failing without reaction.
+- **v5.3.3 (June 2026) - Recursive Directory Walk, Safe Interactivity & GAS Zip Download**
+  1. **Recursive GAS Project Updates**: Enhanced the `updateproject` (alias `ud`) command to recursively traverse directories specified with `-f` / `--filename`. This enables batch uploading and overwriting deeply nested directory files to a remote Google Apps Script (GAS) project while retaining their original filenames without the path prefix.
+  2. **Bullet-List Overwrite Warnings**: Before executing an update on a remote GAS project, `ggsrun` now prints a clean, beautifully formatted bullet list of all targeted local files using `pterm.BulletListPrinter`.
+  3. **Hard Interactive Safety Confirmation**: For standard CLI and TUI sessions, a strict confirmation prompt is presented before any project overwrite can proceed. The process exits gracefully without making any API mutations if the user selects "No" or aborts.
+  4. **GAS ZIP Archive Downloads**: Supported downloading Apps Script projects directly as packaged local `.zip` files using the `ggsrun download -i <fileId> -z` syntax. This is fully validated via automated integration tests and provides an efficient backup option.
+  5. **MCP Safety Hardening**: Integrated security rules directly in the `updateproject` MCP tool description. Large Language Model (LLM) agents are instructed to recursively show local files to the user and request explicit confirmation prior to invoking the tool, ensuring safety across agentic platforms.
+  6. **Automated Testing Suite**: Introduced a robust integration test framework (`cli_test.go`) covering diverse download formats (folders, JSON, ZIP), export document conversions, standalone GAS project creation, and raw non-convertible binary file uploads.
 
 ## Server
 

@@ -381,7 +381,7 @@ func concurrentUpload(ctx context.Context, c *cli.Context, a *AuthContainer) (in
 		}
 	}
 
-	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("parentid") != "" || c.String("projectname") != "" || hasScript {
+	if filenamesStr == "" || c.String("projecttype") != "standalone" || c.String("parentid") != "" || c.String("projectname") != "" || hasScript || p.IsDirUpload {
 		return p.Uploader(c), nil
 	}
 

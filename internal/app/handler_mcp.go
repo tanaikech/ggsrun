@@ -110,6 +110,10 @@ func runMCP(c *cli.Context) error {
 									"description": "Action to perform on conflict when a file already exists locally. Values: 'OverwriteIfNewer' (overwrite local file only if remote is newer), 'Ignore' (unconditionally skip), 'Rename' (auto-rename with timestamp/number). Default is 'OverwriteIfNewer'.",
 									"enum":        []string{"OverwriteIfNewer", "Ignore", "Rename"},
 								},
+								"rawdata": map[string]interface{}{
+									"type":        "boolean",
+									"description": "If true, downloads and saves the raw JSON metadata/payload of a Google Apps Script project instead of extracting individual files. Default is false.",
+								},
 							},
 							"required": []string{"fileid"},
 						},
@@ -196,6 +200,32 @@ func runMCP(c *cli.Context) error {
 							},
 						},
 					},
+					{
+						"name":        "updateproject",
+						"description": "Synchronize and overwrite local source files or directories to an existing Google Apps Script (GAS) project on Google Drive. Specify the target `projectid` and local paths in `filename`. \n\nCRITICAL SECURITY & SAFETY RULES FOR LLM AGENTS:\n1. Since this tool unconditionally OVERWRITES files in the remote GAS project, you MUST present the list of local files (including recursively listing files if directories are specified) to the user and explicitly obtain their confirmation (Y/N) before executing this tool. Do NOT guess or automate this confirmation.\n2. Only call this tool after the user has explicitly reviewed the file list and approved the overwrite.",
+						"inputSchema": map[string]interface{}{
+							"type": "object",
+							"properties": map[string]interface{}{
+								"projectid": map[string]interface{}{
+									"type":        "string",
+									"description": "The unique SCRIPT/PROJECT ID of the target Google Apps Script project on Google Drive to be updated/overwritten.",
+								},
+								"filename": map[string]interface{}{
+									"type":        "string",
+									"description": "Local source file names or directory paths, comma-separated. If a directory is specified, all files inside are recursively processed.",
+								},
+								"backup": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Optional. Generate a local backup of the remote project prior to updating. Default is false.",
+								},
+								"deletefiles": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Optional. Delete specified filenames from the remote project. Default is false.",
+								},
+							},
+							"required": []string{"projectid", "filename"},
+						},
+					},
 				},
 			})
 
@@ -224,9 +254,13 @@ func runMCP(c *cli.Context) error {
 			}
 			cmdArgs = append(cmdArgs, "--jsonparser")
 
-			exePath, err := os.Executable()
-			if err != nil {
-				exePath = "ggsrun"
+			exePath := os.Getenv("GGSRUN_TEST_EXE_PATH")
+			if exePath == "" {
+				var err error
+				exePath, err = os.Executable()
+				if err != nil {
+					exePath = "ggsrun"
+				}
 			}
 
 			cmd := exec.Command(exePath, cmdArgs...)
@@ -234,7 +268,7 @@ func runMCP(c *cli.Context) error {
 			var stdoutBuf, stderrBuf bytes.Buffer
 			cmd.Stdout = &stdoutBuf
 			cmd.Stderr = &stderrBuf
-			err = cmd.Run()
+			err := cmd.Run()
 
 			resultText := stdoutBuf.String()
 			if err != nil {

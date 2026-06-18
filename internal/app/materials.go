@@ -437,6 +437,47 @@ func (a *AuthContainer) defDownloadContainer(c *cli.Context) *utl.FileInf {
 
 // DefUploadContainer : Struct container for uploading files
 func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
+	filenameInput := c.String("filename")
+	var isDir bool
+	var dirRoot string
+	var upFiles []string
+
+	if filenameInput != "" {
+		trimmed := strings.TrimSpace(filenameInput)
+		if fileInfo, err := os.Stat(trimmed); err == nil && fileInfo.IsDir() {
+			isDir = true
+			dirRoot = trimmed
+			// Scan directory recursively
+			err = filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if !info.IsDir() {
+					ext := filepath.Ext(path)
+					if utl.ChkExtention(ext) {
+						upFiles = append(upFiles, path)
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				pterm.Warning.Printf("Error scanning directory %s: %v\n", trimmed, err)
+			}
+
+			// Project Name Override / Derivation
+			if c.String("projectname") == "" {
+				absPath, err := filepath.Abs(trimmed)
+				projectName := filepath.Base(trimmed)
+				if err == nil {
+					projectName = filepath.Base(absPath)
+				}
+				c.Set("projectname", projectName)
+			}
+		} else {
+			upFiles = regexp.MustCompile(`\s*,\s*`).Split(filenameInput, -1)
+		}
+	}
+
 	p := &utl.FileInf{
 		Msgar:             a.Msg,
 		Accesstoken:       a.GgsrunCfg.Accesstoken,
@@ -449,13 +490,8 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 			}
 			return chnk * 1048576
 		}(c.Int64("chunksize")),
-		UpFilename: func(filenames string) []string {
-			if filenames != "" {
-				return regexp.MustCompile(`\s*,\s*`).Split(filenames, -1)
-			}
-			return nil
-		}(c.String("filename")),
-		ParentID: c.String("parentid"),
+		UpFilename: upFiles,
+		ParentID:   c.String("parentid"),
 		ProjectType: func(ptype string) string {
 			var ret string
 			switch strings.ToLower(ptype) {
@@ -474,6 +510,8 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 		}(c.String("projecttype")),
 		GoogleDocName: c.String("googledocname"),
 		ConvertTo:     c.String("convertto"),
+		IsDirUpload:   isDir,
+		DirUploadRoot: dirRoot,
 	}
 	return p
 }
@@ -502,7 +540,36 @@ func (e *ExecutionContainer) defDownloadByScriptContainer() *utl.FileInf {
 
 // defUpdateProjectContainer : Struct container for downloading files by GAS
 func (e *ExecutionContainer) defUpdateProjectContainer(c *cli.Context) *ExecutionContainer {
-	e.UpFiles = regexp.MustCompile(`\s*,\s*`).Split(c.String("filename"), -1)
+	rawFiles := regexp.MustCompile(`\s*,\s*`).Split(c.String("filename"), -1)
+	var expanded []string
+	for _, f := range rawFiles {
+		f = strings.TrimSpace(f)
+		if f == "" {
+			continue
+		}
+		fi, err := os.Stat(f)
+		if err != nil {
+			expanded = append(expanded, f)
+			continue
+		}
+		if fi.IsDir() {
+			err = filepath.Walk(f, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if !info.IsDir() {
+					expanded = append(expanded, path)
+				}
+				return nil
+			})
+			if err != nil {
+				expanded = append(expanded, f)
+			}
+		} else {
+			expanded = append(expanded, f)
+		}
+	}
+	e.UpFiles = expanded
 	return e
 }
 

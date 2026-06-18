@@ -503,6 +503,23 @@ Pushes local hierarchical structures to Google Drive asynchronously. Resumable c
 > [!NOTE]
 > Recursive folder uploads natively support batch conversion. When specifying `-c` (or `--convertto`), every eligible file within the uploaded folder tree is evaluated and converted to the target Workspace format concurrently. Files that cannot be converted will log a conversion error warning and skip, leaving other files in the queue unaffected.
 
+### GAS Project Updates (updateproject)
+
+The `updateproject` command (alias `ud`) allows you to synchronize local code files to an existing remote Google Apps Script (GAS) project on Google Drive. 
+
+Starting from **v5.3.3**, this command recursively walks local directory paths specified with `-f`/`--filename`, lists all detected target files, and presents a visual prompt asking for user confirmation to protect against accidental remote code loss.
+
+| Command | Action |
+| :--- | :--- |
+| `$ ggsrun updateproject -p "PROJECT_ID" -f "Code.js, index.html"` | Overwrites `Code.js` and `index.html` in the remote GAS project. |
+| `$ ggsrun updateproject -p "PROJECT_ID" -f "./src"` | Recursively walks the `./src` folder and updates/creates all found scripts in the remote GAS project. |
+| `$ ggsrun updateproject -p "PROJECT_ID" -f "deleted_file" --deletefiles` | Deletes `deleted_file` from the remote GAS project. |
+| `$ ggsrun updateproject -p "PROJECT_ID" -f "./src" -b` | Creates a local backup (`.zip` or `.json` payload depending on the type) before applying updates. |
+| `$ ggsrun updateproject -p "PROJECT_ID" -r` | Interactively rearranges the order of scripts inside the remote GAS project via the terminal. |
+
+> [!WARNING]
+> Since the `updateproject` command overwrites files inside the remote Google Apps Script project, `ggsrun` will display a bulleted list of all targeted local files and prompt you with a hard interactive confirmation (Y/N) before executing any remote updates. Standard LLM agents using the MCP tool mode will also request your approval prior to running this command.
+
 ### Conflict Resolution Mode
 
 Both `download` and `upload` commands support the `--conflict-mode` (or `-cm`) flag to handle collisions when files already exist in the target destination.
@@ -620,12 +637,12 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - Adjust tests to locate the newly refactored `TextView` details/error containers within `tview.Flex` instead of asserting the presence of `*tview.Modal`.
 ```
 
-#### Development & Release Results (v5.3.1)
+#### Development & Release Results (v5.3.3)
 
 ##### 📊 Consumed Resources
 
-- **Conversations**: 10 sessions (long-term development across context compactions).
-- **Development Time**: Approx. 1.5 to 2 hours (including investigation, integration tests, and fixing build warnings).
+- **Conversations**: 12 sessions (long-term development across context compactions).
+- **Development Time**: Approx. 3 hours (including investigation, integration tests, and fixing build warnings).
 - **Quota Consumption**: High. Complex layout refactoring, mock testing, and cross-compilation validation resulted in a context size reaching hundreds of thousands of tokens.
 
 ##### 💡 Efficiency & Success Review
@@ -635,10 +652,18 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 
 ##### 🛠️ Key Improvements & Hardening
 
+- **Recursive GAS Project Updates (v5.3.3)**: Implemented recursive directory walks when executing project updates (`ggsrun updateproject -f <dir>`), allowing easy batch updates of nested files to a remote Apps Script project.
+- **Bullet-List Overwrite Warnings (v5.3.3)**: Integrated visual targeted local file listing utilizing `pterm.BulletListPrinter` before triggering project update transfers.
+- **CLI/TUI Overwrite Protection (v5.3.3)**: Added a hard interactive confirmation prompt (Y/N) before project updates mutate files, protecting remote repositories from accidental loss.
+- **GAS ZIP Download Support (v5.3.3)**: Supported downloading Apps Script projects as packaged local ZIP files via `ggsrun download -i <fileId> -z`.
+- **Comprehensive Integration Testing (v5.3.3)**: Added a complete automated integration testing suite (`cli_test.go`) validating recursive ZIP/JSON/folder downloads, conversions, standalone uploads, and binary fallbacks.
 - **Popup Refactoring**: Replaced `tview.NewModal` with a custom `tview.Flex` layout (15%:70%:15%) for each dialog (errors, file details, execution prompts, sorting selection, conversion prompts, help menu, and execution results), ensuring no content clips.
 - **Focus Locking**: Focus remains strictly on the active panel/table pre and post action sequences, mitigating confusion.
 - **Wrap-around & Clipboard Navigation**: Added wrap-around to lists and mapped the `y` key to yank (copy) selected file absolute paths (local) or File IDs (remote) to the clipboard.
 - **32-bit Compatibility**: Resolved compilation errors on 32-bit Linux platforms (e.g., `linux/arm`) by explicitly casting `syscall.Stat_t` `Ctim` fields to `int64` inside platform-specific build files.
+- **Script Upload Flags (v5.3.2)**: Fixed a TUI crash (`panic: internal 1`) on converting and uploading `.js`/`.gs` files to standalone Apps Script projects by registering the `"projectname"` and `"googledocname"` flags in `createOpContext`.
+- **TUI Text File Previews (v5.3.2)**: Implemented Enter key remote text file previews, and fixed focus restoration inside `showTextPreview` to fall back to `lastActiveTable`.
+- **Dynamic MimeType Conversion (v5.3.2)**: Aligned conversion prompts with the official `importFormats` specification via `utl.GetImportTargets` to bypass prompts for unsupported types.
 - **Script Upload Routing & Fallback (v5.3.1)**: Programmed correct routing for `.js`/`.gs`/`.gas` files to use the GAS project uploader instead of throwing 400 Bad Request on resumable uploads, and ensured raw script uploads override their MIME type to `text/plain`.
 - **Unsupported Conversion Fallback (v5.3.1)**: Modified default auto-convert mode so files without Google Workspace mapping (like `.zip`) are successfully uploaded as-is rather than skipped.
 - **TUI Filer Error Alerts (v5.3.1)**: Extended the TUI filer (`ggsrun fd`) to inspect transfer result statuses and raise clear error popups instead of failing silently.
@@ -961,6 +986,46 @@ By default, `ggsrun` requests all necessary scopes for Drive and GAS execution. 
 
 ---
 
+## Local Development & Testing
+
+To set up a local development and testing environment for `ggsrun`:
+
+1. **Environment Configuration (`.env`)**:
+   Create a `.env` file in the root directory of the repository. This file is automatically loaded during test execution. Prepare the following variables:
+   ```env
+   # Google Drive File IDs for testing (prepare your own files, do NOT use these IDs)
+   GGSRUN_TEST_GAS_PROJECT_FILEID_ON_GOOGLE_DRIVE="YOUR_TEST_GAS_PROJECT_FILE_ID"
+   GGSRUN_TEST_GOOGLE_DOCS_FILEID_ON_GOOGLE_DRIVE="YOUR_TEST_GOOGLE_DOCS_FILE_ID"
+   GGSRUN_TEST_PDF_FILEID_ON_GOOGLE_DRIVE="YOUR_TEST_PDF_FILE_ID"
+
+   # Local test data paths (pre-packaged inside the repository)
+   TESTDATA_GAS_SCRIPT1="internal/app/testdata/sampleGAS"
+   TESTDATA_IMAGE1="internal/app/testdata/sampleImage1.png"
+   TESTDATA_MARKDOWN1="internal/app/testdata/sample.md"
+   TESTDATA_PDF1="internal/app/testdata/sample_pdf_1.pdf"
+
+   # Local test data paths for TUI/FD Mode
+   TESTDATA2_GAS_SCRIPT2="internal/tui/testdata/sampleGAS"
+   TESTDATA_IMAGE2="internal/tui/testdata/sampleImage1.png"
+   TESTDATA_MARKDOWN2="internal/tui/testdata/sample.md"
+   TESTDATA_PDF2="internal/tui/testdata/sample_pdf_1.pdf"
+   ```
+   *Note: Do NOT commit your real Google Drive file IDs or private credentials to git.*
+
+2. **Test Suites Structure**:
+   `ggsrun`'s tests are organized into three distinct test suites:
+   - **CLI Mode Tests** (`internal/app/cli_test.go`): Verifies CLI arguments parsing, conflict resolution logic, download extension conversions (`.gs` to `.js`), and directory upload packing.
+   - **MCP Server Tests** (`internal/app/mcp_test.go`): Verifies JSON-RPC over stdin/stdout, protocol initialization, and schemas for all registered MCP tools (including `rawdata` and `projectname` metadata options).
+   - **FD (TUI) Mode Tests** (`internal/tui/fd_test.go`): Simulates screen events, navigation, table rendering, list wrapping, and TUI file operations.
+
+3. **Running the Tests**:
+   Run all tests uncached:
+   ```bash
+   go test -count=1 ./...
+   ```
+
+---
+
 ## Troubleshooting
 
 **1. Web Apps Returns Status Code 200, but output is HTML**
@@ -987,6 +1052,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.3 (June 2026) - Recursive Directory Walk, Safe Interactivity & GAS Zip Download**
+  Enhanced `updateproject` (alias `ud`) command to recursively traverse folders specified via `-f` / `--filename` to batch overwrite remote GAS projects. Prints targeted local files in a beautiful bullet list using `pterm.BulletListPrinter` and requires explicit interactive confirmation (Y/N) in CLI/TUI modes before mutating Google Drive files. Supported downloading whole Apps Script projects directly as local packaged `.zip` archives via `ggsrun download -i <fileId> -z`. Added robust security warnings to the `updateproject` MCP tool description directing AI agents to obtain user approval before calling the tool. Introduced a complete automated integration testing suite (`cli_test.go`) validating download structures, document conversions, standalone uploads, and binary fallbacks.
 - **v5.3.2 (June 2026) - Script Upload Flag Registration and TUI Focus Fallbacks**
   Fixed a TUI upload crash where converting and uploading `.js`/`.gs` files to standalone Apps Script projects threw a panic: `internal process exited with code 1` due to unregistered `projectname` and `googledocname` flags in `createOpContext`. Integrated full text file previews on Enter for remote files, and implemented dynamic `importFormats` MIME type lookup via `utl.GetImportTargets` to automatically bypass conversion prompts for unconvertible file types, as well as robust focus restoration.
 - **v5.3.1 (June 2026) - Script Upload Routing Fixes, Non-Convertible Upload Fallbacks, and TUI Error Propagation**
