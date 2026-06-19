@@ -2313,6 +2313,12 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
 
 ##### 🛠️ Key Improvements & Hardening
+- **Manifest Preservation & Auto-Merge (v5.3.4)**: When uploading directory files under `exe1`, the local `appsscript.json` manifest dynamically merges missing `"executionApi"` and `"webapp"` definitions from remote backup configurations, preventing 404 Entity/Deployment errors.
+- **Zero-Wait Immediate Execution (v5.3.4)**: Unconditional 2.5s compilation delays after project updates have been completely removed, accelerating development cycles. A transient latency 404-retry fallback is safely retained.
+- **Identifiable Namespace Prefixing (v5.3.4)**: Automatically prepends the `ggsrun/` prefix to uploaded files (e.g., `ggsrun/{filename}.gs` or `ggsrun/{filename}.html`) across CLI, TUI, and MCP uploader modules to clearly track files.
+- **Universal Exit Rollback Hooks (v5.3.4)**: Fully integrated a resilient exit hook and SIGINT (Ctrl+C) signal-interceptor that guarantees complete original project state recovery in the event of panics, standard exit codes, or user cancellations.
+- **Targeted Function Multi-Args (v5.3.4)**: Enabled specifying repeating `-f` / `--function` flags to pass sequential multiple string arguments to a remote function.
+- **MCP Server Security Guardrails (v5.3.4)**: Embedded a static analysis engine inside the MCP server (`ggsrun mcp`) that evaluates GAS payload scripts and requires explicit approval via `"confirm": true` before mutation commands execution.
 - **Recursive GAS Project Updates (v5.3.3)**: Implemented recursive directory walks when executing project updates (`ggsrun updateproject -f <dir>`), allowing easy batch updates of nested files to a remote Apps Script project.
 - **Bullet-List Overwrite Warnings (v5.3.3)**: Integrated visual targeted local file listing utilizing `pterm.BulletListPrinter` before triggering project update transfers.
 - **CLI/TUI Overwrite Protection (v5.3.3)**: Added a hard interactive confirmation prompt (Y/N) before project updates mutate files, protecting remote repositories from accidental loss.

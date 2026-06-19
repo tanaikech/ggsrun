@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"ggsrun/internal/utl"
@@ -53,8 +55,8 @@ func showWHelpAndExit(c *cli.Context) {
 
 // exeAPIWithout : exe1
 func exeAPIWithout(c *cli.Context) error {
-	// 4. Safeguard: check for required script source
-	if c.String("scriptfile") == "" && c.String("stringscript") == "" && !isStdinPiped() {
+	// 4. Safeguard: check for required script source or function execution flag
+	if c.String("scriptfile") == "" && c.String("stringscript") == "" && !isStdinPiped() && len(c.StringSlice("function")) == 0 {
 		showE1HelpAndExit(c)
 	}
 
@@ -66,22 +68,73 @@ func exeAPIWithout(c *cli.Context) error {
 		goauth().
 		defExecutionContainer()
 
-	// Defer cleanup of temporary file if it was uploaded
-	defer func() {
-		if e.InitVal.tempFileNameToCleanup != "" {
-			e.UpdateStatus("Cleaning up temporary script file from GAS project...")
-			var newFiles []File
-			for _, f := range e.Project.Files {
-				if f.Name != e.InitVal.tempFileNameToCleanup {
-					newFiles = append(newFiles, f)
+	// Set up robust cleanup with exit and signal hooks
+	var rollbackOnce sync.Once
+	performRollback := func() {
+		rollbackOnce.Do(func() {
+			needsUpdate := false
+			if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
+				e.UpdateStatus("Restoring original script project state...")
+				if len(e.InitVal.originalFiles) > 0 {
+					e.Project.Files = e.InitVal.originalFiles
+					needsUpdate = true
+					if !c.Bool("jsonparser") {
+						pterm.Success.Println("Restored original script files from memory backup.")
+					}
+				} else {
+					if e.InitVal.tempFileNameToCleanup != "" {
+						var newFiles []File
+						for _, f := range e.Project.Files {
+							if f.Name != e.InitVal.tempFileNameToCleanup {
+								newFiles = append(newFiles, f)
+							}
+						}
+						e.Project.Files = newFiles
+						needsUpdate = true
+						if !c.Bool("jsonparser") {
+							pterm.Success.Printf("Cleaned up temporary file '%s' successfully.\n", e.InitVal.tempFileNameToCleanup)
+						}
+					}
+					if len(e.InitVal.uploadedFilesToCleanup) > 0 {
+						cleanupMap := make(map[string]bool)
+						for _, name := range e.InitVal.uploadedFilesToCleanup {
+							cleanupMap[name] = true
+						}
+						var newFiles []File
+						for _, f := range e.Project.Files {
+							if !cleanupMap[f.Name] {
+								newFiles = append(newFiles, f)
+							}
+						}
+						e.Project.Files = newFiles
+						needsUpdate = true
+						if !c.Bool("jsonparser") {
+							pterm.Success.Printf("Cleaned up uploaded files: %v successfully.\n", e.InitVal.uploadedFilesToCleanup)
+						}
+					}
 				}
 			}
-			e.Project.Files = newFiles
-			e.projectUpdate2()
-			if !c.Bool("jsonparser") {
-				pterm.Success.Printf("Cleaned up temporary file '%s' successfully.\n", e.InitVal.tempFileNameToCleanup)
+			if needsUpdate {
+				e.projectUpdate2()
 			}
-		}
+		})
+	}
+
+	utl.CleanUpHandler = performRollback
+	defer func() {
+		utl.CleanUpHandler = nil
+		performRollback()
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
+	go func() {
+		<-sigChan
+		performRollback()
+		os.Exit(1)
+	}()
+	defer func() {
+		signal.Stop(sigChan)
 	}()
 
 	// 8. Manifest auto-validation
@@ -104,6 +157,18 @@ func exeAPIWithout(c *cli.Context) error {
 
 // exeAPIWith : exe2
 func exeAPIWith(c *cli.Context) error {
+	if c.String("scriptfile") != "" {
+		fi, err := os.Stat(c.String("scriptfile"))
+		if err == nil && fi.IsDir() {
+			pterm.Error.Println("Error: Directory upload is strictly limited to 'exe1'. It is not supported for 'exe2'.")
+			utl.Exit(1)
+		}
+	}
+	if c.Bool("deleteScript") {
+		pterm.Error.Println("Error: --deleteScript (-d) is strictly limited to 'exe1'. It is not supported for 'exe2'.")
+		utl.Exit(1)
+	}
+
 	// 4. Safeguard: check for required script source or execution flag
 	if c.String("scriptfile") == "" && c.String("stringscript") == "" && !isStdinPiped() && !c.Bool("foldertree") && !c.Bool("convert") {
 		showE2HelpAndExit(c)
@@ -190,6 +255,18 @@ func checkExecutionApiExists(proj *Project) (bool, bool) {
 
 // webAppsWith : exe3
 func webAppsWith(c *cli.Context) error {
+	if c.String("scriptfile") != "" {
+		fi, err := os.Stat(c.String("scriptfile"))
+		if err == nil && fi.IsDir() {
+			pterm.Error.Println("Error: Directory upload is strictly limited to 'exe1'. It is not supported for 'webapps'.")
+			utl.Exit(1)
+		}
+	}
+	if c.Bool("deleteScript") {
+		pterm.Error.Println("Error: --deleteScript (-d) is strictly limited to 'exe1'. It is not supported for 'webapps'.")
+		utl.Exit(1)
+	}
+
 	// 4. Safeguard: check for required script source
 	if c.String("scriptfile") == "" && c.String("stringscript") == "" && !isStdinPiped() {
 		showWHelpAndExit(c)

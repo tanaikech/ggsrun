@@ -58,9 +58,11 @@ type InitVal struct {
 	Port                  int
 	useServiceAccount     string
 	Spinner               *pterm.SpinnerPrinter // TUI Spinner reference
-	originalScriptID      string
-	hasNewScriptID        bool
-	tempFileNameToCleanup string
+	originalScriptID       string
+	hasNewScriptID         bool
+	tempFileNameToCleanup  string
+	uploadedFilesToCleanup []string
+	originalFiles          []File
 }
 
 // UpdateStatus safely updates the TUI spinner text if active.
@@ -318,7 +320,14 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	a.InitVal.customCred = c.String("credentials")
 	a.InitVal.envConfig = os.Getenv(cfgpathenv)
 
-	a.Param.Function = c.String("function")
+	if c.Command.Name == "exe1" || c.Command.Name == "e1" {
+		fSlice := c.StringSlice("function")
+		if len(fSlice) > 0 {
+			a.Param.Function = fSlice[0]
+		}
+	} else {
+		a.Param.Function = c.String("function")
+	}
 	a.InitVal.log = c.Bool("log")
 	a.InitVal.Port = defPort
 	if a.InitVal.isAuthCmd {

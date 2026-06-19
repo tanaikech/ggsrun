@@ -57,7 +57,7 @@ func TestMCPServerToolsList(t *testing.T) {
 
 	// Set up CLI context
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.3"
+	appObj.Version = "5.3.4"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -156,7 +156,7 @@ func TestMCPServerToolsCall(t *testing.T) {
 
 	// Set up CLI context
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.3"
+	appObj.Version = "5.3.4"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -179,3 +179,99 @@ func TestMCPServerToolsCall(t *testing.T) {
 		t.Errorf("Expected 'content' field in tools/call response, but got: %s", output)
 	}
 }
+
+// TestGASScriptStaticAnalysis verifies that the static safety analysis engine
+// correctly identifies write operations vs read-only operations across Google APIs.
+func TestGASScriptStaticAnalysis(t *testing.T) {
+	writeScript := `
+		function run() {
+			var folder = DriveApp.createFolder("test");
+			var file = DriveApp.createFile("data.txt", "content");
+			MailApp.sendEmail("user@example.com", "Subject", "Body");
+			SpreadsheetApp.getActiveSpreadsheet().appendRow([1, 2, 3]);
+		}
+	`
+	readScript := `
+		function run() {
+			var file = DriveApp.getFileById("abc");
+			var name = file.getName();
+			var data = SpreadsheetApp.openById("xyz").getValues();
+		}
+	`
+
+	reportWrite, hasWrite := analyzeGASScript(writeScript)
+	if !hasWrite {
+		t.Errorf("Expected writeScript to be flagged as containing write operations")
+	}
+	if !strings.Contains(reportWrite, ".createFolder") {
+		t.Errorf("Expected report to mention .createFolder")
+	}
+	if !strings.Contains(reportWrite, ".sendEmail") {
+		t.Errorf("Expected report to mention .sendEmail")
+	}
+
+	reportRead, hasReadWrite := analyzeGASScript(readScript)
+	if hasReadWrite {
+		t.Errorf("Expected readScript to be identified as read-only")
+	}
+	if !strings.Contains(reportRead, ".getFileById") {
+		t.Errorf("Expected report to mention .getFileById read method")
+	}
+}
+
+// TestMCPServerExe1SecurityGuardrail verifies that the MCP Server's "exe1" tool
+// blocks execution and returns a safety report when 'confirm' is omitted or false.
+func TestMCPServerExe1SecurityGuardrail(t *testing.T) {
+	// Create pipes to simulate stdin/stdout
+	rIn, wIn, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Pipe error: %v", err)
+	}
+	rOut, wOut, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Pipe error: %v", err)
+	}
+
+	oldStdin := os.Stdin
+	oldStdout := os.Stdout
+	defer func() {
+		os.Stdin = oldStdin
+		os.Stdout = oldStdout
+	}()
+	os.Stdin = rIn
+	os.Stdout = wOut
+
+	// Inline string script with write operations - properly escaped for insertion into JSON string
+	stringScript := `function run() { MailApp.sendEmail(\"a@b.com\", \"hello\", \"world\"); }`
+	
+	// Create arguments map with confirm omitted/false
+	requestMsg := `{"jsonrpc": "2.0", "id": 101, "method": "tools/call", "params": {"name": "exe1", "arguments": {"function": "run", "stringscript": "` + stringScript + `", "confirm": false}}}` + "\n"
+	_, _ = wIn.Write([]byte(requestMsg))
+	wIn.Close()
+
+	outChan := make(chan string)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, rOut)
+		outChan <- buf.String()
+	}()
+
+	appObj := cli.NewApp()
+	appObj.Version = "5.3.4"
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	cliCtx := cli.NewContext(appObj, set, nil)
+
+	_ = runMCP(cliCtx)
+	wOut.Close()
+
+	output := <-outChan
+
+	// Verify that safety warning and confirmation instruction were returned
+	if !strings.Contains(output, "SECURITY WARNING") {
+		t.Errorf("Expected security warning in response when confirm is false, but got: %s", output)
+	}
+	if !strings.Contains(output, `\"confirm\": true`) {
+		t.Errorf("Expected prompt to run with confirm: true, but got: %s", output)
+	}
+}
+

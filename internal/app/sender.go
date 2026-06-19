@@ -33,26 +33,9 @@ var (
 
 // Exe1Function : Updates the project and executes the script.
 func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
-	var rawScript string
-	var isTemp bool
 
 	if c.String("stringscript") != "" {
-		rawScript = c.String("stringscript")
-		isTemp = true
-	} else if isStdinPiped() {
-		var err error
-		rawScript, err = readAllStdin()
-		if err != nil {
-			e.FailStatus("Stdin Read Error")
-			pterm.Error.Println(err)
-			utl.Exit(1)
-		}
-		isTemp = true
-	} else if c.String("scriptfile") != "" {
-		rawScript = utl.ConvGasToPut(c)
-	}
-
-	if isTemp {
+		rawScript := c.String("stringscript")
 		timestamp := time.Now().Format("20060102150405")
 		tempFileName := "ggsrun_exe1_temp_" + timestamp
 		e.UpdateStatus("Preparing project update and backup (temporary file)...")
@@ -67,10 +50,182 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 		e.projectUpdate2()
 
 		e.InitVal.tempFileNameToCleanup = tempFileName
-	} else if len(c.String("scriptfile")) > 0 || c.Bool("backup") {
+	} else if isStdinPiped() {
+		rawScript, err := readAllStdin()
+		if err != nil {
+			e.FailStatus("Stdin Read Error")
+			pterm.Error.Println(err)
+			utl.Exit(1)
+		}
+		timestamp := time.Now().Format("20060102150405")
+		tempFileName := "ggsrun_exe1_temp_" + timestamp
+		e.UpdateStatus("Preparing project update and backup (temporary file)...")
+		e.projectBackup(c)
+
+		filedata := File{
+			Name:   tempFileName,
+			Type:   "SERVER_JS",
+			Source: rawScript,
+		}
+		e.Project.Files = append(e.Project.Files, filedata)
+		e.projectUpdate2()
+
+		e.InitVal.tempFileNameToCleanup = tempFileName
+	} else if c.String("scriptfile") != "" {
+		scriptfileStr := c.String("scriptfile")
+		var upFiles []string
+		rawFiles := regexp.MustCompile(`\s*,\s*`).Split(scriptfileStr, -1)
+		for _, f := range rawFiles {
+			f = strings.TrimSpace(f)
+			if f == "" {
+				continue
+			}
+			fi, err := os.Stat(f)
+			if err != nil {
+				pterm.Error.Printf("File/Directory not found: %s\n", f)
+				utl.Exit(1)
+			}
+			if fi.IsDir() {
+				err = filepath.Walk(f, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if !info.IsDir() {
+						upFiles = append(upFiles, path)
+					}
+					return nil
+				})
+				if err != nil {
+					pterm.Error.Printf("Error walking directory %s: %v\n", f, err)
+					utl.Exit(1)
+				}
+			} else {
+				upFiles = append(upFiles, f)
+			}
+		}
+
+		if len(upFiles) == 0 {
+			pterm.Error.Println("No valid upload files found.")
+			utl.Exit(1)
+		}
+
 		e.UpdateStatus("Preparing project update and backup...")
-		e.projectBackup(c).projectUpdateIni(rawScript).projectUpdate2()
+		e.projectBackup(c)
+
+		var uploadedNames []string
+		for _, elm := range upFiles {
+			ext := filepath.Ext(elm)
+			base := filepath.Base(elm)
+			if base == "appsscript.json" {
+				content, err := os.ReadFile(elm)
+				if err != nil {
+					pterm.Error.Printf("Error reading %s: %v\n", elm, err)
+					utl.Exit(1)
+				}
+				// Robustness: ensure uploaded appsscript.json has executionApi and webapp required configs
+				var manifest map[string]interface{}
+				if err := json.Unmarshal(content, &manifest); err == nil {
+					modified := false
+
+					// Retrieve original manifest if available
+					var origManifest map[string]interface{}
+					for _, origFile := range e.InitVal.originalFiles {
+						if origFile.Name == "appsscript" && strings.ToUpper(origFile.Type) == "JSON" {
+							json.Unmarshal([]byte(origFile.Source), &origManifest)
+							break
+						}
+					}
+
+					// 1. Keep / inject executionApi
+					if _, ok := manifest["executionApi"]; !ok {
+						if origManifest != nil {
+							if origExec, ok := origManifest["executionApi"]; ok {
+								manifest["executionApi"] = origExec
+								modified = true
+							}
+						}
+						if !modified {
+							manifest["executionApi"] = map[string]interface{}{"access": "MYSELF"}
+							modified = true
+						}
+					}
+
+					// 2. Keep / inject webapp
+					if _, ok := manifest["webapp"]; !ok {
+						if origManifest != nil {
+							if origWebapp, ok := origManifest["webapp"]; ok {
+								manifest["webapp"] = origWebapp
+								modified = true
+							}
+						}
+					}
+
+					if modified {
+						if newContent, err := json.MarshalIndent(manifest, "", "  "); err == nil {
+							content = newContent
+						}
+					}
+				}
+				found := false
+				for i, v := range e.Project.Files {
+					if v.Name == "appsscript" && strings.ToUpper(v.Type) == "JSON" {
+						e.Project.Files[i].Source = string(content)
+						found = true
+						break
+					}
+				}
+				if !found {
+					e.Project.Files = append(e.Project.Files, File{
+						Name:   "appsscript",
+						Type:   "JSON",
+						Source: string(content),
+					})
+				}
+			} else if utl.ChkExtention(ext) {
+				name := "ggsrun/" + strings.TrimSuffix(base, ext) + ".gs"
+				filetype := utl.ExtToType(ext, true)
+				if filetype == "HTML" {
+					name = "ggsrun/" + strings.TrimSuffix(base, ext) + ".html"
+				} else if filetype == "JSON" {
+					name = "ggsrun/" + strings.TrimSuffix(base, ext) + ".json"
+				}
+				source := utl.ConvGasToUpload(elm)
+
+				found := false
+				for i, v := range e.Project.Files {
+					if v.Name == name {
+						e.Project.Files[i].Source = source
+						e.Project.Files[i].Type = filetype
+						found = true
+						break
+					}
+				}
+				if !found {
+					e.Project.Files = append(e.Project.Files, File{
+						Name:   name,
+						Type:   filetype,
+						Source: source,
+					})
+				}
+				uploadedNames = append(uploadedNames, name)
+			} else {
+				pterm.Warning.Printf("File '%s' ignored (unsupported extension).\n", elm)
+			}
+		}
+
+		e.projectUpdate2()
+
+		if c.Bool("deleteScript") {
+			e.InitVal.uploadedFilesToCleanup = uploadedNames
+		}
+	} else if c.Bool("backup") {
+		e.UpdateStatus("Preparing project backup...")
+		e.projectBackup(c)
 	}
+
+	// Robustness: we no longer need unconditional compilation sleep because manifest preservation (executionApi and webapp)
+	// avoids the 404 error completely. Transient latency can still be handled by adaptive 404-retries inside execution API calls.
+
 	return e
 }
 
@@ -220,13 +375,25 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer {
 	e.UpdateStatus("Executing GAS function via Execution API...")
 	var paraint []interface{}
-	valStr := c.String("value")
-	if len(valStr) > 0 {
-		var parsedVal interface{}
-		if err := json.Unmarshal([]byte(valStr), &parsedVal); err == nil {
-			paraint = []interface{}{parsedVal}
-		} else {
-			paraint = []interface{}{valStr}
+	fSlice := c.StringSlice("function")
+	if len(fSlice) > 1 {
+		for _, argStr := range fSlice[1:] {
+			var parsedVal interface{}
+			if err := json.Unmarshal([]byte(argStr), &parsedVal); err == nil {
+				paraint = append(paraint, parsedVal)
+			} else {
+				paraint = append(paraint, argStr)
+			}
+		}
+	} else {
+		valStr := c.String("value")
+		if len(valStr) > 0 {
+			var parsedVal interface{}
+			if err := json.Unmarshal([]byte(valStr), &parsedVal); err == nil {
+				paraint = []interface{}{parsedVal}
+			} else {
+				paraint = []interface{}{valStr}
+			}
 		}
 	}
 	epara := &e1para{
@@ -248,7 +415,28 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 		Accesstoken: e.GgsrunCfg.Accesstoken,
 		Dtime:       370,
 	}
-	body, err := r.FetchAPI()
+	var body []byte
+	var err error
+	for attempt := 1; attempt <= 4; attempt++ {
+		r.Data = bytes.NewBuffer(re)
+		body, err = r.FetchAPI()
+		if err == nil {
+			break
+		}
+
+		var tempFeed FeedBackData
+		_ = json.Unmarshal(body, &tempFeed)
+		if tempFeed.Error.Code == 404 && tempFeed.Error.Message == "Requested entity was not found." {
+			if attempt < 4 {
+				if !c.Bool("jsonparser") {
+					e.UpdateStatus(fmt.Sprintf("Execution API returned 404. Retrying (attempt %d/3) in 2s for GAS compilation...", attempt))
+				}
+				time.Sleep(2000 * time.Millisecond)
+				continue
+			}
+		}
+		break
+	}
 	e.executionError(body, err)
 	json.Unmarshal(body, &e.FeedBackData)
 	var dat string
@@ -288,7 +476,28 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 		Accesstoken: e.GgsrunCfg.Accesstoken,
 		Dtime:       370,
 	}
-	body, err := r.FetchAPI()
+	var body []byte
+	var err error
+	for attempt := 1; attempt <= 4; attempt++ {
+		r.Data = bytes.NewBuffer(re)
+		body, err = r.FetchAPI()
+		if err == nil {
+			break
+		}
+
+		var tempFeed FeedBackData
+		_ = json.Unmarshal(body, &tempFeed)
+		if tempFeed.Error.Code == 404 && tempFeed.Error.Message == "Requested entity was not found." {
+			if attempt < 4 {
+				if !c.Bool("jsonparser") {
+					e.UpdateStatus(fmt.Sprintf("Execution API returned 404. Retrying (attempt %d/3) in 2s for GAS compilation...", attempt))
+				}
+				time.Sleep(2000 * time.Millisecond)
+				continue
+			}
+		}
+		break
+	}
 
 	// Pre-inspect for function not found error to trigger self-healing
 	var testFeedBack FeedBackData
@@ -430,6 +639,10 @@ func (e *ExecutionContainer) projectBackup(c *cli.Context) *ExecutionContainer {
 		utl.Exit(1)
 	}
 	json.Unmarshal(res, &e.Project)
+	if e.Project != nil && len(e.Project.Files) > 0 {
+		e.InitVal.originalFiles = make([]File, len(e.Project.Files))
+		copy(e.InitVal.originalFiles, e.Project.Files)
+	}
 	if c.Bool("backup") {
 		btok, _ := json.MarshalIndent(e.Project, "", "\t")
 		filename := e.InitVal.pstart.Format("20060102_150405") + ".gs"

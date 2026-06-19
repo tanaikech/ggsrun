@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"ggsrun/internal/utl"
+	"os"
+	"os/signal"
+	"sync"
 	"time"
 
 	json "github.com/goccy/go-json"
@@ -186,18 +189,64 @@ func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
 		e.GgsrunCfg.Scriptid = c.String("scriptid")
 	}
 
-	// Defer cleanup of temporary file if it was uploaded
-	defer func() {
-		if e.InitVal.tempFileNameToCleanup != "" {
-			var newFiles []File
-			for _, f := range e.Project.Files {
-				if f.Name != e.InitVal.tempFileNameToCleanup {
-					newFiles = append(newFiles, f)
+	// Set up robust cleanup with exit and signal hooks
+	var rollbackOnce sync.Once
+	performRollback := func() {
+		rollbackOnce.Do(func() {
+			needsUpdate := false
+			if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
+				e.UpdateStatus("Restoring original script project state...")
+				if len(e.InitVal.originalFiles) > 0 {
+					e.Project.Files = e.InitVal.originalFiles
+					needsUpdate = true
+				} else {
+					if e.InitVal.tempFileNameToCleanup != "" {
+						var newFiles []File
+						for _, f := range e.Project.Files {
+							if f.Name != e.InitVal.tempFileNameToCleanup {
+								newFiles = append(newFiles, f)
+							}
+						}
+						e.Project.Files = newFiles
+						needsUpdate = true
+					}
+					if len(e.InitVal.uploadedFilesToCleanup) > 0 {
+						cleanupMap := make(map[string]bool)
+						for _, name := range e.InitVal.uploadedFilesToCleanup {
+							cleanupMap[name] = true
+						}
+						var newFiles []File
+						for _, f := range e.Project.Files {
+							if !cleanupMap[f.Name] {
+								newFiles = append(newFiles, f)
+							}
+						}
+						e.Project.Files = newFiles
+						needsUpdate = true
+					}
 				}
 			}
-			e.Project.Files = newFiles
-			e.projectUpdate2()
-		}
+			if needsUpdate {
+				e.projectUpdate2()
+			}
+		})
+	}
+
+	utl.CleanUpHandler = performRollback
+	defer func() {
+		utl.CleanUpHandler = nil
+		performRollback()
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
+	go func() {
+		<-sigChan
+		performRollback()
+		os.Exit(1)
+	}()
+	defer func() {
+		signal.Stop(sigChan)
 	}()
 
 	if err := e.autoValidateAndDeployManifest(c, "e1"); err != nil {

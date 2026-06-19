@@ -36,13 +36,13 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.3"
+	app.Version = "5.3.4"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
 			Aliases:     []string{"e1"},
-			Usage:       "Updates the GAS project with a local script and executes a specified function.",
-			Description: "Requires an access token. Synchronizes the local script to the Drive project and triggers the execution API.\n\nUsage Examples:\n  1. Execute a local script file:\n     ggsrun e1 -i [SCRIPT_ID] -s path/to/script.gs -f myFunction -v \"hello\"\n\n  2. Execute an inline script:\n     ggsrun e1 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  3. Execute via standard input (pipe):\n     cat script.js | ggsrun e1 -i [SCRIPT_ID]\n\n  4. Run and backup the project before updating:\n     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b\n\n  5. Execute a stateless beacon request:\n     ggsrun e1 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
+			Usage:       "Updates the GAS project with a local script or directory and executes a specified function.",
+			Description: "Requires an access token. Synchronizes local scripts or directories to the Drive project and triggers the execution API.\n\nUsage Examples:\n  1. Execute a local script file with sequential arguments:\n     ggsrun e1 -i [SCRIPT_ID] -f myFunction -f \"arg1\" -f \"arg2\"\n\n  2. Execute a local directory with automated cleanup:\n     ggsrun e1 -i [SCRIPT_ID] -s path/to/dir -f myFunction -d\n\n  3. Execute an inline script:\n     ggsrun e1 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  4. Execute via standard input (pipe):\n     cat script.js | ggsrun e1 -i [SCRIPT_ID]\n\n  5. Run and backup the project before updating:\n     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b\n\n  6. Execute a stateless beacon request:\n     ggsrun e1 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
 			Action:      exeAPIWithout,
 			Flags: append([]cli.Flag{
 				&cli.StringFlag{
@@ -51,19 +51,23 @@ func Run() {
 				},
 				&cli.StringFlag{
 					Name:  "scriptfile, s",
-					Usage: "GAS file (.gs, .gas, .js, .txt, .coffee) on local PC",
+					Usage: "GAS file (.gs, .gas, .js, .txt, .coffee) or directory path on local PC",
 				},
 				&cli.StringFlag{
 					Name:  "stringscript, ss",
 					Usage: "GAS script provided directly as strings.",
 				},
-				&cli.StringFlag{
+				&cli.StringSliceFlag{
 					Name:  "function, f",
-					Usage: "Function name which is executed. Default is '" + deffuncwithout + "'.",
+					Usage: "Function name which is executed. Subsequent '-f' flags represent arguments sequentially. If script ID (-i) is omitted but -f is provided, the script_id from ggsrun.cfg will be used. Default is '" + deffuncwithout + "'.",
 				},
 				&cli.StringFlag{
 					Name:  "value, v",
-					Usage: "Give a value to the function which is executed.",
+					Usage: "Give a value to the function which is executed. (Fallback option if subsequent '-f' is not used)",
+				},
+				&cli.BoolFlag{
+					Name:  "deleteScript, d",
+					Usage: "Automatically and safely delete uploaded files from the remote GAS project after execution completes. (Strictly for exe1 only)",
 				},
 				&cli.BoolFlag{
 					Name:  "backup, b",

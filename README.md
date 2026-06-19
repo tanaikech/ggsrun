@@ -841,22 +841,35 @@ You can use the following sample prompts to instruct an AI Agent (e.g. Claude De
 
 ### Mode 1: `exe1` (Stateful Project Execution)
 
-`exe1` relies on the Apps Script API to permanently upload (sync) your local `.js/.gs` file to the remote GAS project, and then invokes a specific function via the Execution API.
+`exe1` (shorthand `e1`) relies on the Apps Script API to upload (sync) your local script files or directories to the remote GAS project, and then invokes a specified entry function via the Execution API.
 
-**When to use:** You want to permanently update the code on the cloud and run it. Requires an OAuth Token.
+**When to use:** You want to run code on the cloud. If you are uploading temporary files/folders and want them cleaned up immediately after run, you can use the automatic deletion flag. Requires an OAuth Token.
 
-**Step-by-Step:**
+**Key Upgrades in v5.3.3:**
+- **Directory Upload**: The `-s` / `--scriptfile` flag now supports passing a directory path. `ggsrun` will recursively walk the directory and upload all compatible files. If an `appsscript.json` file is present in the target directory or files, it will be uploaded and respected as the project manifest.
+- **Multi-Argument Parsing**: Instead of a single argument, you can declare the `-f` / `--function` flag multiple times. The first `-f` specifies the **function name**, and any subsequent `-f` flags are parsed as **sequential arguments** passed to the GAS function.
+- **Automated Cleanup**: Added the `--deleteScript` (shorthand `-d`) boolean flag. When set to `true`, all files uploaded during this specific execution are automatically and safely deleted from the remote GAS project immediately after the target function finishes executing. Other remote files remain untouched. (Strictly limited to `exe1`; blocked on `exe2` and `webapps`).
+- **Configuration Fallback**: If the script ID flag (`-i` / `--scriptid`) is omitted but `-f` is specified, `ggsrun` will look up and use the `script_id` defined in the local configuration file `ggsrun.cfg` as a fallback.
 
-1. Create a local script `sample.gs`:
-   ```javascript
-   function targetFunction(data) {
-     return "Processed data: " + data;
-   }
-   ```
-2. Execute the CLI:
+**Step-by-Step Examples:**
+
+1. **Execute a local script file with sequential arguments**:
    ```bash
-   $ ggsrun exe1 -i [YOUR_SCRIPT_ID] -s sample.gs -f targetFunction -v "Hello World"
+   $ ggsrun exe1 -i [YOUR_SCRIPT_ID] -s sample.gs -f targetFunction -f "first_argument" -f "second_argument"
    ```
+   *Here, `targetFunction("first_argument", "second_argument")` is triggered on Google Apps Script.*
+
+2. **Upload an entire local directory recursively and automatically clean it up**:
+   ```bash
+   $ ggsrun exe1 -i [YOUR_SCRIPT_ID] -s ./my-script-dir -f entryFunction --deleteScript
+   ```
+   *This recursively uploads all script files inside `./my-script-dir`, triggers `entryFunction()`, and immediately deletes the uploaded files from Google Drive once execution completes.*
+
+3. **Fallback to configuration script ID**:
+   ```bash
+   $ ggsrun exe1 -s sample.gs -f targetFunction
+   ```
+   *If `script_id` is defined in `ggsrun.cfg`, ggsrun automatically resolves and uses it, so you don't need to pass `-i` manually.*
 
 #### Architecture Workflow
 
@@ -1052,6 +1065,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.4 (June 2026) - Multi-Args, Auto-Cleanup, Manifest Preservation, Zero-Wait Optimization, and Security Guardrails**
+  Added support for executing a specific remote GAS function with multiple arguments using repeating `-f` flags under `exe1`. Implemented recursive folder walk with auto-cleanup of uploaded temporary files under `exe1` when `--deleteScript` (`-d`) is set, backed by a highly resilient signal-interceptor and process exit hook that guarantees original project state recovery. Programmed robust `appsscript.json` preservation that dynamically merges missing `"executionApi"` and `"webapp"` configurations from backups. Completely eliminated the unconditional 2.5-second compile-wait sleep for immediate execution, backed by adaptive 404-retry handlers. Applied a distinct `ggsrun/` namespace prefix to all temporary files uploaded via Apps Script APIs. Added strict runtime blocks for folder uploads under `exe2`/`webapps`, and integrated an advanced static analysis engine with `"confirm": true` parameters into the MCP server (`ggsrun mcp`).
 - **v5.3.3 (June 2026) - Recursive Directory Walk, Safe Interactivity & GAS Zip Download**
   Enhanced `updateproject` (alias `ud`) command to recursively traverse folders specified via `-f` / `--filename` to batch overwrite remote GAS projects. Prints targeted local files in a beautiful bullet list using `pterm.BulletListPrinter` and requires explicit interactive confirmation (Y/N) in CLI/TUI modes before mutating Google Drive files. Supported downloading whole Apps Script projects directly as local packaged `.zip` archives via `ggsrun download -i <fileId> -z`. Added robust security warnings to the `updateproject` MCP tool description directing AI agents to obtain user approval before calling the tool. Introduced a complete automated integration testing suite (`cli_test.go`) validating download structures, document conversions, standalone uploads, and binary fallbacks.
 - **v5.3.2 (June 2026) - Script Upload Flag Registration and TUI Focus Fallbacks**

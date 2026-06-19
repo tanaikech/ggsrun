@@ -8,6 +8,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"ggsrun/internal/utl"
 
 	json "github.com/goccy/go-json"
 	"github.com/pterm/pterm"
@@ -28,7 +33,7 @@ func sendMCPResponse(id interface{}, result interface{}) {
 // runMCP : MCP Node over stdio
 func runMCP(c *cli.Context) error {
 	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgMagenta)).Println("🤖 ggsrun MCP Server initialized")
-	pterm.Info.Println("System: Go 1.26.3 concurrency engine engaged.")
+	pterm.Info.Println("System: Go 1.26.4 concurrency engine engaged.")
 	pterm.Info.Println("Status: Listening on stdin/stdout for MCP JSON-RPC messages...")
 	pterm.Warning.Println("NOTE: This server acts as a pure I/O backend for LLM clients.\nNo LLM API keys are required or used by this process.")
 
@@ -55,7 +60,7 @@ func runMCP(c *cli.Context) error {
 				},
 				"serverInfo": map[string]interface{}{
 					"name":    "ggsrun-mcp-server",
-					"version": "5.2.2",
+					"version": "5.3.4",
 				},
 			})
 
@@ -155,7 +160,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "exe1",
-						"description": "Upload/synchronize a local Google Apps Script file or raw script string to a remote Google Apps Script project, and execute a specified entry function. Returns the function execution response payload as JSON.\n\nSAFETY & SECURITY RULES FOR LLM AGENTS:\nBefore executing any script using this tool, you MUST inspect and statically analyze the script content (either from `scriptfile` or `stringscript`) and perform the following safety evaluation:\n1. Identify if the script performs any write, update, or delete actions on Google APIs/resources (e.g., Google Drive, Gmail, Google Calendar, Google Sheets, etc.). Specifically, look for write methods like `.create*`, `.set*`, `.update*`, `.delete*`, `MailApp.sendEmail`, `GmailApp.sendEmail`, etc.\n2. If it contains ANY write, update, or delete actions, you MUST display a brief summary of the potential security risks and resource changes, list the specific write actions detected, and ask the user for confirmation (Y/N) before calling this tool.\n3. If the script is strictly READ-ONLY (only retrieving data, e.g., `.get*`, and no modification or email sending), you may proceed to call this tool directly without asking for confirmation.",
+						"description": "Upload/synchronize a local Google Apps Script file, a local directory, or raw script string to a remote Google Apps Script project, and execute a specified entry function with optional arguments. Returns the function execution response payload as JSON. This tool features a built-in Security Guardrail that statically analyzes script contents and requires a confirmation parameter (`confirm: true`) before execution.",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -165,19 +170,38 @@ func runMCP(c *cli.Context) error {
 								},
 								"scriptfile": map[string]interface{}{
 									"type":        "string",
-									"description": "Path to a local Google Apps Script source file (.gs, .js, .txt, etc.) containing the script code to upload/synchronize before execution. Either `scriptfile` or `stringscript` is required.",
+									"description": "Path to a local Google Apps Script source file (.gs, .js, .txt, etc.) or local directory containing multiple scripts to upload/synchronize before execution. Either `scriptfile` or `stringscript` is required.",
 								},
 								"stringscript": map[string]interface{}{
 									"type":        "string",
 									"description": "Raw Google Apps Script code provided directly as an inline string to upload/synchronize before execution. Either `scriptfile` or `stringscript` is required.",
 								},
 								"function": map[string]interface{}{
-									"type":        "string",
-									"description": "The name of the entry function to execute in the remote script project (e.g., `myFunction`).",
+									"oneOf": []map[string]interface{}{
+										{
+											"type":        "string",
+											"description": "The name of the entry function to execute in the remote script project (e.g., `myFunction`).",
+										},
+										{
+											"type": "array",
+											"items": map[string]interface{}{
+												"type": "string",
+											},
+											"description": "The entry function name followed by arguments (e.g., [\"myFunction\", \"arg1\", \"arg2\"]). First is function name, subsequent are arguments.",
+										},
+									},
 								},
 								"value": map[string]interface{}{
 									"type":        "string",
-									"description": "Optional argument/value to pass into the executed function as a parameter.",
+									"description": "Optional argument/value to pass into the executed function as a parameter. (Fallback option if function array/slice is not used)",
+								},
+								"deleteScript": map[string]interface{}{
+									"type":        "boolean",
+									"description": "If set to true, files uploaded via this specific execution will be automatically deleted from the remote GAS project after execution completes. (Strictly for exe1 only)",
+								},
+								"confirm": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Must be set to true to explicitly approve execution after reviewing the security analysis report.",
 								},
 							},
 							"required": []string{"function"},
@@ -234,10 +258,61 @@ func runMCP(c *cli.Context) error {
 			name, _ := params["name"].(string)
 			argsMap, _ := params["arguments"].(map[string]interface{})
 
+			if name == "exe1" {
+				scriptfile, _ := argsMap["scriptfile"].(string)
+				stringscript, _ := argsMap["stringscript"].(string)
+				confirm, _ := argsMap["confirm"].(bool)
+
+				// Retrieve combined script content
+				code, err := getScriptContentForAnalysis(scriptfile, stringscript)
+				if err != nil {
+					sendMCPResponse(id, map[string]interface{}{
+						"content": []map[string]interface{}{
+							{
+								"type": "text",
+								"text": fmt.Sprintf("Error retrieving script content for analysis: %v", err),
+							},
+						},
+					})
+					continue
+				}
+
+				// Perform static analysis
+				report, hasWrite := analyzeGASScript(code)
+
+				if !confirm {
+					var responseText string
+					if hasWrite {
+						responseText = fmt.Sprintf("%s\n\n⚠️ SECURITY WARNING: Write, update, or delete operations were detected in the script. Execution has been blocked for safety.\nTo proceed, please explicitly confirm execution by calling this tool again with \"confirm\": true.", report)
+					} else {
+						responseText = fmt.Sprintf("%s\n\nℹ️ Security Review Complete. This script appears to be read-only.\nTo proceed with execution, please call this tool again with \"confirm\": true.", report)
+					}
+					sendMCPResponse(id, map[string]interface{}{
+						"content": []map[string]interface{}{
+							{
+								"type": "text",
+								"text": responseText,
+							},
+						},
+					})
+					continue
+				}
+			}
+
 			var cmdArgs []string
 			cmdArgs = append(cmdArgs, name)
 			for k, v := range argsMap {
-				if v == nil {
+				if v == nil || k == "confirm" {
+					continue
+				}
+				if k == "function" {
+					if slice, ok := v.([]interface{}); ok {
+						for _, item := range slice {
+							cmdArgs = append(cmdArgs, "-f", fmt.Sprintf("%v", item))
+						}
+					} else {
+						cmdArgs = append(cmdArgs, "-f", fmt.Sprintf("%v", v))
+					}
 					continue
 				}
 				if boolVal, ok := v.(bool); ok {
@@ -292,4 +367,167 @@ func runMCP(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+// getScriptContentForAnalysis collects and combines script contents from file or directory, and inline strings.
+func getScriptContentForAnalysis(scriptfile, stringscript string) (string, error) {
+	var combined bytes.Buffer
+
+	if stringscript != "" {
+		combined.WriteString(stringscript)
+		combined.WriteByte('\n')
+	}
+
+	if scriptfile != "" {
+		rawFiles := regexp.MustCompile(`\s*,\s*`).Split(scriptfile, -1)
+		for _, f := range rawFiles {
+			f = strings.TrimSpace(f)
+			if f == "" {
+				continue
+			}
+			fi, err := os.Stat(f)
+			if err != nil {
+				return "", fmt.Errorf("file/directory not found: %s", f)
+			}
+			if fi.IsDir() {
+				err = filepath.Walk(f, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if !info.IsDir() {
+						ext := filepath.Ext(path)
+						if utl.ChkExtention(ext) || filepath.Base(path) == "appsscript.json" {
+							content, err := os.ReadFile(path)
+							if err == nil {
+								combined.Write(content)
+								combined.WriteByte('\n')
+							}
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					return "", err
+				}
+			} else {
+				content, err := os.ReadFile(f)
+				if err != nil {
+					return "", err
+				}
+				combined.Write(content)
+				combined.WriteByte('\n')
+			}
+		}
+	}
+
+	return combined.String(), nil
+}
+
+// analyzeGASScript parses the GAS code and identifies Google API resources and operations.
+func analyzeGASScript(code string) (string, bool) {
+	lines := strings.Split(code, "\n")
+
+	type resourceMatch struct {
+		reads  []string
+		writes []string
+	}
+	matches := make(map[string]*resourceMatch)
+	getResources := func(res string) *resourceMatch {
+		if _, ok := matches[res]; !ok {
+			matches[res] = &resourceMatch{}
+		}
+		return matches[res]
+	}
+
+	writeKeywords := regexp.MustCompile(`\.(sendEmail|createDraft|createLabel|addLabel|markMessage|star|unstar|archive|moveTo|trash|delete|remove|createFile|createFolder|addFile|addFolder|removeFile|removeFolder|setTrashed|setSharing|setDescription|setName|setContent|addEditor|addViewer|removeEditor|removeViewer|insertFile|update|setValue|setValues|appendRow|clear|clearContent|clearFormat|deleteActiveSheet|deleteRow|deleteRows|deleteColumn|deleteColumns|insertSheet|insertRow|insertRows|insertColumn|insertColumns|create|createEvent|createEventFromSeries|deleteEvent|deleteCalendar|createCalendar|setColor|setLocation|setTitle|setTime|append|insert|replace|setText|saveAndClose|fetch)\b`)
+
+	hasWrite := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "/*") || strings.HasPrefix(trimmed, "*") {
+			continue
+		}
+
+		var resource string
+		if strings.Contains(trimmed, "GmailApp") || strings.Contains(trimmed, "MailApp") {
+			resource = "📧 Gmail / Email Services"
+		} else if strings.Contains(trimmed, "DriveApp") || strings.Contains(trimmed, "Drive") {
+			resource = "📂 Google Drive"
+		} else if strings.Contains(trimmed, "SpreadsheetApp") || strings.Contains(trimmed, "Spreadsheet") {
+			resource = "📊 Google Spreadsheet"
+		} else if strings.Contains(trimmed, "CalendarApp") {
+			resource = "📅 Google Calendar"
+		} else if strings.Contains(trimmed, "DocumentApp") {
+			resource = "📝 Google Document (Docs)"
+		} else if strings.Contains(trimmed, "SlidesApp") {
+			resource = "🎨 Google Slides"
+		} else if strings.Contains(trimmed, "FormApp") {
+			resource = "📝 Google Forms"
+		} else if strings.Contains(trimmed, "UrlFetchApp") {
+			resource = "🌐 External Network Egress (UrlFetchApp)"
+		} else {
+			continue
+		}
+
+		resObj := getResources(resource)
+
+		if loc := writeKeywords.FindStringIndex(trimmed); loc != nil {
+			matchText := trimmed[loc[0]:loc[1]]
+			exists := false
+			for _, w := range resObj.writes {
+				if w == matchText {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				resObj.writes = append(resObj.writes, matchText)
+			}
+			hasWrite = true
+		} else {
+			if strings.Contains(trimmed, ".") {
+				methodRe := regexp.MustCompile(`\.([a-zA-Z0-9_]+)\(`)
+				if m := methodRe.FindStringSubmatch(trimmed); len(m) > 1 {
+					methodName := "." + m[1]
+					exists := false
+					for _, r := range resObj.reads {
+						if r == methodName {
+							exists = true
+							break
+						}
+					}
+					if !exists {
+						resObj.reads = append(resObj.reads, methodName)
+					}
+				}
+			}
+		}
+	}
+
+	if len(matches) == 0 {
+		return "• No specific Google Apps Script API resource or operation was statically identified in the source code.", false
+	}
+
+	var report bytes.Buffer
+	report.WriteString("### 🛡️ GgSrun Security Guardrails - Script Safety Report\n")
+	report.WriteString("We analyzed the Google Apps Script content and identified the following potential resource interactions:\n\n")
+
+	for res, m := range matches {
+		report.WriteString(fmt.Sprintf("• **%s**:\n", res))
+		if len(m.reads) > 0 {
+			report.WriteString("  - Read Operations:\n")
+			for _, r := range m.reads {
+				report.WriteString(fmt.Sprintf("    - `%s` (detected in code)\n", r))
+			}
+		}
+		if len(m.writes) > 0 {
+			report.WriteString("  - Write/Update/Delete Operations:\n")
+			for _, w := range m.writes {
+				report.WriteString(fmt.Sprintf("    - `%s` (detected in code)\n", w))
+			}
+		}
+	}
+
+	return report.String(), hasWrite
 }
