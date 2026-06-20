@@ -272,8 +272,8 @@ func RunTUI(c *cli.Context) error {
 					}
 				}
 				return nil
-			case 'q':
-				tuiApp.Stop()
+			case 'q', 'Q':
+				promptExit()
 				return nil
 			}
 		}
@@ -357,8 +357,8 @@ func RunTUI(c *cli.Context) error {
 					}
 				}
 				return nil
-			case 'q':
-				tuiApp.Stop()
+			case 'q', 'Q':
+				promptExit()
 				return nil
 			}
 		}
@@ -366,6 +366,10 @@ func RunTUI(c *cli.Context) error {
 	})
 
 	tuiApp.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyCtrlC {
+			promptExit()
+			return nil
+		}
 		if event.Key() == tcell.KeyTab {
 			if localTable.HasFocus() {
 				tuiApp.SetFocus(remoteTable)
@@ -860,9 +864,11 @@ func createOpContext(mainCtx *cli.Context, extraFlags map[string]string) *cli.Co
 	set.String("scriptid", "", "")
 	set.String("scriptfile", "", "")
 	set.String("stringscript", "", "")
-	set.String("function", "", "")
+	fSlice := &cli.StringSlice{}
+	set.Var(fSlice, "function", "")
 	set.String("value", "", "")
 	set.Bool("backup", false, "")
+	set.Bool("deleteScript", false, "")
 	set.Bool("onlyresult", false, "")
 	set.Bool("foldertree", false, "")
 	set.Bool("convert", false, "")
@@ -870,6 +876,7 @@ func createOpContext(mainCtx *cli.Context, extraFlags map[string]string) *cli.Co
 	set.String("url", "", "")
 	set.String("password", "", "")
 	set.String("deletefile", "", "")
+	set.String("conflict", "", "")
 
 	args := []string{}
 	if mainCtx != nil {
@@ -1180,10 +1187,10 @@ func showGasProject(title, scriptID string) {
 }
 
 func promptExecuteGas(scriptID string) {
-	promptGasExecution(false, "", scriptID)
+	promptGasExecution(false, "", scriptID, false)
 }
 
-func promptGasExecution(isLocal bool, scriptFile string, remoteScriptID string) {
+func promptGasExecution(isLocal bool, scriptFile string, remoteScriptID string, isMultiOrDir bool) {
 	prevFocus := tuiApp.GetFocus()
 
 	list := tview.NewList().
@@ -1221,11 +1228,11 @@ func promptGasExecution(isLocal bool, scriptFile string, remoteScriptID string) 
 
 		switch itemIndex {
 		case 0:
-			collectExeParams(true, isLocal, scriptFile, remoteScriptID)
+			collectExeParams(true, isLocal, scriptFile, remoteScriptID, isMultiOrDir)
 		case 1:
-			collectExeParams(false, isLocal, scriptFile, remoteScriptID)
+			collectExeParams(false, isLocal, scriptFile, remoteScriptID, isMultiOrDir)
 		case 2:
-			collectWebAppsParams(isLocal, scriptFile, remoteScriptID)
+			collectWebAppsParams(isLocal, scriptFile, remoteScriptID, isMultiOrDir)
 		}
 	})
 
@@ -1233,7 +1240,12 @@ func promptGasExecution(isLocal bool, scriptFile string, remoteScriptID string) 
 	tuiApp.SetFocus(list)
 }
 
-func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScriptID string) {
+func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScriptID string, isMultiOrDir bool) {
+	if isMultiOrDir && !isExe1 {
+		showError("Directory or multiple script execution is strictly limited to 'exe1'. It is not supported for 'exe2'.")
+		return
+	}
+
 	var defaultScriptID string
 	if authContainer != nil && authContainer.GgsrunCfg != nil {
 		defaultScriptID = authContainer.GgsrunCfg.Scriptid
@@ -1256,58 +1268,116 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 				promptTitle = " [" + modeName + " (main function only)] Argument Value (Optional) "
 			}
 			promptTextInput(promptTitle, "Argument Value: ", "", func(argVal string) {
-				runTask("Executing script via "+modeName+" (Script ID: "+scriptID+")...", func() error {
-					flags := map[string]string{
-						"scriptid":   scriptID,
-						"value":      argVal,
-						"jsonparser": "true",
-					}
-					if isExe1 {
-						flags["function"] = funcName
-					}
-
-					if isLocal {
-						contentBytes, err := osReadFileFn(scriptFile)
-						if err != nil {
-							return fmt.Errorf("failed to read local script: %v", err)
+				doExecute := func(deleteScript bool, conflict string) {
+					runTask("Executing script via "+modeName+" (Script ID: "+scriptID+")...", func() error {
+						flags := map[string]string{
+							"scriptid":   scriptID,
+							"value":      argVal,
+							"jsonparser": "true",
 						}
-						flags["stringscript"] = string(contentBytes)
-					} else {
-						opCtxForFetch := createOpContext(mainCtx, map[string]string{
-							"scriptid": remoteScriptID,
-						})
-						projectContent := getBoundScriptExportedFn(authContainer, opCtxForFetch, remoteScriptID)
-						if projectContent == nil || len(projectContent.Files) == 0 {
-							return fmt.Errorf("failed to fetch remote GAS project content or project is empty")
+						if conflict != "" {
+							flags["conflict"] = conflict
 						}
-						var sb strings.Builder
-						for _, f := range projectContent.Files {
-							if f.Type == "SERVER_JS" {
-								sb.WriteString(f.Source)
-								sb.WriteString("\n")
+						if isExe1 {
+							flags["function"] = funcName
+							if deleteScript {
+								flags["deleteScript"] = "true"
 							}
 						}
-						rawScript := sb.String()
-						if rawScript == "" {
-							return fmt.Errorf("no server script files found in the remote GAS project")
+
+						if isLocal {
+							if isMultiOrDir {
+								flags["scriptfile"] = scriptFile
+								if isExe1 && deleteScript {
+									flags["deleteScript"] = "true"
+								}
+							} else {
+								contentBytes, err := osReadFileFn(scriptFile)
+								if err != nil {
+									return fmt.Errorf("failed to read local script: %v", err)
+								}
+								flags["stringscript"] = string(contentBytes)
+								if isExe1 && deleteScript {
+									flags["deleteScript"] = "true"
+								}
+							}
+						} else {
+							opCtxForFetch := createOpContext(mainCtx, map[string]string{
+								"scriptid": remoteScriptID,
+							})
+							projectContent := getBoundScriptExportedFn(authContainer, opCtxForFetch, remoteScriptID)
+							if projectContent == nil || len(projectContent.Files) == 0 {
+								return fmt.Errorf("failed to fetch remote GAS project content or project is empty")
+							}
+							var sb strings.Builder
+							for _, f := range projectContent.Files {
+								if f.Type == "SERVER_JS" {
+									sb.WriteString(f.Source)
+									sb.WriteString("\n")
+								}
+							}
+							rawScript := sb.String()
+							if rawScript == "" {
+								return fmt.Errorf("no server script files found in the remote GAS project")
+							}
+							flags["stringscript"] = rawScript
+							if isExe1 && deleteScript {
+								flags["deleteScript"] = "true"
+							}
 						}
-						flags["stringscript"] = rawScript
-					}
 
-					opCtx := createOpContext(mainCtx, flags)
-					var resp string
-					var err error
-					if isExe1 {
-						resp, err = tuiRunExe1Fn(opCtx, authContainer)
-					} else {
-						resp, err = tuiRunExe2Fn(opCtx, authContainer)
-					}
+						opCtx := createOpContext(mainCtx, flags)
+						var resp string
+						var err error
+						if isExe1 {
+							resp, err = tuiRunExe1Fn(opCtx, authContainer)
+						} else {
+							resp, err = tuiRunExe2Fn(opCtx, authContainer)
+						}
 
-					tuiApp.QueueUpdateDraw(func() {
-						showExecutionResult(funcName, resp, err)
+						tuiApp.QueueUpdateDraw(func() {
+							showExecutionResult(funcName, resp, err)
+						})
+						return nil
 					})
-					return nil
-				})
+				}
+
+				if isExe1 {
+					prevFocus := tuiApp.GetFocus()
+
+					showConflictModal := func(deleteScript bool) {
+						conflictModal := tview.NewModal().
+							SetText("Duplicate filename conflict resolution strategy?\n\nChoose 'Overwrite' (Default) to replace existing script files in the remote GAS project, or 'Add' to upload as new files with unique names.").
+							AddButtons([]string{"Overwrite", "Add"}).
+							SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+								pages.RemovePage("conflict_choice")
+								tuiApp.SetFocus(prevFocus)
+
+								conflictChoice := "overwrite"
+								if buttonLabel == "Add" {
+									conflictChoice = "add"
+								}
+								doExecute(deleteScript, conflictChoice)
+							})
+						pages.AddPage("conflict_choice", conflictModal, true, true)
+						tuiApp.SetFocus(conflictModal)
+					}
+
+					cleanupModal := tview.NewModal().
+						SetText("Clean up uploaded scripts on remote GAS project after execution? (-d)\n\nSelecting 'Yes' (Default) ensures your remote Google Apps Script project remains clean by removing any uploaded files after execution completes.").
+						AddButtons([]string{"Yes", "No"}).
+						SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+							pages.RemovePage("delete_script_confirm")
+							tuiApp.SetFocus(prevFocus)
+
+							deleteScript := (buttonLabel == "Yes")
+							showConflictModal(deleteScript)
+						})
+					pages.AddPage("delete_script_confirm", cleanupModal, true, true)
+					tuiApp.SetFocus(cleanupModal)
+				} else {
+					doExecute(false, "overwrite")
+				}
 			})
 		}
 
@@ -1324,7 +1394,12 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 	})
 }
 
-func collectWebAppsParams(isLocal bool, scriptFile string, remoteScriptID string) {
+func collectWebAppsParams(isLocal bool, scriptFile string, remoteScriptID string, isMultiOrDir bool) {
+	if isMultiOrDir {
+		showError("Directory or multiple script execution is strictly limited to 'exe1'. It is not supported for 'webapps'.")
+		return
+	}
+
 	defaultURL := ""
 	if authContainer != nil && authContainer.GgsrunCfg != nil {
 		defaultURL = authContainer.GgsrunCfg.WebappsUrl
@@ -1395,20 +1470,34 @@ func collectWebAppsParams(isLocal bool, scriptFile string, remoteScriptID string
 }
 
 func onExecuteLocalScript() {
-	selectedRow := getSelectedRowIndex(localTable)
-	if selectedRow >= 0 && selectedRow < len(localFiles) {
-		selected := localFiles[selectedRow]
-		if selected.IsDir || selected.Name == ".." {
-			showError("Please select a script file to execute.")
+	jobs := getSelectedJobs(true)
+	if len(jobs) == 0 {
+		showError("Please select a script file or directory to execute.")
+		return
+	}
+
+	if len(jobs) == 1 {
+		job := jobs[0]
+		if job.IsDir {
+			promptGasExecution(true, job.SourcePath, "", true)
 			return
 		}
-		ext := strings.ToLower(filepath.Ext(selected.Name))
+		ext := strings.ToLower(filepath.Ext(job.SourceName))
 		if ext != ".gs" && ext != ".js" && ext != ".txt" && ext != ".gas" {
 			showError("Only Google Apps Script files (.gs, .js, .txt, .gas) can be executed.")
 			return
 		}
-		promptGasExecution(true, selected.Path, "")
+		promptGasExecution(true, job.SourcePath, "", false)
+		return
 	}
+
+	// Multiple selected scripts
+	var paths []string
+	for _, job := range jobs {
+		paths = append(paths, job.SourcePath)
+	}
+	joinedPaths := strings.Join(paths, ",")
+	promptGasExecution(true, joinedPaths, "", true)
 }
 
 func onExecuteRemoteScript() {
@@ -1427,7 +1516,7 @@ func onExecuteRemoteScript() {
 			showError("Only standalone Google Apps Script can be executed.")
 			return
 		}
-		promptGasExecution(false, "", selected.Path)
+		promptGasExecution(false, "", selected.Path, false)
 	}
 }
 
@@ -2697,6 +2786,44 @@ func onDelete() {
 		})
 
 	pages.AddPage("delete_confirm", confirmModal, true, true)
+	tuiApp.SetFocus(confirmModal)
+}
+
+func promptExit() {
+	prevFocus := tuiApp.GetFocus()
+	if pages.HasPage("exit_confirm") {
+		return
+	}
+
+	confirmModal := tview.NewModal().
+		SetText("Are you sure you want to exit? (Y/N)").
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			pages.RemovePage("exit_confirm")
+			if buttonLabel == "Yes" {
+				tuiApp.Stop()
+			} else {
+				tuiApp.SetFocus(prevFocus)
+			}
+		})
+
+	confirmModal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'y', 'Y':
+				pages.RemovePage("exit_confirm")
+				tuiApp.Stop()
+				return nil
+			case 'n', 'N':
+				pages.RemovePage("exit_confirm")
+				tuiApp.SetFocus(prevFocus)
+				return nil
+			}
+		}
+		return event
+	})
+
+	pages.AddPage("exit_confirm", confirmModal, true, true)
 	tuiApp.SetFocus(confirmModal)
 }
 

@@ -81,7 +81,7 @@ func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
 				a.InitVal.hasNewScriptID = true
 				a.InitVal.originalScriptID = originalScriptID
 			}
-			if c.Command.Name == "exe1" || c.Command.Name == "e1" {
+			if c.Command.Name == "exe1" || c.Command.Name == "e1" || len(c.StringSlice("function")) > 0 {
 				fSlice := c.StringSlice("function")
 				if len(fSlice) > 0 && fSlice[0] != "" {
 					a.Param.Function = fSlice[0]

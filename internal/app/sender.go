@@ -191,23 +191,71 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 				}
 				source := utl.ConvGasToUpload(elm)
 
-				found := false
+				var exists bool
+				var existingIndex int
 				for i, v := range e.Project.Files {
 					if v.Name == name {
-						e.Project.Files[i].Source = source
-						e.Project.Files[i].Type = filetype
-						found = true
+						exists = true
+						existingIndex = i
 						break
 					}
 				}
-				if !found {
+
+				choice := c.String("conflict")
+				if exists && choice == "" && !c.Bool("jsonparser") && os.Getenv("GGSRUN_MCP_MODE") != "true" {
+					var err error
+					choice, err = pterm.DefaultInteractiveSelect.
+						WithDefaultText(fmt.Sprintf("Script '%s' already exists in remote GAS project. Action?", name)).
+						WithOptions([]string{"overwrite", "add"}).
+						Show()
+					if err != nil {
+						choice = "overwrite" // fallback
+					}
+				}
+				if choice == "" {
+					choice = "overwrite" // default
+				}
+
+				finalName := name
+				if exists && choice == "overwrite" {
+					e.Project.Files[existingIndex].Source = source
+					e.Project.Files[existingIndex].Type = filetype
+					e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) in project was overwritten.", name, filetype))
+				} else if exists && choice == "add" {
+					extPart := filepath.Ext(name)
+					basePart := strings.TrimSuffix(name, extPart)
+					
+					suffix := 1
+					for {
+						newName := fmt.Sprintf("%s_%d%s", basePart, suffix, extPart)
+						nameExists := false
+						for _, v := range e.Project.Files {
+							if v.Name == newName {
+								nameExists = true
+								break
+							}
+						}
+						if !nameExists {
+							finalName = newName
+							break
+						}
+						suffix++
+					}
+
+					e.Project.Files = append(e.Project.Files, File{
+						Name:   finalName,
+						Type:   filetype,
+						Source: source,
+					})
+					e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) was added to project as '%s'.", name, filetype, finalName))
+				} else {
 					e.Project.Files = append(e.Project.Files, File{
 						Name:   name,
 						Type:   filetype,
 						Source: source,
 					})
 				}
-				uploadedNames = append(uploadedNames, name)
+				uploadedNames = append(uploadedNames, finalName)
 			} else {
 				pterm.Warning.Printf("File '%s' ignored (unsupported extension).\n", elm)
 			}

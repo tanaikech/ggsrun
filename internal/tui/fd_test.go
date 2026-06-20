@@ -126,7 +126,7 @@ func setupTestTUI(t *testing.T, localFilesData []FileEntry, remoteFilesData []Fi
 	testScreen = simScreen
 
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.4"
+	appObj.Version = "5.3.5"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -842,7 +842,35 @@ func TestTUI_GASProjectExplorer(t *testing.T) {
 	tuiApp.QueueUpdate(func() {
 		argValInput.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
 	})
-	time.Sleep(200 * time.Millisecond) // Goroutine execution
+	time.Sleep(100 * time.Millisecond)
+
+	// Step 4: Delete script confirmation modal
+	var confirmModal *tview.Modal
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		confirmModal = findModal(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if confirmModal != nil {
+		tuiApp.QueueUpdate(func() {
+			confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		})
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Step 5: Conflict choice modal
+	var conflictModal *tview.Modal
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		conflictModal = findModal(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if conflictModal != nil {
+		tuiApp.QueueUpdate(func() {
+			conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		})
+		time.Sleep(200 * time.Millisecond) // Goroutine execution
+	}
 
 	if !execGasCalled {
 		t.Error("Expected tuiRunExe1Fn to be called")
@@ -1925,6 +1953,26 @@ func TestTUI_GASIntegration(t *testing.T) {
 		})
 		time.Sleep(100 * time.Millisecond)
 
+		// Dismiss delete_script_confirm modal
+		tuiApp.QueueUpdate(func() {
+			_, p := pages.GetFrontPage()
+			confirmModal := findModal(p)
+			if confirmModal != nil {
+				confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+			}
+		})
+		time.Sleep(100 * time.Millisecond)
+
+		// Dismiss conflict_choice modal
+		tuiApp.QueueUpdate(func() {
+			_, p := pages.GetFrontPage()
+			conflictModal := findModal(p)
+			if conflictModal != nil {
+				conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+			}
+		})
+		time.Sleep(100 * time.Millisecond)
+
 		for i := 0; i < 150; i++ {
 			if execGasCalled {
 				break
@@ -2018,6 +2066,26 @@ func TestTUI_GASIntegration(t *testing.T) {
 		})
 		time.Sleep(100 * time.Millisecond)
 
+		// Dismiss delete_script_confirm modal
+		tuiApp.QueueUpdate(func() {
+			_, p := pages.GetFrontPage()
+			confirmModal := findModal(p)
+			if confirmModal != nil {
+				confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+			}
+		})
+		time.Sleep(100 * time.Millisecond)
+
+		// Dismiss conflict_choice modal
+		tuiApp.QueueUpdate(func() {
+			_, p := pages.GetFrontPage()
+			conflictModal := findModal(p)
+			if conflictModal != nil {
+				conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+			}
+		})
+		time.Sleep(100 * time.Millisecond)
+
 		for i := 0; i < 150; i++ {
 			if execGasCalled {
 				break
@@ -2062,4 +2130,252 @@ func TestTUI_GASIntegration(t *testing.T) {
 		}
 	})
 }
+
+func TestTUI_LocalDirectoryExecution(t *testing.T) {
+	mockLocal := []FileEntry{
+		{Name: "..", Path: "/mock", IsDir: true},
+		{Name: "my-script-dir", Path: "/mock/my-script-dir", IsDir: true},
+	}
+	mockRemote := []FileEntry{
+		{Name: "..", Path: "", IsDir: true, MimeType: "application/vnd.google-apps.folder"},
+	}
+
+	_, cleanup := setupTestTUI(t, mockLocal, mockRemote)
+	defer cleanup()
+
+	// Focus local table and select the directory
+	tuiApp.QueueUpdateDraw(func() {
+		tuiApp.SetFocus(localTable)
+		localTable.Select(2, 0) // select my-script-dir
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	// Press 'e' on local directory
+	tuiApp.QueueUpdate(func() {
+		handler := localTable.GetInputCapture()
+		if handler != nil {
+			handler(tcell.NewEventKey(tcell.KeyRune, 'e', tcell.ModNone))
+		}
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify exec_mode_choice is visible
+	var hasChoicePage bool
+	tuiApp.QueueUpdate(func() {
+		hasChoicePage = pages.HasPage("exec_mode_choice")
+	})
+	if !hasChoicePage {
+		t.Fatal("Expected exec_mode_choice page to be visible for local directory")
+	}
+
+	// Find the list on exec_mode_choice page
+	var modeList *tview.List
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		modeList = findFileList(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if modeList == nil {
+		t.Fatal("Expected to find list in exec_mode_choice page")
+	}
+
+	// Select first option (exe1)
+	tuiApp.QueueUpdate(func() {
+		modeList.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Step 1: Script ID text_prompt
+	var scriptIDInput *tview.InputField
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		scriptIDInput = findInputField(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if scriptIDInput == nil {
+		t.Fatal("Expected to find scriptID input field")
+	}
+	tuiApp.QueueUpdate(func() {
+		scriptIDInput.SetText("local_test_script_id")
+		scriptIDInput.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Step 2: Function Name text_prompt
+	var funcInput *tview.InputField
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		funcInput = findInputField(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if funcInput == nil {
+		t.Fatal("Expected to find func input field")
+	}
+	tuiApp.QueueUpdate(func() {
+		funcInput.SetText("myFunction")
+		funcInput.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Step 3: Argument Value text_prompt
+	var argValInput *tview.InputField
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		argValInput = findInputField(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if argValInput == nil {
+		t.Fatal("Expected to find argVal input field")
+	}
+
+	// Mock TuiRunExe1 call
+	var execGasCalled bool
+	var scriptFileUsed string
+	var deleteScriptVal string
+	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
+		execGasCalled = true
+		scriptFileUsed = ctx.String("scriptfile")
+		deleteScriptVal = fmt.Sprintf("%v", ctx.Bool("deleteScript"))
+		return `{"result": "Success Exe1!"}`, nil
+	}
+
+	// Confirm execution
+	tuiApp.QueueUpdate(func() {
+		argValInput.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Step 4: Delete script confirmation modal
+	var confirmModal *tview.Modal
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		confirmModal = findModal(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if confirmModal != nil {
+		tuiApp.QueueUpdate(func() {
+			confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		})
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Step 5: Conflict choice modal
+	var conflictModal *tview.Modal
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		conflictModal = findModal(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+	if conflictModal != nil {
+		tuiApp.QueueUpdate(func() {
+			conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		})
+		time.Sleep(200 * time.Millisecond) // Goroutine execution
+	}
+
+	if !execGasCalled {
+		t.Error("Expected tuiRunExe1Fn to be called for directory")
+	}
+	if scriptFileUsed != "/mock/my-script-dir" {
+		t.Errorf("Expected scriptfile argument to be '/mock/my-script-dir', got: '%s'", scriptFileUsed)
+	}
+	if deleteScriptVal != "true" {
+		t.Errorf("Expected deleteScript to be true, got: '%s'", deleteScriptVal)
+	}
+}
+
+func TestTUI_ExitConfirmation(t *testing.T) {
+	mockLocal := []FileEntry{
+		{Name: "..", Path: "/mock", IsDir: true},
+	}
+	mockRemote := []FileEntry{
+		{Name: "..", Path: "", IsDir: true, MimeType: "application/vnd.google-apps.folder"},
+	}
+
+	_, cleanup := setupTestTUI(t, mockLocal, mockRemote)
+	defer cleanup()
+
+	// 1. Verify that 'q' opens the exit confirmation modal
+	tuiApp.QueueUpdate(func() {
+		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyRune, 'q', tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	var hasExitConfirm bool
+	var confirmModal *tview.Modal
+	tuiApp.QueueUpdate(func() {
+		hasExitConfirm = pages.HasPage("exit_confirm")
+		_, frontPage := pages.GetFrontPage()
+		confirmModal = findModal(frontPage)
+	})
+	if !hasExitConfirm || confirmModal == nil {
+		t.Fatal("Expected exit_confirm modal to be visible after pressing 'q'")
+	}
+
+	// Verify that pressing 'N' dismisses the modal and returns focus
+	tuiApp.QueueUpdate(func() {
+		confirmModal.GetInputCapture()(tcell.NewEventKey(tcell.KeyRune, 'N', tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		hasExitConfirm = pages.HasPage("exit_confirm")
+	})
+	if hasExitConfirm {
+		t.Error("Expected exit_confirm modal to be dismissed after pressing 'N'")
+	}
+
+	// 2. Verify that 'Q' opens the exit confirmation modal
+	tuiApp.QueueUpdate(func() {
+		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyRune, 'Q', tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		hasExitConfirm = pages.HasPage("exit_confirm")
+		_, frontPage := pages.GetFrontPage()
+		confirmModal = findModal(frontPage)
+	})
+	if !hasExitConfirm || confirmModal == nil {
+		t.Fatal("Expected exit_confirm modal to be visible after pressing 'Q'")
+	}
+
+	// Verify that pressing 'n' dismisses the modal
+	tuiApp.QueueUpdate(func() {
+		confirmModal.GetInputCapture()(tcell.NewEventKey(tcell.KeyRune, 'n', tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		hasExitConfirm = pages.HasPage("exit_confirm")
+	})
+	if hasExitConfirm {
+		t.Error("Expected exit_confirm modal to be dismissed after pressing 'n'")
+	}
+
+	// 3. Verify that Ctrl+C opens the exit confirmation modal
+	tuiApp.QueueUpdate(func() {
+		handler := tuiApp.GetInputCapture()
+		if handler != nil {
+			handler(tcell.NewEventKey(tcell.KeyCtrlC, 0, tcell.ModNone))
+		}
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		hasExitConfirm = pages.HasPage("exit_confirm")
+		_, frontPage := pages.GetFrontPage()
+		confirmModal = findModal(frontPage)
+	})
+	if !hasExitConfirm || confirmModal == nil {
+		t.Fatal("Expected exit_confirm modal to be visible after pressing Ctrl+C")
+	}
+
+	// Dismiss the modal so that cleanUp stops the application cleanly
+	tuiApp.QueueUpdate(func() {
+		confirmModal.GetInputCapture()(tcell.NewEventKey(tcell.KeyRune, 'n', tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+}
+
 

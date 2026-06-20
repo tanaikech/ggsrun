@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.4"
+	app.Version = "5.3.5"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -68,6 +68,10 @@ func Run() {
 				&cli.BoolFlag{
 					Name:  "deleteScript, d",
 					Usage: "Automatically and safely delete uploaded files from the remote GAS project after execution completes. (Strictly for exe1 only)",
+				},
+				&cli.StringFlag{
+					Name:  "conflict",
+					Usage: "Conflict resolution strategy when duplicate script name exists: 'overwrite' or 'add'.",
 				},
 				&cli.BoolFlag{
 					Name:  "backup, b",
@@ -349,6 +353,10 @@ func Run() {
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
 					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
+				},
+				&cli.StringFlag{
+					Name:  "conflict",
+					Usage: "Conflict resolution strategy when duplicate script name exists: 'overwrite' or 'add'.",
 				},
 			}, getCommonFlags()...),
 		},

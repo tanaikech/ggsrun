@@ -189,6 +189,14 @@ func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
 		e.GgsrunCfg.Scriptid = c.String("scriptid")
 	}
 
+	// Re-initialize/override execution function from dynamic TUI context
+	fSlice := c.StringSlice("function")
+	if len(fSlice) > 0 && fSlice[0] != "" {
+		e.Param.Function = fSlice[0]
+	} else if c.String("function") != "" {
+		e.Param.Function = c.String("function")
+	}
+
 	// Set up robust cleanup with exit and signal hooks
 	var rollbackOnce sync.Once
 	performRollback := func() {

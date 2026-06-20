@@ -41,7 +41,7 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 			if !c.Bool("deletefiles") {
 				return e.
 					projectBackup(c).
-					ProjectMaker().
+					ProjectMaker(c).
 					projectUpdate2().
 					dispUpdateProjectContainer()
 			}
@@ -69,7 +69,7 @@ func (e *ExecutionContainer) projectUpdateControl(c *cli.Context) *utl.FileInf {
 }
 
 // ProjectMaker : Recreates the project using uploaded scripts.
-func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
+func (e *ExecutionContainer) ProjectMaker(c *cli.Context) *ExecutionContainer {
 	for _, elm := range e.UpFiles {
 		if utl.ChkExtention(filepath.Ext(elm)) {
 			filedata := &File{
@@ -77,15 +77,59 @@ func (e *ExecutionContainer) ProjectMaker() *ExecutionContainer {
 				Type:   utl.ExtToType(filepath.Ext(elm), false),
 				Source: utl.ConvGasToUpload(elm),
 			}
-			var overwrite bool
+
+			// Check if file with same name already exists
+			var exists bool
+			var existingIndex int
 			for i, v := range e.Project.Files {
 				if v.Name == filedata.Name {
-					e.Project.Files[i].Source = filedata.Source
-					e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) in project was overwritten.", v.Name, v.Type))
-					overwrite = true
+					exists = true
+					existingIndex = i
+					break
 				}
 			}
-			if !overwrite {
+
+			choice := c.String("conflict")
+			if exists && choice == "" && !c.Bool("jsonparser") && os.Getenv("GGSRUN_MCP_MODE") != "true" {
+				var err error
+				choice, err = pterm.DefaultInteractiveSelect.
+					WithDefaultText(fmt.Sprintf("Script '%s' already exists in remote GAS project. Action?", filedata.Name)).
+					WithOptions([]string{"overwrite", "add"}).
+					Show()
+				if err != nil {
+					choice = "overwrite" // fallback
+				}
+			}
+			if choice == "" {
+				choice = "overwrite" // default
+			}
+
+			if exists && choice == "overwrite" {
+				e.Project.Files[existingIndex].Source = filedata.Source
+				e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) in project was overwritten.", filedata.Name, e.Project.Files[existingIndex].Type))
+			} else if exists && choice == "add" {
+				// Find a unique name
+				baseName := filedata.Name
+				suffix := 1
+				for {
+					newName := fmt.Sprintf("%s_%d", baseName, suffix)
+					nameExists := false
+					for _, v := range e.Project.Files {
+						if v.Name == newName {
+							nameExists = true
+							break
+						}
+					}
+					if !nameExists {
+						filedata.Name = newName
+						break
+					}
+					suffix++
+				}
+				e.Project.Files = append(e.Project.Files, *filedata)
+				e.Msg = append(e.Msg, fmt.Sprintf("'%s' (%s) was added to project as '%s'.", baseName, filedata.Type, filedata.Name))
+			} else {
+				// No duplicate exists, just add normally
 				e.Project.Files = append(e.Project.Files, *filedata)
 			}
 		} else {

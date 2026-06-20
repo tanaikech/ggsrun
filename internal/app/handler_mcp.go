@@ -160,13 +160,13 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "exe1",
-						"description": "Upload/synchronize a local Google Apps Script file, a local directory, or raw script string to a remote Google Apps Script project, and execute a specified entry function with optional arguments. Returns the function execution response payload as JSON. This tool features a built-in Security Guardrail that statically analyzes script contents and requires a confirmation parameter (`confirm: true`) before execution.",
+						"description": "Upload/synchronize a local Google Apps Script file, a local directory, or raw script string to a remote Google Apps Script project, and execute a specified entry function with optional arguments in a single step. Returns the response payload as JSON.\n\nCRITICAL TOOL SELECTION RULE FOR LLM AGENTS:\nUse this tool (and NOT `updateproject`) if the user wants to upload and execute a script or directory in a single operation. Do NOT call `updateproject` followed by another tool if the user wants execution; `exe1` handles both uploading and execution. `updateproject` is only for updating/overwriting project files without executing any functions.",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
 								"scriptid": map[string]interface{}{
 									"type":        "string",
-									"description": "The unique Script ID of the Apps Script project on Google Drive. If omitted, the tool automatically attempts to read the 'script_id' from the configuration file 'ggsrun.cfg' (checked under the path in the environment variable 'GGSRUN_CFG_PATH' if defined, or the current directory). Note: If 'script_id' is not defined in the configuration, this parameter is strictly required.",
+									"description": "The unique Script ID of the Apps Script project on Google Drive. Priority:\n1. If a script ID is provided in the prompt/input, use it.\n2. If not provided in the prompt/input, but a script ID is defined in the configuration file 'ggsrun.cfg', do NOT pass this parameter (it will default to the configured script ID).\n3. If it is in neither, you MUST ask the user to provide the script ID before running the tool.",
 								},
 								"scriptfile": map[string]interface{}{
 									"type":        "string",
@@ -199,6 +199,11 @@ func runMCP(c *cli.Context) error {
 									"type":        "boolean",
 									"description": "If set to true, files uploaded via this specific execution will be automatically deleted from the remote GAS project after execution completes. (Strictly for exe1 only)",
 								},
+								"conflict": map[string]interface{}{
+									"type":        "string",
+									"description": "Conflict resolution strategy when duplicate script name exists: 'overwrite' (default) or 'add' (adds as a new file with unique name suffix like _1).",
+									"enum":        []string{"overwrite", "add"},
+								},
 								"confirm": map[string]interface{}{
 									"type":        "boolean",
 									"description": "Must be set to true to explicitly approve execution after reviewing the security analysis report.",
@@ -226,7 +231,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "updateproject",
-						"description": "Synchronize and overwrite local source files or directories to an existing Google Apps Script (GAS) project on Google Drive. Specify the target `projectid` and local paths in `filename`. \n\nCRITICAL SECURITY & SAFETY RULES FOR LLM AGENTS:\n1. Since this tool unconditionally OVERWRITES files in the remote GAS project, you MUST present the list of local files (including recursively listing files if directories are specified) to the user and explicitly obtain their confirmation (Y/N) before executing this tool. Do NOT guess or automate this confirmation.\n2. Only call this tool after the user has explicitly reviewed the file list and approved the overwrite.",
+						"description": "Synchronize and overwrite local source files or directories to an existing Google Apps Script (GAS) project on Google Drive. Specify the target `projectid` and local paths in `filename`.\n\nCRITICAL TOOL SELECTION RULE FOR LLM AGENTS:\nDo NOT use this tool if the user wants to execute a script function after uploading. Use `exe1` instead, which handles both uploading and execution in a single step.\n\nCRITICAL SECURITY & SAFETY RULES FOR LLM AGENTS:\n1. Since this tool unconditionally OVERWRITES files in the remote GAS project, you MUST present the list of local files (including recursively listing files if directories are specified) to the user and explicitly obtain their confirmation (Y/N) before executing this tool. Do NOT guess or automate this confirmation.\n2. Only call this tool after the user has explicitly reviewed the file list and approved the overwrite.\n3. When uploading selected local files to the GAS project, if a file with the same name already exists in the project and there are no specific instructions in the user's prompt on whether to overwrite or add it, you MUST explicitly ask the user first whether they want to overwrite the existing file or add it under a unique name, and specify that choice in the `conflict` parameter ('overwrite' or 'add').",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -246,6 +251,11 @@ func runMCP(c *cli.Context) error {
 									"type":        "boolean",
 									"description": "Optional. Delete specified filenames from the remote project. Default is false.",
 								},
+								"conflict": map[string]interface{}{
+									"type":        "string",
+									"description": "Conflict resolution strategy when duplicate script name exists: 'overwrite' (default) or 'add' (adds as a new file with unique name suffix like _1).",
+									"enum":        []string{"overwrite", "add"},
+								},
 							},
 							"required": []string{"projectid", "filename"},
 						},
@@ -257,8 +267,14 @@ func runMCP(c *cli.Context) error {
 			params, _ := req["params"].(map[string]interface{})
 			name, _ := params["name"].(string)
 			argsMap, _ := params["arguments"].(map[string]interface{})
+			if argsMap == nil {
+				argsMap = make(map[string]interface{})
+			}
 
 			if name == "exe1" {
+				if _, ok := argsMap["deleteScript"]; !ok {
+					argsMap["deleteScript"] = true
+				}
 				scriptfile, _ := argsMap["scriptfile"].(string)
 				stringscript, _ := argsMap["stringscript"].(string)
 				confirm, _ := argsMap["confirm"].(bool)
