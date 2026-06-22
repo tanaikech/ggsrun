@@ -682,16 +682,19 @@ $ ggsrun fd
 - `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).
 - `Space`: Multi-select items.
 - `Enter`: Open/enter directory, preview local text files, open Google Drive files in browser (WSL2 optimized), or browse Google Apps Script source files.
-- `F5`: Copy selected item(s) to the opposite panel.
-- `F6`: Move selected item(s) to the opposite panel.
-- `F8`: Delete selected item(s).
+- `F1`: Copy selected item(s) to the opposite panel.
+- `F2`: Move selected item(s) to the opposite panel.
+- `F3`: Delete selected item(s).
+- `F5`: Create new directory (local) or folder (Google Drive).
+- `F8`: Search files or folders (recursive local search or Drive-wide search).
 - `c` / `m`: Copy or move items within the same panel.
 - `n`: Rename file or directory.
 - `t`: Change timestamp (Last Modified).
 - `d`: Edit description (Google Drive files only).
 - `x`: Convert MIME type and save in place (Google Drive only).
 - `e`: Execute Google Apps Script (select `exe1`, `exe2`, or `webapps` dynamically).
-- `i`: Show detailed file metadata in a 70% responsive centered popup window.
+- `i`: Show detailed file metadata in a 70% responsive centered popup window (includes **Web View Link**).
+- `s`: Sort files (choose sort key and order).
 - `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the clipboard.
 - `r`: Refresh local and remote panels.
 - `q`: Exit FD mode.
@@ -1050,6 +1053,56 @@ If utilizing GAS execution (`e1` / `e2`), verify the target project is currently
 **3. Headless Server Authentication**
 If `ggsrun auth` detects a headless Linux environment (where it cannot spawn a local browser loopback), it elegantly degrades into manual mode. It prints the URL; copy it into an external browser, authorize, and paste the code block back into standard input.
 
+#### Advanced Features (v5.3.6)
+
+- **Function Key Actions**: 
+  - `F1` (Copy): Copies selected file(s) or folder(s) to the opposite panel (e.g., download from remote to local, or upload from local to remote).
+  - `F2` (Move): Moves selected file(s) or folder(s) to the opposite panel (transfers and then deletes from the source).
+  - `F3` (Delete): Deletes selected file(s) or folder(s) with an interactive confirmation popup.
+  - `F5` (Create Folder): Creates a new local directory or remote Google Drive folder in the currently open directory.
+  - `F8` (Search): Searches files/folders recursively.
+- **Recursive & Drive-Wide Search (`F8`)**:
+  - **Local Table**: Recursively searches all directories/subdirectories under the current local directory.
+  - **Remote Table**: Performs a query across the entire Google Drive (including Shared Drives).
+  - **UI Highlighting**: The active search panel's borders and titles turn **yellow** to clearly indicate you are viewing search results. The title is updated to display `(Press 'r' to return to normal view)`. Pressing `r` clears the search results and restores the default view and theme colors.
+- **Web View Link (`i` key details)**:
+  - When viewing detailed file metadata on the Google Drive panel via the `i` key, the file details popup includes a `webViewLink` (direct link). You can copy this link to open the file directly in a web browser.
+- **Directory Tree Preview**:
+  - Before a folder download/upload starts, `ggsrun` generates and prints the directory tree preview of the source directory, giving you a visual overview of the files being transferred.
+- **Real-Time Individual Progress Bars**:
+  - During single or parallel file uploads and downloads, `ggsrun` displays real-time individual progress bars for each file, allowing you to track transfer progress.
+
+---
+
+## Model Context Protocol (MCP) Server & LLM Integration
+
+Running `$ ggsrun mcp` transforms `ggsrun` into a native **Model Context Protocol (MCP) Server**, communicating with LLM clients (such as Claude Desktop, Cursor, or specialized AI agents) over standard I/O (`stdin`/`stdout`).
+
+With the release of **v5.1.1**, the MCP capabilities are enhanced to fully expose modern conflict resolution and deliver deeply structured JSON results.
+
+### MCP Server Configuration for Antigravity CLI
+
+For standard LLM agents (such as cursor or Claude Desktop), add the following server configuration block:
+
+```json
+{
+  "mcpServers": {
+    "ggsrun-drive-agent": {
+      "command": "ggsrun",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+By default, the server loads credentials dynamically from `ggsrun.cfg` in the target directory or locations specified by `GGSRUN_CFG_PATH`.
+
+---
+
+## Q&A
+
+For general Q&A, standard API errors, and runtime limits, please refer to the detailed [Q&A Guide](help/README.md#qa).
+
 ---
 
 ## Licence & Author
@@ -1065,6 +1118,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.6 (June 2026) - Key Re-mapping, Advanced Search with Highlighting, WebView URL Integration, Directory Tree Previews, and Real-Time Progress Bars**
+  Mapped function keys to standard actions in FD (Filer) Mode: `F1` to copy, `F2` to move, `F3` to delete, `F5` to create directory/folder, and `F8` to search. Added help text for sort function (`s` key) and clipboard yank (`y` key) to the help menu. Added recursive local search and Drive-wide search (including Shared Drives). Highlights the search results panel with a yellow border/title and shows a helper text to return (press `r` to return). Appended direct web view links to Google Drive file information overlay (`i`). Integrated real-time progress bars for both single and parallel file transfers inside the TUI, and added directory tree preview generation for source folders before transfer.
 - **v5.3.5 (June 2026) - CLI/TUI Conflict Resolution, Exit Dialog Confirmation, and MCP Agent Enhancements**
   Implemented a global key capture inside the TUI (`ggsrun fd`) prompting a confirmation modal `Are you sure you want to exit? (Y/N)` on pressing `Ctrl+C` or case-insensitive `Q`/`q` keys. Added support for choosing between `overwrite` (replacing remote script contents) and `add` (uploading the file as a new script with an incremented name suffix like `_1`) when duplicate script filenames exist in the remote project. Added `--conflict` string flag to the CLI (`exe1`/`updateproject` commands) with interactive prompting via `pterm.DefaultInteractiveSelect`. Added the `conflict` property to the MCP schemas, and updated tool descriptions to guide LLM agents on conflict prompting rules, script ID resolution priority, and choosing `exe1` directly for script execution workflows. Fixed TUI directory execution function name parsing.
 - **v5.3.4 (June 2026) - Multi-Args, Auto-Cleanup, Manifest Preservation, Zero-Wait Optimization, and Security Guardrails**

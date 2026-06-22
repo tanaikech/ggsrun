@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,6 +54,14 @@ var (
 	loadingViewMu      sync.Mutex
 	isAuthorized       = true
 
+	transferProgressMu sync.Mutex
+	transferProgress   map[string]jobProgress
+	transferHeading    string
+	transferLogLines   []string
+
+	inSearchModeLocal  bool
+	inSearchModeRemote bool
+
 	// Mockable function variables for unit testing
 	listLocalFilesFn   = listLocalFiles
 	listRemoteFilesFn  = listRemoteFiles
@@ -82,15 +91,24 @@ var (
 		p.Downloader(delCtx)
 		return nil
 	}
-	tuiRunExe1Fn    = app.TuiRunExe1
-	tuiRunExe2Fn    = app.TuiRunExe2
-	tuiRunWebAppsFn = app.TuiRunWebApps
-	osReadFileFn    = os.ReadFile
+	tuiRunExe1Fn           = app.TuiRunExe1
+	tuiRunExe2Fn           = app.TuiRunExe2
+	tuiRunWebAppsFn        = app.TuiRunWebApps
+	osReadFileFn           = os.ReadFile
+	tuiCreateDriveFolderFn = app.TuiCreateDriveFolder
+	searchRemoteDriveAllFn = searchRemoteDriveAll
+	generateRemoteTreeFn   func(*app.AuthContainer, *cli.Context, string, string) ([]string, error)
 )
 
 type FolderInfo struct {
 	ID   string
 	Name string
+}
+
+type jobProgress struct {
+	Transferred int64
+	Total       int64
+	Status      string
 }
 
 type FileEntry struct {
@@ -116,6 +134,7 @@ type TransferJob struct {
 
 func init() {
 	app.RunTUIFunc = RunTUI
+	generateRemoteTreeFn = generateRemoteTree
 }
 
 func RunTUI(c *cli.Context) error {
@@ -218,14 +237,20 @@ func RunTUI(c *cli.Context) error {
 		case tcell.KeyEnter:
 			onEnterLocal()
 			return nil
-		case tcell.KeyF5:
+		case tcell.KeyF1:
 			onCopy()
 			return nil
-		case tcell.KeyF6:
+		case tcell.KeyF2:
 			onMove()
 			return nil
-		case tcell.KeyF8:
+		case tcell.KeyF3:
 			onDelete()
+			return nil
+		case tcell.KeyF5:
+			onCreateDirOrFolder()
+			return nil
+		case tcell.KeyF8:
+			onSearch()
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -248,6 +273,8 @@ func RunTUI(c *cli.Context) error {
 				showFileDetails()
 				return nil
 			case 'r':
+				inSearchModeLocal = false
+				inSearchModeRemote = false
 				refreshPanels()
 				return nil
 			case 'e':
@@ -297,14 +324,20 @@ func RunTUI(c *cli.Context) error {
 		case tcell.KeyEnter:
 			onEnterRemote()
 			return nil
-		case tcell.KeyF5:
+		case tcell.KeyF1:
 			onCopy()
 			return nil
-		case tcell.KeyF6:
+		case tcell.KeyF2:
 			onMove()
 			return nil
-		case tcell.KeyF8:
+		case tcell.KeyF3:
 			onDelete()
+			return nil
+		case tcell.KeyF5:
+			onCreateDirOrFolder()
+			return nil
+		case tcell.KeyF8:
+			onSearch()
 			return nil
 		case tcell.KeyRune:
 			switch event.Rune() {
@@ -336,6 +369,8 @@ func RunTUI(c *cli.Context) error {
 				showFileDetails()
 				return nil
 			case 'r':
+				inSearchModeLocal = false
+				inSearchModeRemote = false
 				refreshPanels()
 				return nil
 			case 'h':
@@ -518,9 +553,9 @@ func updateStatus() {
 		}
 	}
 
-	actionsHelp := "F5:Copy  F6:Move  F8:Delete  y:YankPath  i:Details  h:Help"
+	actionsHelp := "F1:Copy  F2:Move  F3:Del  F5:Mkdir  F8:Srch  y:YankPath  i:Details  h:Help"
 	if !localTable.HasFocus() {
-		actionsHelp = "F5:Copy  F6:Move  F8:Delete  y:YankID  i:Details  h:Help"
+		actionsHelp = "F1:Copy  F2:Move  F3:Del  F5:Mkdir  F8:Srch  y:YankID  i:Details  h:Help"
 	}
 	statusBar.SetText(fmt.Sprintf(" %-50s | %s", summary, actionsHelp))
 }
@@ -800,35 +835,43 @@ func populateTable(table *tview.Table, files []FileEntry, isLocal bool) {
 
 func refreshPanels() {
 	var err error
-	localFiles, err = listLocalFilesFn(currentLocalDir)
-	if err != nil {
-		showError("Failed to list local files: " + err.Error())
-	} else {
-		sortFileEntries(localFiles, localSortKey, localSortOrder)
-		populateTable(localTable, localFiles, true)
-		localTable.SetTitle(" Local File System: " + currentLocalDir + " ")
-		localTable.SetBorder(true)
+	if !inSearchModeLocal {
+		localFiles, err = listLocalFilesFn(currentLocalDir)
+		if err != nil {
+			showError("Failed to list local files: " + err.Error())
+		} else {
+			sortFileEntries(localFiles, localSortKey, localSortOrder)
+			populateTable(localTable, localFiles, true)
+			localTable.SetTitle(" Local File System: " + currentLocalDir + " ")
+			localTable.SetBorder(true)
+			localTable.SetTitleColor(tview.Styles.TitleColor)
+			localTable.SetBorderColor(tview.Styles.BorderColor)
+		}
 	}
 
 	if isAuthorized {
-		remoteFiles, err = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
-		if err != nil {
-			showError("Failed to list remote files: " + err.Error())
-		} else {
-			sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
-			populateTable(remoteTable, remoteFiles, false)
-			remotePath := "/"
-			if len(remoteFolderStack) > 1 {
-				var names []string
-				for _, f := range remoteFolderStack {
-					if f.Name != "root" {
-						names = append(names, f.Name)
+		if !inSearchModeRemote {
+			remoteFiles, err = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
+			if err != nil {
+				showError("Failed to list remote files: " + err.Error())
+			} else {
+				sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
+				populateTable(remoteTable, remoteFiles, false)
+				remotePath := "/"
+				if len(remoteFolderStack) > 1 {
+					var names []string
+					for _, f := range remoteFolderStack {
+						if f.Name != "root" {
+							names = append(names, f.Name)
+						}
 					}
+					remotePath = "/" + strings.Join(names, "/")
 				}
-				remotePath = "/" + strings.Join(names, "/")
+				remoteTable.SetTitle(" Google Drive: " + remotePath + " ")
+				remoteTable.SetBorder(true)
+				remoteTable.SetTitleColor(tview.Styles.TitleColor)
+				remoteTable.SetBorderColor(tview.Styles.BorderColor)
 			}
-			remoteTable.SetTitle(" Google Drive: " + remotePath + " ")
-			remoteTable.SetBorder(true)
 		}
 	} else {
 		remoteFiles = nil
@@ -836,6 +879,8 @@ func refreshPanels() {
 		remoteTable.SetCell(0, 0, tview.NewTableCell("  [red]Google Drive features are disabled (No ggsrun.cfg)[white]").SetSelectable(false))
 		remoteTable.SetTitle(" Google Drive: (Unauthenticated) ")
 		remoteTable.SetBorder(true)
+		remoteTable.SetTitleColor(tview.Styles.TitleColor)
+		remoteTable.SetBorderColor(tview.Styles.BorderColor)
 	}
 
 	updateStatus()
@@ -952,8 +997,16 @@ func runTask(loadingMsg string, task func() error) {
 			loadingViewMu.Lock()
 			defer loadingViewMu.Unlock()
 			if currentLoadingView != nil {
-				fmt.Fprintln(currentLoadingView, " * "+msg)
-				currentLoadingView.ScrollToEnd()
+				transferProgressMu.Lock()
+				isTransferActive := transferProgress != nil
+				transferProgressMu.Unlock()
+
+				if isTransferActive {
+					updateAndRenderProgress(msg)
+				} else {
+					fmt.Fprintln(currentLoadingView, " * "+msg)
+					currentLoadingView.ScrollToEnd()
+				}
 			}
 		})
 	}
@@ -1636,7 +1689,7 @@ func showFileDetails() {
 		runTask("Fetching file details...", func() error {
 			r := &utl.RequestParams{
 				Method:      "GET",
-				APIURL:      "https://www.googleapis.com/drive/v3/files/" + selected.Path + "?fields=id,name,mimeType,size,modifiedTime,createdTime,description,owners(displayName,emailAddress),shared",
+				APIURL:      "https://www.googleapis.com/drive/v3/files/" + selected.Path + "?fields=id,name,mimeType,size,modifiedTime,createdTime,description,owners(displayName,emailAddress),shared,webViewLink",
 				Accesstoken: authContainer.GgsrunCfg.Accesstoken,
 				Dtime:       30,
 			}
@@ -1658,6 +1711,7 @@ func showFileDetails() {
 					DisplayName  string `json:"displayName"`
 					EmailAddress string `json:"emailAddress"`
 				} `json:"owners"`
+				WebViewLink  string `json:"webViewLink"`
 			}
 			_ = json.Unmarshal(body, &meta)
 
@@ -1693,7 +1747,8 @@ func showFileDetails() {
   Owner         : %s
   Sharing State : %s
   Description   : %s
-`, meta.Name, meta.ID, simplifyMimeType(meta.MimeType, isDir), meta.MimeType, createdFormatted, modifiedFormatted, formatSize(sizeVal, isDir, meta.MimeType), ownerInfo, sharedStr, meta.Description)
+  Web View Link : %s
+`, meta.Name, meta.ID, simplifyMimeType(meta.MimeType, isDir), meta.MimeType, createdFormatted, modifiedFormatted, formatSize(sizeVal, isDir, meta.MimeType), ownerInfo, sharedStr, meta.Description, meta.WebViewLink)
 
 			tuiApp.QueueUpdateDraw(func() {
 				textView := tview.NewTextView().
@@ -1890,6 +1945,63 @@ func runBatchTransfer(jobs []TransferJob, isUpload bool, isMove bool) {
 	}
 
 	runTask(msg, func() error {
+		// Initialize progress map
+		transferProgressMu.Lock()
+		transferProgress = make(map[string]jobProgress)
+		for _, j := range jobs {
+			transferProgress[j.SourceName] = jobProgress{
+				Status: "Pending",
+			}
+		}
+		transferLogLines = nil
+		transferHeading = msg
+		transferProgressMu.Unlock()
+
+		defer func() {
+			transferProgressMu.Lock()
+			transferProgress = nil
+			transferLogLines = nil
+			transferProgressMu.Unlock()
+		}()
+
+		// Generate directory tree preview for any directory jobs
+		var treeLines []string
+		for _, job := range jobs {
+			if job.IsDir {
+				treeLines = append(treeLines, fmt.Sprintf("Directory Tree for '%s':", job.SourceName))
+				if isUpload {
+					lines, err := generateLocalTree(job.SourcePath, "  ")
+					if err == nil {
+						treeLines = append(treeLines, lines...)
+					} else {
+						treeLines = append(treeLines, "  Error generating tree: "+err.Error())
+					}
+				} else {
+					lines, err := generateRemoteTreeFn(authContainer, mainCtx, job.SourcePath, "  ")
+					if err == nil {
+						treeLines = append(treeLines, lines...)
+					} else {
+						treeLines = append(treeLines, "  Error generating tree: "+err.Error())
+					}
+				}
+				treeLines = append(treeLines, "")
+			}
+		}
+
+		if len(treeLines) > 0 {
+			tuiApp.QueueUpdateDraw(func() {
+				loadingViewMu.Lock()
+				defer loadingViewMu.Unlock()
+				if currentLoadingView != nil {
+					for _, line := range treeLines {
+						fmt.Fprintln(currentLoadingView, line)
+					}
+					currentLoadingView.ScrollToEnd()
+				}
+			})
+			time.Sleep(2 * time.Second)
+		}
+
 		errChan := make(chan error, len(jobs))
 
 		for _, job := range jobs {
@@ -2262,6 +2374,7 @@ func onEnterLocal() {
 	if selectedRow >= 0 && selectedRow < len(localFiles) {
 		selected := localFiles[selectedRow]
 		if selected.IsDir {
+			inSearchModeLocal = false
 			if selected.Name == ".." {
 				currentLocalDir = filepath.Dir(currentLocalDir)
 			} else {
@@ -2291,6 +2404,7 @@ func onEnterRemote() {
 	if selectedRow >= 0 && selectedRow < len(remoteFiles) {
 		selected := remoteFiles[selectedRow]
 		if selected.IsDir {
+			inSearchModeRemote = false
 			if selected.Name == ".." {
 				if len(remoteFolderStack) > 1 {
 					remoteFolderStack = remoteFolderStack[:len(remoteFolderStack)-1]
@@ -2338,6 +2452,7 @@ func onEnterRemote() {
 }
 
 func onCopy() {
+	clearSearchModes()
 	if !isAuthorized {
 		showError("Action unavailable. Please authenticate with 'ggsrun auth' first.")
 		return
@@ -2358,6 +2473,7 @@ func onCopy() {
 }
 
 func onMove() {
+	clearSearchModes()
 	if !isAuthorized {
 		showError("Action unavailable. Please authenticate with 'ggsrun auth' first.")
 		return
@@ -2378,6 +2494,7 @@ func onMove() {
 }
 
 func onRename() {
+	clearSearchModes()
 	var selected FileEntry
 	var isLocal bool
 
@@ -2713,6 +2830,7 @@ func onDomainMove() {
 }
 
 func onDelete() {
+	clearSearchModes()
 	activeTableBeforeAction = lastActiveTable
 	var jobs []TransferJob
 	var isLocal bool
@@ -2840,9 +2958,11 @@ func showHelp() {
                 If local text file: View content preview
                 If GAS Script (Drive): Open source code explorer & run functions
                 If other Drive File: Open in browser (WSL2 optimized)
-  F5          : Copy selected item(s) to opposite panel's directory
-  F6          : Move selected item(s) to opposite panel's directory
-  F8          : Delete selected item(s)
+  F1          : Copy selected item(s) to opposite panel's directory
+  F2          : Move selected item(s) to opposite panel's directory
+  F3          : Delete selected item(s)
+  F5          : Create new directory/folder
+  F8          : Search files or folders
   c           : Copy item within same panel (Local-to-Local or Drive-to-Drive)
   m           : Move item within same panel (Local-to-Local or Drive-to-Drive)
   n           : Rename item
@@ -2851,6 +2971,8 @@ func showHelp() {
   x           : Convert MimeType and save as new file in same folder (Drive only)
   e           : Execute selected Google Apps Script (choose exe1/exe2/webapps)
   i           : Show detailed metadata / information of item
+  s           : Sort files (choose sort key and order)
+  y           : Copy selected item's absolute path (local) or file ID (remote) to clipboard
   r           : Refresh panels (Sync remote/local state)
   q           : Exit FD mode safely
 
@@ -2875,7 +2997,7 @@ func showHelp() {
 	innerFlex.AddItem(textView, 0, 70, true)
 	innerFlex.AddItem(tview.NewBox(), 0, 15, false)
 
-	helpFlex.AddItem(innerFlex, 18, 0, true)
+	helpFlex.AddItem(innerFlex, 24, 0, true)
 	helpFlex.AddItem(tview.NewBox(), 0, 1, false)
 
 	textView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -3099,3 +3221,415 @@ func showSortChoice() {
 	pages.AddPage("sort_choice", flex, true, true)
 	tuiApp.SetFocus(list)
 }
+
+func onCreateDirOrFolder() {
+	clearSearchModes()
+	if lastActiveTable == localTable {
+		promptTextInput(" Create New Directory ", "Dir Name: ", "", func(name string) {
+			if name == "" {
+				return
+			}
+			newPath := filepath.Join(currentLocalDir, name)
+			runTask("Creating directory...", func() error {
+				return os.MkdirAll(newPath, 0755)
+			})
+		})
+	} else if lastActiveTable == remoteTable {
+		if !isAuthorized {
+			showError("Google Drive features are disabled. Please authenticate.")
+			return
+		}
+		promptTextInput(" Create New Folder on Drive ", "Folder Name: ", "", func(name string) {
+			if name == "" {
+				return
+			}
+			runTask("Creating Google Drive folder...", func() error {
+				_, err := tuiCreateDriveFolderFn(name, currentRemoteFolderID, authContainer)
+				return err
+			})
+		})
+	}
+}
+
+func onSearch() {
+	if lastActiveTable == localTable {
+		promptTextInput(" Search Local Directory (Recursive) ", "Search keyword: ", "", func(query string) {
+			if query == "" {
+				return
+			}
+			inSearchModeLocal = true
+			runTask("Searching local files...", func() error {
+				results, err := searchLocalRecursive(currentLocalDir, query)
+				if err != nil {
+					inSearchModeLocal = false
+					return err
+				}
+				tuiApp.QueueUpdateDraw(func() {
+					localFiles = results
+					sortFileEntries(localFiles, localSortKey, localSortOrder)
+					populateTable(localTable, localFiles, true)
+					localTable.SetTitle(" Search Results for '" + query + "' under " + currentLocalDir + " (Press 'r' to return to normal view) ")
+					localTable.SetTitleColor(tcell.ColorYellow)
+					localTable.SetBorderColor(tcell.ColorYellow)
+				})
+				return nil
+			})
+		})
+	} else if lastActiveTable == remoteTable {
+		if !isAuthorized {
+			showError("Google Drive features are disabled. Please authenticate.")
+			return
+		}
+		promptTextInput(" Search Google Drive (All Drives) ", "Search keyword: ", "", func(query string) {
+			if query == "" {
+				return
+			}
+			inSearchModeRemote = true
+			runTask("Searching Google Drive...", func() error {
+				results, err := searchRemoteDriveAllFn(authContainer, mainCtx, query)
+				if err != nil {
+					inSearchModeRemote = false
+					return err
+				}
+				tuiApp.QueueUpdateDraw(func() {
+					remoteFiles = results
+					sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
+					populateTable(remoteTable, remoteFiles, false)
+					remoteTable.SetTitle(" Search Results for '" + query + "' in Drive (Press 'r' to return to normal view) ")
+					remoteTable.SetTitleColor(tcell.ColorYellow)
+					remoteTable.SetBorderColor(tcell.ColorYellow)
+				})
+				return nil
+			})
+		})
+	}
+}
+
+func searchLocalRecursive(baseDir, query string) ([]FileEntry, error) {
+	var results []FileEntry
+	queryLower := strings.ToLower(query)
+	err := filepath.WalkDir(baseDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if path == baseDir {
+			return nil
+		}
+		name := d.Name()
+		if strings.Contains(strings.ToLower(name), queryLower) {
+			info, err := d.Info()
+			if err != nil {
+				return nil
+			}
+			isDir := d.IsDir()
+			mimeType := ""
+			if isDir {
+				mimeType = "directory"
+			} else {
+				mimeType = utl.ExtToMime(filepath.Ext(name))
+			}
+			modTime := info.ModTime().Format("2006-01-02 15:04:05")
+			createdTime := getLocalCreatedTime(info).Format("2006-01-02 15:04:05")
+			results = append(results, FileEntry{
+				Name:        name,
+				Path:        path,
+				MimeType:    mimeType,
+				ModTime:     modTime,
+				CreatedTime: createdTime,
+				Size:        info.Size(),
+				IsDir:       isDir,
+				Permissions: info.Mode().String(),
+			})
+		}
+		return nil
+	})
+	return results, err
+}
+
+func searchRemoteDriveAll(auth *app.AuthContainer, c *cli.Context, query string) ([]FileEntry, error) {
+	escapedQuery := strings.ReplaceAll(query, "'", "\\'")
+	q := fmt.Sprintf("name contains '%s' and trashed = false", escapedQuery)
+	fields := "files(id,name,mimeType,modifiedTime,createdTime,size,webViewLink,owners(displayName),shared,description),nextPageToken"
+
+	var files []FileEntry
+	pageToken := ""
+	for {
+		params := url.Values{}
+		params.Set("q", q)
+		params.Set("fields", fields)
+		params.Set("pageSize", "1000")
+		params.Set("supportsAllDrives", "true")
+		params.Set("includeItemsFromAllDrives", "true")
+		params.Set("corpora", "allDrives")
+		if pageToken != "" {
+			params.Set("pageToken", pageToken)
+		}
+
+		r := &utl.RequestParams{
+			Method:      "GET",
+			APIURL:      "https://www.googleapis.com/drive/v3/files?" + params.Encode(),
+			Accesstoken: auth.GgsrunCfg.Accesstoken,
+			Dtime:       30,
+		}
+
+		body, err := requestParamsFetchFn(r)
+		if err != nil {
+			return nil, err
+		}
+
+		var res struct {
+			Files []struct {
+				ID           string     `json:"id"`
+				Name         string     `json:"name"`
+				MimeType     string     `json:"mimeType"`
+				ModifiedTime *time.Time `json:"modifiedTime"`
+				CreatedTime  *time.Time `json:"createdTime"`
+				Size         string     `json:"size"`
+				WebViewLink  string     `json:"webViewLink"`
+				Owners       []struct {
+					DisplayName string `json:"displayName"`
+				} `json:"owners"`
+				Shared      bool   `json:"shared"`
+				Description string `json:"description"`
+			} `json:"files"`
+			NextPageToken string `json:"nextPageToken"`
+		}
+
+		if err := json.Unmarshal(body, &res); err != nil {
+			return nil, err
+		}
+
+		for _, f := range res.Files {
+			isDir := f.MimeType == "application/vnd.google-apps.folder"
+			var size int64
+			if f.Size != "" {
+				size, _ = strconv.ParseInt(f.Size, 10, 64)
+			}
+			modTime := ""
+			if f.ModifiedTime != nil {
+				modTime = f.ModifiedTime.In(time.Local).Format("2006-01-02 15:04:05")
+			}
+			createdTime := ""
+			if f.CreatedTime != nil {
+				createdTime = f.CreatedTime.In(time.Local).Format("2006-01-02 15:04:05")
+			}
+			perm := ""
+			if len(f.Owners) > 0 {
+				perm = "Owner: " + f.Owners[0].DisplayName
+				if f.Shared {
+					perm += " (Shared)"
+				} else {
+					perm += " (Private)"
+				}
+			}
+			files = append(files, FileEntry{
+				Name:        f.Name,
+				Path:        f.ID,
+				MimeType:    f.MimeType,
+				ModTime:     modTime,
+				CreatedTime: createdTime,
+				Size:        size,
+				IsDir:       isDir,
+				WebViewLink: f.WebViewLink,
+				Permissions: perm,
+				Description: f.Description,
+			})
+		}
+
+		pageToken = res.NextPageToken
+		if pageToken == "" {
+			break
+		}
+	}
+
+	return files, nil
+}
+
+func generateLocalTree(dirPath string, prefix string) ([]string, error) {
+	var lines []string
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return nil, err
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	for i, entry := range entries {
+		isLast := i == len(entries)-1
+		connector := "├── "
+		nextPrefix := prefix + "│   "
+		if isLast {
+			connector = "└── "
+			nextPrefix = prefix + "    "
+		}
+
+		lines = append(lines, prefix+connector+entry.Name())
+		if entry.IsDir() {
+			subLines, err := generateLocalTree(filepath.Join(dirPath, entry.Name()), nextPrefix)
+			if err == nil {
+				lines = append(lines, subLines...)
+			}
+		}
+	}
+	return lines, nil
+}
+
+func generateRemoteTree(auth *app.AuthContainer, c *cli.Context, folderID string, prefix string) ([]string, error) {
+	var lines []string
+	p := auth.DefDownloadContainerExported(c)
+	q := fmt.Sprintf("'%s' in parents and trashed = false", folderID)
+	fields := "files(id,name,mimeType)"
+	fl := p.GetListLoop(q, fields)
+
+	entries := fl.Files
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name < entries[j].Name
+	})
+
+	for i, entry := range entries {
+		isLast := i == len(entries)-1
+		connector := "├── "
+		nextPrefix := prefix + "│   "
+		if isLast {
+			connector = "└── "
+			nextPrefix = prefix + "    "
+		}
+
+		isFolder := entry.MimeType == "application/vnd.google-apps.folder"
+		displayName := entry.Name
+		if isFolder {
+			displayName = "[DIR] " + displayName
+		}
+		lines = append(lines, prefix+connector+displayName)
+
+		if isFolder {
+			subLines, err := generateRemoteTreeFn(auth, c, entry.ID, nextPrefix)
+			if err == nil {
+				lines = append(lines, subLines...)
+			}
+		}
+	}
+	return lines, nil
+}
+
+func updateAndRenderProgress(msg string) {
+	transferProgressMu.Lock()
+	defer transferProgressMu.Unlock()
+
+	if strings.HasPrefix(msg, "Progress:") {
+		parts := strings.SplitN(msg, ":", 4)
+		if len(parts) == 4 {
+			filename := parts[1]
+			transferred, _ := strconv.ParseInt(parts[2], 10, 64)
+			total, _ := strconv.ParseInt(parts[3], 10, 64)
+			jp := transferProgress[filename]
+			jp.Transferred = transferred
+			jp.Total = total
+			if jp.Status == "" || jp.Status == "Pending" {
+				if strings.Contains(transferHeading, "Uploading") {
+					jp.Status = "Uploading"
+				} else {
+					jp.Status = "Downloading"
+				}
+			}
+			transferProgress[filename] = jp
+		}
+	} else {
+		// Milestones
+		if strings.HasPrefix(msg, "Uploaded:") {
+			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Uploaded:"))
+			jp := transferProgress[fn]
+			jp.Status = "Completed"
+			jp.Transferred = jp.Total
+			transferProgress[fn] = jp
+		} else if strings.HasPrefix(msg, "Downloaded:") {
+			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Downloaded:"))
+			jp := transferProgress[fn]
+			jp.Status = "Completed"
+			jp.Transferred = jp.Total
+			transferProgress[fn] = jp
+		} else if strings.HasPrefix(msg, "Downloaded script project:") {
+			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Downloaded script project:"))
+			jp := transferProgress[fn]
+			jp.Status = "Completed"
+			jp.Transferred = jp.Total
+			transferProgress[fn] = jp
+		} else if strings.Contains(msg, "failed") || strings.Contains(msg, "error") || strings.Contains(msg, "Failed") {
+			for fn := range transferProgress {
+				if strings.Contains(msg, fn) {
+					jp := transferProgress[fn]
+					jp.Status = "Failed"
+					transferProgress[fn] = jp
+				}
+			}
+		}
+		transferLogLines = append(transferLogLines, msg)
+	}
+
+	if currentLoadingView != nil {
+		currentLoadingView.Clear()
+		fmt.Fprintln(currentLoadingView, transferHeading)
+		fmt.Fprintln(currentLoadingView)
+
+		var keys []string
+		for k := range transferProgress {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, fn := range keys {
+			jp := transferProgress[fn]
+			pct := 0
+			if jp.Status == "Completed" {
+				pct = 100
+			} else if jp.Total > 0 {
+				pct = int(float64(jp.Transferred) * 100 / float64(jp.Total))
+			}
+
+			barLen := 20
+			filledLen := pct * barLen / 100
+			bar := ""
+			for i := 0; i < barLen; i++ {
+				if i < filledLen {
+					bar += "="
+				} else if i == filledLen && filledLen < barLen {
+					bar += ">"
+				} else {
+					bar += " "
+				}
+			}
+
+			statusColor := "yellow"
+			if jp.Status == "Completed" {
+				statusColor = "green"
+			} else if jp.Status == "Failed" {
+				statusColor = "red"
+			}
+
+			sizeInfo := ""
+			if jp.Total > 0 {
+				sizeInfo = fmt.Sprintf("%s / %s", formatSize(jp.Transferred, false, ""), formatSize(jp.Total, false, ""))
+			} else {
+				sizeInfo = formatSize(jp.Transferred, false, "")
+			}
+
+			fmt.Fprintf(currentLoadingView, "  %-25s : [%s]%3d%%[white] [[blue]%s[white]]  %s\n", fn, statusColor, pct, bar, sizeInfo)
+		}
+
+		fmt.Fprintln(currentLoadingView)
+		fmt.Fprintln(currentLoadingView, "----------------------------------------------------------------------")
+		for _, logLine := range transferLogLines {
+			fmt.Fprintln(currentLoadingView, " * "+logLine)
+		}
+		currentLoadingView.ScrollToEnd()
+	}
+}
+
+func clearSearchModes() {
+	inSearchModeLocal = false
+	inSearchModeRemote = false
+}
+
+

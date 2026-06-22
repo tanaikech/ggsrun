@@ -311,9 +311,23 @@ func executeUploadJob(ctx context.Context, job uploadJob, a *AuthContainer, prog
 	}()
 
 	proxyReader := bar.ProxyReader(f)
-	defer proxyReader.Close()
+	var lastUpdate time.Time
+	var totalRead int64
+	pReader := &progressReader{
+		ReadCloser: proxyReader,
+		onProgress: func(n int) {
+			totalRead += int64(n)
+			if time.Since(lastUpdate) > 100*time.Millisecond || totalRead == job.Size {
+				lastUpdate = time.Now()
+				if TUIProgressCallback != nil {
+					TUIProgressCallback(fmt.Sprintf("Progress:%s:%d:%d", job.Name, totalRead, job.Size))
+				}
+			}
+		},
+	}
+	defer pReader.Close()
 
-	req2, _ := http.NewRequestWithContext(ctx, "PUT", location, proxyReader)
+	req2, _ := http.NewRequestWithContext(ctx, "PUT", location, pReader)
 	req2.Header.Set("Content-Length", strconv.FormatInt(job.Size, 10))
 	if srcMime != "" {
 		req2.Header.Set("Content-Type", srcMime)

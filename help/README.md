@@ -2313,6 +2313,11 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
 - **Platform Separation via Go Build Tags**: Using build tags to separate file creation metrics (such as `file_info_linux.go` and `file_info_darwin.go`) successfully isolated target-specific dependencies. This enabled rapid mitigation of cross-compilation type mismatch errors on 32-bit Linux architectures (`linux/arm`).
 
 ##### 🛠️ Key Improvements & Hardening
+- **FD Mode Key Re-mapping (v5.3.6)**: Mapped function keys to standard actions: `F1` to copy, `F2` to move, `F3` to delete, `F5` to create directory/folder, and `F8` to search.
+- **Advanced Search with Highlighting (v5.3.6)**: Supported recursive local search and Google Drive-wide search (including Shared Drives). Highlighted active search panels with yellow borders/titles and explicitly displayed `(Press 'r' to return to normal view)` in the panel titles.
+- **WebView URL Overlay (v5.3.6)**: Appended direct web view link (URL) to the Google Drive file details overlay panel (rendered on pressing `i`).
+- **Directory Tree Previews (v5.3.6)**: Automatically generated and printed a beautiful directory tree layout of the source folder before triggering any folder download or upload.
+- **Real-Time Progress Bars (v5.3.6)**: Integrated individual real-time progress bars for both single and concurrent/parallel file transfers inside the TUI.
 - **Exit Confirmation Dialog (v5.3.5)**: Added a global key capture inside the TUI (`ggsrun fd`) prompting a confirmation modal `Are you sure you want to exit? (Y/N)` on pressing `Ctrl+C` or case-insensitive `Q`/`q` keys. Focus and state are cleanly preserved upon cancellation (`No`), while confirming (`Yes`) gracefully tears down the terminal interface.
 - **Duplicate Filename Conflict Resolution (v5.3.5)**: Supported choosing between `overwrite` (replacing remote script contents) and `add` (uploading the file as a new script with an incremented name suffix like `_1`) when duplicate script filenames exist in the remote project.
 - **TUI Conflict Resolution Prompt (v5.3.5)**: During execution parameter collection for `exe1` in TUI, a modal is displayed if duplicate scripts exist, offering `Overwrite` or `Add` choices.
@@ -2353,19 +2358,41 @@ $ ggsrun fd
 - `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).
 - `Space`: Multi-select items.
 - `Enter`: Open/enter directory, preview local text files, open Google Drive files in browser (WSL2 optimized), or browse Google Apps Script source files.
-- `F5`: Copy selected item(s) to the opposite panel.
-- `F6`: Move selected item(s) to the opposite panel.
-- `F8`: Delete selected item(s).
+- `F1`: Copy selected item(s) to the opposite panel.
+- `F2`: Move selected item(s) to the opposite panel.
+- `F3`: Delete selected item(s).
+- `F5`: Create new directory (local) or folder (Google Drive).
+- `F8`: Search files or folders (recursive local search or Drive-wide search).
 - `c` / `m`: Copy or move items within the same panel.
 - `n`: Rename file or directory.
 - `t`: Change timestamp (Last Modified).
 - `d`: Edit description (Google Drive files only).
 - `x`: Convert MIME type and save in place (Google Drive only).
 - `e`: Execute Google Apps Script (select `exe1`, `exe2`, or `webapps` dynamically).
-- `i`: Show detailed file metadata in a 70% responsive centered popup window.
+- `i`: Show detailed file metadata in a 70% responsive centered popup window (includes **Web View Link**).
+- `s`: Sort files (choose sort key and order).
 - `y` (Yank): Copy the selected file's absolute path (local) or File ID (remote) to the clipboard.
 - `r`: Refresh local and remote panels.
 - `q`: Exit FD mode.
+
+#### Advanced Features (v5.3.6)
+
+- **Function Key Actions**: 
+  - `F1` (Copy): Copies selected file(s) or folder(s) to the opposite panel (e.g., download from remote to local, or upload from local to remote).
+  - `F2` (Move): Moves selected file(s) or folder(s) to the opposite panel (transfers and then deletes from the source).
+  - `F3` (Delete): Deletes selected file(s) or folder(s) with an interactive confirmation popup.
+  - `F5` (Create Folder): Creates a new local directory or remote Google Drive folder in the currently open directory.
+  - `F8` (Search): Searches files/folders recursively.
+- **Recursive & Drive-Wide Search (`F8`)**:
+  - **Local Table**: Recursively searches all directories/subdirectories under the current local directory.
+  - **Remote Table**: Performs a query across the entire Google Drive (including Shared Drives).
+  - **UI Highlighting**: The active search panel's borders and titles turn **yellow** to clearly indicate you are viewing search results. The title is updated to display `(Press 'r' to return to normal view)`. Pressing `r` clears the search results and restores the default view and theme colors.
+- **Web View Link (`i` key details)**:
+  - When viewing detailed file metadata on the Google Drive panel via the `i` key, the file details popup includes a `webViewLink` (direct link). You can copy this link to open the file directly in a web browser.
+- **Directory Tree Preview**:
+  - Before a folder download/upload starts, `ggsrun` generates and prints the directory tree preview of the source folder, giving you a visual overview of the files being transferred.
+- **Real-Time Individual Progress Bars**:
+  - During single or parallel file uploads and downloads, `ggsrun` displays real-time individual progress bars for each file, allowing you to track transfer progress.
 
 ---
 

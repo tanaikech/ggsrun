@@ -146,6 +146,13 @@
   3. Overhauled focus restoration inside `showTextPreview` to fall back to the global `lastActiveTable` variable when restoring focus, preventing focus from being lost to closed loading overlays.
   4. Replaced hardcoded conversion switch cases in `getConvertOptions` with dynamic checks calling `utl.GetImportTargets` to align convertible options with the official specification, automatically bypassing conversion prompts for unsupported types.
 
+- **v5.3.6 (June 2026) - Key Re-mapping, Advanced Search with Highlighting, WebView URL Integration, Directory Tree Previews, and Real-Time Progress Bars**
+  1. **FD Mode Key Re-mapping**: Mapped function keys to standard actions: `F1` to copy, `F2` to move, `F3` to delete, `F5` to create directory/folder, and `F8` to search.
+  2. **Advanced Search with Highlighting**: Supported recursive local search and Google Drive-wide search (including Shared Drives). Highlighted active search panels with yellow borders/titles and explicitly displayed `(Press 'r' to return to normal view)` in the panel titles.
+  3. **WebView URL Overlay**: Appended direct web view link (URL) to the Google Drive file details overlay panel (rendered on pressing `i`).
+  4. **Directory Tree Previews**: Automatically generated and printed a beautiful directory tree layout of the source folder before triggering any folder download or upload.
+  5. **Real-Time Progress Bars**: Integrated individual real-time progress bars for both single and concurrent/parallel file transfers inside the TUI.
+
 - **v5.3.5 (June 2026) - CLI/TUI Conflict Resolution, Exit Dialog Confirmation, and MCP Agent Enhancements**
   1. **Exit Confirmation Dialog (TUI)**: Integrated a global key interceptor for `Ctrl+C` and case-insensitive `Q`/`q` keys inside the TUI (`ggsrun fd`), prompting the user with a confirmation modal asking `Are you sure you want to exit? (Y/N)` to prevent accidental closures. Focus and state are cleanly preserved upon cancellation (`No`), while confirming (`Yes`) gracefully tears down the terminal interface.
   2. **Duplicate Filename Conflict Resolution**: Supported choosing between `overwrite` (replacing remote script contents) and `add` (uploading the file as a new script with an incremented name suffix like `_1`) when duplicate script filenames exist in the remote project.

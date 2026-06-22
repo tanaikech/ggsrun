@@ -126,7 +126,7 @@ func setupTestTUI(t *testing.T, localFilesData []FileEntry, remoteFilesData []Fi
 	testScreen = simScreen
 
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.5"
+	appObj.Version = "5.3.6"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -441,6 +441,7 @@ func TestTUI_FileDetails(t *testing.T) {
 				DisplayName  string `json:"displayName"`
 				EmailAddress string `json:"emailAddress"`
 			} `json:"owners"`
+			WebViewLink  string `json:"webViewLink"`
 		}{
 			ID:           "id_remote_txt",
 			Name:         "remote.txt",
@@ -448,6 +449,7 @@ func TestTUI_FileDetails(t *testing.T) {
 			Size:         "200",
 			ModifiedTime: "2026-06-16T13:00:00Z",
 			Description:  "Filer Details Test Description",
+			WebViewLink:  "https://mocklink.com/file",
 		}
 		return json.Marshal(meta)
 	}
@@ -480,11 +482,16 @@ func TestTUI_FileDetails(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	if detailsTV != nil {
-		tuiApp.QueueUpdate(func() {
-			detailsTV.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-		})
+	if detailsTV == nil {
+		t.Fatal("Expected details TextView to be found")
 	}
+	if !strings.Contains(detailsTV.GetText(false), "Web View Link") {
+		t.Errorf("Expected details screen to display Web View Link, got: %q", detailsTV.GetText(false))
+	}
+
+	tuiApp.QueueUpdate(func() {
+		detailsTV.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+	})
 	time.Sleep(50 * time.Millisecond)
 }
 
@@ -1017,17 +1024,17 @@ func TestTUI_TransferOperations(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	// Press F5 (copy local to remote)
+	// Press F1 (copy local to remote)
 	tuiApp.QueueUpdate(func() {
 		handler := localTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(200 * time.Millisecond) // wait for goroutine
 
 	if !uploadCalled {
-		t.Error("Expected tuiUploadFn to be called on F5 upload for bin file")
+		t.Error("Expected tuiUploadFn to be called on F1 upload for bin file")
 	}
 
 	// Test download execution
@@ -1044,17 +1051,17 @@ func TestTUI_TransferOperations(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	// Press F5 (copy remote to local)
+	// Press F1 (copy remote to local)
 	tuiApp.QueueUpdate(func() {
 		handler := remoteTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(200 * time.Millisecond) // wait for goroutine
 
 	if !downloadCalled {
-		t.Error("Expected tuiDownloadFn to be called on F5 download for png file")
+		t.Error("Expected tuiDownloadFn to be called on F1 download for png file")
 	}
 }
 
@@ -1400,11 +1407,11 @@ func TestTUI_ConvertPromptCancellation(t *testing.T) {
 	})
 	time.Sleep(50 * time.Millisecond)
 
-	// Press F5 (copy)
+	// Press F1 (copy)
 	tuiApp.QueueUpdate(func() {
 		handler := localTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(100 * time.Millisecond)
@@ -1473,11 +1480,11 @@ func TestTUI_MdFileCopy(t *testing.T) {
 		return nil, nil
 	}
 
-	// Press F5 (copy)
+	// Press F1 (copy)
 	tuiApp.QueueUpdate(func() {
 		handler := localTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(100 * time.Millisecond)
@@ -1506,11 +1513,11 @@ func TestTUI_MdFileCopy(t *testing.T) {
 	uploadCalled = false
 	capturedFlags = nil
 
-	// Press F5 (copy)
+	// Press F1 (copy)
 	tuiApp.QueueUpdate(func() {
 		handler := localTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF1, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(100 * time.Millisecond)
@@ -1594,11 +1601,11 @@ func TestTUI_AtomicMoveOperations(t *testing.T) {
 		return nil, nil
 	}
 
-	// Press F6 (Move)
+	// Press F2 (Move)
 	tuiApp.QueueUpdate(func() {
 		handler := localTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF6, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(100 * time.Millisecond)
@@ -1661,9 +1668,9 @@ func TestTUI_AtomicMoveOperations(t *testing.T) {
 		return nil, nil
 	}
 
-	// Press F6 (Move)
+	// Press F2 (Move)
 	tuiApp.QueueUpdate(func() {
-		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF6, 0, tcell.ModNone))
+		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone))
 	})
 	time.Sleep(100 * time.Millisecond)
 
@@ -1752,11 +1759,11 @@ func TestTUI_AtomicMoveRemoteToLocal(t *testing.T) {
 		return nil
 	}
 
-	// Press F6 (Move)
+	// Press F2 (Move)
 	tuiApp.QueueUpdate(func() {
 		handler := remoteTable.GetInputCapture()
 		if handler != nil {
-			handler(tcell.NewEventKey(tcell.KeyF6, 0, tcell.ModNone))
+			handler(tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone))
 		}
 	})
 	time.Sleep(300 * time.Millisecond)
@@ -1797,9 +1804,9 @@ func TestTUI_AtomicMoveRemoteToLocal(t *testing.T) {
 
 	deletedRemoteIDs = nil
 
-	// Press F6 (Move)
+	// Press F2 (Move)
 	tuiApp.QueueUpdate(func() {
-		remoteTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF6, 0, tcell.ModNone))
+		remoteTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone))
 	})
 	time.Sleep(300 * time.Millisecond)
 
@@ -2377,5 +2384,230 @@ func TestTUI_ExitConfirmation(t *testing.T) {
 	})
 	time.Sleep(100 * time.Millisecond)
 }
+
+func TestTUI_CreateDirOrFolder(t *testing.T) {
+	_, cleanup := setupTestTUI(t, nil, nil)
+	defer cleanup()
+
+	// 1. Local Create Dir
+	tempDir := t.TempDir()
+	currentLocalDir = tempDir
+
+	tuiApp.QueueUpdateDraw(func() {
+		tuiApp.SetFocus(localTable)
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	// Press F5 (Create Directory)
+	tuiApp.QueueUpdate(func() {
+		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Check if text prompt is shown
+	var hasTextPrompt bool
+	tuiApp.QueueUpdate(func() {
+		hasTextPrompt = pages.HasPage("text_prompt")
+	})
+	if !hasTextPrompt {
+		t.Fatal("Expected text_prompt page to be shown on F5")
+	}
+
+	// Enter directory name and hit Enter
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		inputField := findInputField(p)
+		if inputField != nil {
+			inputField.SetText("new_sub_dir")
+			inputField.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		}
+	})
+	time.Sleep(300 * time.Millisecond) // wait for task to complete
+
+	createdPath := filepath.Join(tempDir, "new_sub_dir")
+	if fi, err := os.Stat(createdPath); err != nil || !fi.IsDir() {
+		t.Errorf("Expected directory %s to be created, but it was not", createdPath)
+	}
+
+	// 2. Remote Create Folder
+	var remoteFolderCreated string
+	var remoteParentID string
+	tuiCreateDriveFolderFn = func(name string, parentID string, a *app.AuthContainer) (string, error) {
+		remoteFolderCreated = name
+		remoteParentID = parentID
+		return "new_folder_id", nil
+	}
+	defer func() {
+		tuiCreateDriveFolderFn = app.TuiCreateDriveFolder
+	}()
+
+	tuiApp.QueueUpdateDraw(func() {
+		tuiApp.SetFocus(remoteTable)
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	// Press F5 (Create Folder)
+	tuiApp.QueueUpdate(func() {
+		remoteTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF5, 0, tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		inputField := findInputField(p)
+		if inputField != nil {
+			inputField.SetText("MyNewDriveFolder")
+			inputField.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		}
+	})
+	time.Sleep(300 * time.Millisecond) // wait for task to complete
+
+	if remoteFolderCreated != "MyNewDriveFolder" {
+		t.Errorf("Expected remote folder name 'MyNewDriveFolder', got %q", remoteFolderCreated)
+	}
+	if remoteParentID != currentRemoteFolderID {
+		t.Errorf("Expected remote parent ID %q, got %q", currentRemoteFolderID, remoteParentID)
+	}
+}
+
+func TestTUI_SearchFilesOrFolders(t *testing.T) {
+	_, cleanup := setupTestTUI(t, nil, nil)
+	defer cleanup()
+	defer func() {
+		inSearchModeLocal = false
+		inSearchModeRemote = false
+	}()
+
+	// 1. Local search
+	tempDir := t.TempDir()
+	currentLocalDir = tempDir
+	os.WriteFile(filepath.Join(tempDir, "match_me.txt"), []byte("data"), 0644)
+	os.WriteFile(filepath.Join(tempDir, "skip_me.txt"), []byte("data"), 0644)
+
+	tuiApp.QueueUpdateDraw(func() {
+		tuiApp.SetFocus(localTable)
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	// Press F8
+	tuiApp.QueueUpdate(func() {
+		localTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF8, 0, tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	// Enter search query and hit Enter
+	tuiApp.QueueUpdate(func() {
+		name, p := pages.GetFrontPage()
+		inputField := findInputField(p)
+		if inputField == nil {
+			t.Errorf("Could not find search inputField! Front page name is %q", name)
+		} else {
+			inputField.SetText("match")
+			inputField.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		}
+	})
+	time.Sleep(300 * time.Millisecond)
+
+	// Verify local files are filtered
+	if len(localFiles) != 1 || localFiles[0].Name != "match_me.txt" {
+		t.Errorf("Expected only match_me.txt to be listed in search results, got: %+v", localFiles)
+	}
+
+	// 2. Remote search
+	var searchQueries []string
+	searchRemoteDriveAllFn = func(auth *app.AuthContainer, c *cli.Context, query string) ([]FileEntry, error) {
+		searchQueries = append(searchQueries, query)
+		return []FileEntry{
+			{Name: "drive_match.txt", Path: "drive_match_id", MimeType: "text/plain"},
+		}, nil
+	}
+	defer func() {
+		searchRemoteDriveAllFn = searchRemoteDriveAll
+	}()
+
+	tuiApp.QueueUpdateDraw(func() {
+		tuiApp.SetFocus(remoteTable)
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	// Press F8
+	tuiApp.QueueUpdate(func() {
+		remoteTable.GetInputCapture()(tcell.NewEventKey(tcell.KeyF8, 0, tcell.ModNone))
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		name, p := pages.GetFrontPage()
+		inputField := findInputField(p)
+		if inputField == nil {
+			t.Errorf("Could not find remote search inputField! Front page name is %q", name)
+		} else {
+			inputField.SetText("drive_match")
+			inputField.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		}
+	})
+	time.Sleep(300 * time.Millisecond)
+
+	if len(searchQueries) != 1 || searchQueries[0] != "drive_match" {
+		t.Errorf("Expected search remote query to be 'drive_match', got: %v", searchQueries)
+	}
+	if len(remoteFiles) != 1 || remoteFiles[0].Name != "drive_match.txt" {
+		t.Errorf("Expected remoteFiles to contain drive_match.txt, got: %+v", remoteFiles)
+	}
+}
+
+func TestTUI_DirectoryTreePreviewAndProgress(t *testing.T) {
+	_, cleanup := setupTestTUI(t, nil, nil)
+	defer cleanup()
+
+	// Verify generateLocalTree works
+	tempDir := t.TempDir()
+	os.MkdirAll(filepath.Join(tempDir, "sub"), 0755)
+	os.WriteFile(filepath.Join(tempDir, "sub", "file.txt"), []byte("x"), 0644)
+
+	lines, err := generateLocalTree(tempDir, "")
+	if err != nil {
+		t.Fatalf("Failed to generate local tree: %v", err)
+	}
+	if len(lines) != 2 || lines[0] != "└── sub" || lines[1] != "    └── file.txt" {
+		t.Errorf("Expected tree prefix and filename structure, got %v", lines)
+	}
+
+	// Verify progress renderer does not crash and updates fields
+	transferProgressMu.Lock()
+	transferProgress = make(map[string]jobProgress)
+	transferHeading = "Progress Title"
+	transferProgressMu.Unlock()
+
+	defer func() {
+		transferProgressMu.Lock()
+		transferProgress = nil
+		transferHeading = ""
+		transferProgressMu.Unlock()
+	}()
+
+	loadingView := tview.NewTextView()
+	currentLoadingView = loadingView
+
+	updateAndRenderProgress("Progress:myfile.txt:500:1000")
+
+	transferProgressMu.Lock()
+	jp := transferProgress["myfile.txt"]
+	transferProgressMu.Unlock()
+
+	if jp.Transferred != 500 || jp.Total != 1000 {
+		t.Errorf("Expected transferred=500 total=1000, got: %+v", jp)
+	}
+
+	updateAndRenderProgress("Uploaded:myfile.txt")
+	transferProgressMu.Lock()
+	jp = transferProgress["myfile.txt"]
+	transferProgressMu.Unlock()
+
+	if jp.Status != "Completed" {
+		t.Errorf("Expected status Completed, got %q", jp.Status)
+	}
+}
+
 
 

@@ -309,9 +309,23 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 	}
 
 	proxyReader := bar.ProxyReader(resp2.Body)
-	written, err := io.Copy(out, proxyReader)
+	var lastUpdate time.Time
+	var totalRead int64
+	pReader := &progressReader{
+		ReadCloser: proxyReader,
+		onProgress: func(n int) {
+			totalRead += int64(n)
+			if time.Since(lastUpdate) > 100*time.Millisecond || totalRead == size {
+				lastUpdate = time.Now()
+				if TUIProgressCallback != nil {
+					TUIProgressCallback(fmt.Sprintf("Progress:%s:%d:%d", job.Name, totalRead, size))
+				}
+			}
+		},
+	}
+	written, err := io.Copy(out, pReader)
 
-	proxyReader.Close()
+	pReader.Close()
 	out.Close()
 
 	if err != nil {

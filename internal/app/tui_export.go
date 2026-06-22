@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"ggsrun/internal/utl"
+	"io"
 	"os"
 	"os/signal"
 	"sync"
@@ -443,4 +444,18 @@ func TuiGetFileContent(fileID string, a *AuthContainer) ([]byte, error) {
 	}
 	return body, nil
 }
+
+type progressReader struct {
+	io.ReadCloser
+	onProgress func(n int)
+}
+
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.ReadCloser.Read(p)
+	if n > 0 {
+		pr.onProgress(n)
+	}
+	return n, err
+}
+
 
