@@ -537,3 +537,188 @@ func getWslBrowserCmd(codeurl string) *exec.Cmd {
 	}
 	return exec.Command("xdg-open", codeurl)
 }
+
+// quickSetup : Interactive, user-friendly setup flow utilizing GCP Quick Flows
+func (a *AuthContainer) quickSetup() {
+	// Target Scopes Definition
+	a.GgsrunCfg.Scopes = []string{
+		"https://www.googleapis.com/auth/drive",
+		"https://www.googleapis.com/auth/drive.file",
+		"https://www.googleapis.com/auth/drive.scripts",
+		"https://www.googleapis.com/auth/script.external_request",
+		"https://www.googleapis.com/auth/script.scriptapp",
+		"https://www.googleapis.com/auth/spreadsheets",
+		"https://www.googleapis.com/auth/documents",
+		"https://www.googleapis.com/auth/script.projects",
+		"https://www.googleapis.com/auth/script.deployments",
+		"https://www.googleapis.com/auth/presentations",
+		"https://www.googleapis.com/auth/forms",
+		"https://mail.google.com/",
+		"https://www.googleapis.com/auth/script.webapp.deploy",
+	}
+
+	cfgPath := a.resolveConfigFile()
+	absCfgPath, _ := filepath.Abs(cfgPath)
+
+	fmt.Println("==================================================")
+	fmt.Println("ggsrun Simplified Onboarding Quick Setup")
+	fmt.Println("==================================================")
+	fmt.Printf("Config File Path ('ggsrun.cfg'): %s\n", absCfgPath)
+	fmt.Println("==================================================")
+	pterm.Info.Println("Step 1: Enable Google APIs & Create Credentials")
+	pterm.Info.Println("We will open a custom GCP setup link in your browser to:")
+	pterm.Info.Println("  1. Automatically enable Drive and Google Apps Script APIs.")
+	pterm.Info.Println("  2. Redirect you straight to the Credentials creation page.")
+	fmt.Println()
+
+	quickFlowURL := "https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com,script.googleapis.com,sheets.googleapis.com,gmail.googleapis.com,slides.googleapis.com,docs.googleapis.com&redirect_to=https://console.cloud.google.com/apis/credentials"
+
+	fmt.Print("Proceed to launch browser to set up APIs? [Y/n]: ")
+	var launchConfirm string
+	fmt.Scanln(&launchConfirm)
+	launchConfirm = strings.ToLower(strings.TrimSpace(launchConfirm))
+	if launchConfirm == "" || launchConfirm == "y" {
+		pterm.Info.Println("Launching browser...")
+		var cmd *exec.Cmd
+		if isWSL() {
+			cmd = getWslBrowserCmd(quickFlowURL)
+		} else {
+			switch runtime.GOOS {
+			case "darwin":
+				cmd = exec.Command("open", quickFlowURL)
+			case "linux":
+				cmd = exec.Command("xdg-open", quickFlowURL)
+			case "windows":
+				cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", quickFlowURL)
+			default:
+				cmd = exec.Command("xdg-open", quickFlowURL)
+			}
+		}
+		if cmd != nil {
+			if err := cmd.Start(); err != nil {
+				pterm.Warning.Println("Could not open browser automatically.")
+			}
+		}
+	}
+
+	pterm.Info.Println("If the browser did not open, please navigate to this URL manually:")
+	pterm.Info.Println(quickFlowURL)
+	fmt.Println("==================================================")
+
+	pterm.Info.Println("Step 2: Load OAuth 2.0 Credentials")
+	pterm.Info.Println("Once you have created the 'Desktop app' credentials, choose an option:")
+	fmt.Println("  [1] Provide path to downloaded client secret JSON file (Recommended)")
+	fmt.Println("      (Note: There is no need to rename the file to 'client_secret.json'.")
+	fmt.Println("       Any path like '{your path}/{credential file name}.json' is perfectly fine.)")
+	fmt.Println("  [2] Enter Client ID and Client Secret manually")
+	fmt.Print("Enter choice [1-2] (Default: 1): ")
+	var choice string
+	fmt.Scanln(&choice)
+	choice = strings.TrimSpace(choice)
+	if choice == "" {
+		choice = "1"
+	}
+
+	if choice == "1" {
+		fmt.Print("Enter path to JSON file: ")
+		var jsonPath string
+		fmt.Scanln(&jsonPath)
+		jsonPath = strings.TrimSpace(jsonPath)
+		if jsonPath == "" {
+			pterm.Error.Println("JSON file path cannot be empty.")
+			utl.Exit(1)
+		}
+		if strings.HasPrefix(jsonPath, "~") {
+			home, _ := os.UserHomeDir()
+			jsonPath = filepath.Join(home, jsonPath[1:])
+		}
+		credentialsData, err := os.ReadFile(jsonPath)
+		if err != nil {
+			pterm.Error.Printf("Failed to read JSON file: %v\n", err)
+			utl.Exit(1)
+		}
+		err = json.Unmarshal(credentialsData, &a.Cs)
+		if err != nil || (len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) == 0) {
+			pterm.Error.Println("Invalid credentials JSON format.")
+			utl.Exit(1)
+		}
+		if len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) > 0 {
+			a.Cs.Cid = a.Cs.Ciw
+		}
+	} else if choice == "2" {
+		fmt.Print("Enter Client ID: ")
+		var clientID string
+		fmt.Scanln(&clientID)
+		clientID = strings.TrimSpace(clientID)
+
+		fmt.Print("Enter Client Secret: ")
+		var clientSecret string
+		fmt.Scanln(&clientSecret)
+		clientSecret = strings.TrimSpace(clientSecret)
+
+		if clientID == "" || clientSecret == "" {
+			pterm.Error.Println("Client ID and Client Secret cannot be empty.")
+			utl.Exit(1)
+		}
+		a.Cs.Cid.ClientID = clientID
+		a.Cs.Cid.Clientsecret = clientSecret
+	} else {
+		pterm.Error.Println("Invalid choice.")
+		utl.Exit(1)
+	}
+
+	fmt.Println("==================================================")
+	pterm.Info.Println("Step 3: Setup Google Apps Script Parameters")
+	
+	// Script ID Setup
+	var scriptIDPrompt string
+	if a.GgsrunCfg.Scriptid != "" {
+		scriptIDPrompt = fmt.Sprintf("Enter your target Google Apps Script Script ID\n(Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.Scriptid)
+	} else {
+		scriptIDPrompt = "Enter your target Google Apps Script Script ID\n(Press Enter to skip, you can register this later): "
+	}
+	fmt.Print(scriptIDPrompt)
+	var scriptID string
+	fmt.Scanln(&scriptID)
+	scriptID = strings.TrimSpace(scriptID)
+	if scriptID != "" {
+		a.GgsrunCfg.Scriptid = scriptID
+		pterm.Success.Printf("Registered Script ID: %s\n", scriptID)
+	} else if a.GgsrunCfg.Scriptid != "" {
+		pterm.Info.Printf("Keeping current Script ID: %s\n", a.GgsrunCfg.Scriptid)
+	}
+
+	// Web Apps URL Setup
+	var webAppsPrompt string
+	if a.GgsrunCfg.WebappsUrl != "" {
+		webAppsPrompt = fmt.Sprintf("Enter your Google Apps Script Web Apps URL\n(Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.WebappsUrl)
+	} else {
+		webAppsPrompt = "Enter your Google Apps Script Web Apps URL\n(Press Enter to skip, you can register this later): "
+	}
+	fmt.Print(webAppsPrompt)
+	var webappsURL string
+	fmt.Scanln(&webappsURL)
+	webappsURL = strings.TrimSpace(webappsURL)
+	if webappsURL != "" {
+		a.GgsrunCfg.WebappsUrl = webappsURL
+		pterm.Success.Printf("Registered Web Apps URL: %s\n", webappsURL)
+	} else if a.GgsrunCfg.WebappsUrl != "" {
+		pterm.Info.Printf("Keeping current Web Apps URL: %s\n", a.GgsrunCfg.WebappsUrl)
+	}
+
+	fmt.Println("==================================================")
+	pterm.Info.Println("Step 4: Launch Consent Authorization")
+	fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
+	fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
+	fmt.Print("Proceed to launch browser to authorize ggsrun? [Y/n]: ")
+	var confirm string
+	fmt.Scanln(&confirm)
+	confirm = strings.ToLower(strings.TrimSpace(confirm))
+	if confirm != "" && confirm != "y" {
+		pterm.Info.Println("Setup aborted.")
+		utl.Exit(0)
+	}
+
+	a.getNewAccesstoken().makecfgfile()
+	pterm.Success.Println("Simplified Quick Setup completed successfully!")
+}

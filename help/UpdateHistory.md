@@ -146,6 +146,13 @@
   3. Overhauled focus restoration inside `showTextPreview` to fall back to the global `lastActiveTable` variable when restoring focus, preventing focus from being lost to closed loading overlays.
   4. Replaced hardcoded conversion switch cases in `getConvertOptions` with dynamic checks calling `utl.GetImportTargets` to align convertible options with the official specification, automatically bypassing conversion prompts for unsupported types.
 
+- **v5.3.7 (June 2026) - Simplified Quick Onboarding, On-demand Setup Prompting, Optional Credentials Path, and Seamless Configuration Initializer**
+  1. **Simplified Quick Setup**: Introduced the `$ ggsrun setup` command to dramatically simplify onboarding and credentials configuration, while keeping legacy `$ ggsrun auth` completely intact for backward compatibility.
+  2. **API Enabling via Quick Flows**: Automates the process of enabling the required Google Workspace APIs (Drive, Sheets, Slides, Docs, Google Apps Script, Gmail) using GCP Quick Flows, immediately redirecting users to the Credentials generation page.
+  3. **No Credential File Renaming Required**: Allows loading credentials from any customizable JSON file name or path (e.g., `{your path}/{credential name}.json`), eliminating the rigid requirement to rename it to exactly `client_secret.json`.
+  4. **Dynamic Config Initializer**: Introduced `ggsrunIniForSetup` to gracefully bypass the standard "missing client_secret.json" initialization block, facilitating clean first-time setup execution.
+  5. **Interactive Default Prompting**: Appends interactive configuration prompts to collect Google Apps Script Project Script ID and Web Apps URL during onboarding, with dynamic loading of existing default values from any present `ggsrun.cfg` for streamlined updates.
+
 - **v5.3.6 (June 2026) - Key Re-mapping, Advanced Search with Highlighting, WebView URL Integration, Directory Tree Previews, and Real-Time Progress Bars**
   1. **FD Mode Key Re-mapping**: Mapped function keys to standard actions: `F1` to copy, `F2` to move, `F3` to delete, `F5` to create directory/folder, and `F8` to search.
   2. **Advanced Search with Highlighting**: Supported recursive local search and Google Drive-wide search (including Shared Drives). Highlighted active search panels with yellow borders/titles and explicitly displayed `(Press 'r' to return to normal view)` in the panel titles.

@@ -315,7 +315,7 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 		panic(err)
 	}
 
-	a.InitVal.isAuthCmd = (c.Command.Name == "auth")
+	a.InitVal.isAuthCmd = (c.Command.Name == "auth" || c.Command.Name == "setup")
 	a.InitVal.customConfig = c.String("config")
 	a.InitVal.customCred = c.String("credentials")
 	a.InitVal.envConfig = os.Getenv(cfgpathenv)

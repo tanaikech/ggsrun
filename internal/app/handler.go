@@ -91,6 +91,15 @@ func reAuth(c *cli.Context) error {
 	return nil
 }
 
+// quickSetup : Simplified onboarding flow.
+func quickSetup(c *cli.Context) error {
+	defAuthContainer(c).
+		ggsrunIniForSetup(c).
+		quickSetup()
+	pterm.Success.Println("Done.")
+	return nil
+}
+
 // checkStatus : Health check
 func checkStatus(c *cli.Context) error {
 	a := defAuthContainer(c).ggsrunIni(c).goauth()

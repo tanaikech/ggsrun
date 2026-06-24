@@ -98,7 +98,7 @@
 
 **ggsrun** is an enterprise-grade CLI tool and MCP (Model Context Protocol) Server designed to relentlessly orchestrate Google Drive I/O operations and execute Google Apps Script (GAS) natively from a local terminal.
 
-With the release of **v5.2.0**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.4+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
+With the release of **v5.3.7**, `ggsrun` transcends its origins as a mere CLI tool. Built on Go 1.26.4+, the execution engine has been entirely rewritten from legacy serial processing into a channel-based, streaming concurrent architecture. It now serves as a high-performance, fault-tolerant I/O backend fully integrated with Omni-Drive (Shared Drives) support, advanced MIME resolution, secure redirect-following Auth logic, and a native **MCP Server Mode** allowing LLM agents to autonomously manage your cloud infrastructure.
 
 ---
 
@@ -143,6 +143,22 @@ Running `ggsrun mcp` transforms the application into an autonomous JSON-RPC serv
 
 ## Installation & Setup
 
+> [!TIP]
+> ### 🎉 Major Update in v5.3.7: Incredibly Simplified Onboarding & Setup Flow!
+> Setting up `ggsrun` is now a breeze! We have designed a brand-new, ultra-intuitive onboarding flow:
+>
+> ```bash
+> $ ggsrun setup
+> ```
+>
+> 🚀 **Why you'll love it:**
+> - **1-Click API Enablement**: No more clicking around GCP to enable 6+ APIs one by one. Our tailored GCP Quick Flow automates the enablement of Drive, Sheets, Slides, Docs, Google Apps Script, and Gmail APIs instantly!
+> - **Flexible Credentials**: Keep any file name you like! You are **no longer required** to rename your JSON file to `client_secret.json`. It fully supports paths like `{your path}/{any name}.json`.
+> - **Configuration Auto-completion**: It asks you for your GAS Project Script ID and Web Apps URL (optional), pre-filling defaults from any existing `ggsrun.cfg` so you can update setup settings in seconds.
+> - **Zero Configuration Block**: Bypasses legacy startup checks when starting fresh.
+>
+> *Legacy `$ ggsrun auth` remains fully active for backward compatibility.*
+
 <details>
 <summary><b>📖 Click to expand: Complete Beginner's Guide (Step-by-Step Installation, Auth & GAS/Web Apps Execution)</b></summary>
 
@@ -180,90 +196,75 @@ This beginner-friendly, step-by-step guide will walk you through installing **gg
 
 ---
 
-## Step 2: Configure Your Google Cloud Project (Critical Setup)
+## Step 2: Choose Your Authorization Method
 
-To allow `ggsrun` to securely communicate with your Google account, you must create a private connection keyset inside the Google Cloud Console.
-
-### 2.1 Create a New Project
-
-1. Open your browser and navigate to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Log in with the same Google/Gmail account you use for Google Apps Script.
-3. Click the project dropdown menu at the top left corner of the screen and select **New Project**.
-4. Give your project an easy-to-remember name (e.g., `My-ggsrun-Project`) and click **Create**. Ensure this newly created project is selected in the top dropdown menu before moving forward.
-
-### 2.2 Enable the Required Google APIs
-
-1. In the search bar at the top, search for **Google Drive API** and click on it from the results.
-2. Click the blue **Enable** button.
-3. Next, search for **Google Apps Script API** in the top search bar, click on it, and click **Enable**.
-
-### 2.3 Configure the OAuth Consent Screen
-
-Google requires you to set up an authorization screen that pops up when you link your account.
-
-1. Click the **Navigation Menu** (the three horizontal lines at the top-left) and navigate to **APIs & Services > OAuth consent screen**.
-2. Select **User Type**:
-   - If you use a regular `@gmail.com` account, choose **External** and click **Create**.
-   - If you use a Google Workspace business/school account, you can choose **Internal** (which simplifies the process).
-3. Fill out the required App Information fields:
-   - **App name**: `ggsrun Client`
-   - **User support email**: Select your own Gmail address.
-   - **Developer contact information**: Enter your own Gmail address again.
-4. Click **Save and Continue**. Skip the "Scopes" page by clicking **Save and Continue** again.
-5. **CRITICAL STEP (For External Type):** On the **Test users** page, click **+ ADD USERS**. Type your exact Gmail address and click **Add / Save**.
-   > ⚠️ **Warning:** If you skip adding your email as a test user, Google will block you with an `Error 400: invalid_scope` later during the authorization process.
-6. Click **Save and Continue** to finish.
-
-### 2.4 Download Your Security Credentials
-
-1. In the left-hand sidebar, click **Credentials**.
-2. Click the **+ CREATE CREDENTIALS** button at the top and select **OAuth client ID**.
-3. Under **Application type**, select **Desktop app**.
-4. In the **Name** field, type `ggsrun Desktop Client`. Click **Create**.
-5. A popup window will show your Client ID and Client Secret. Click **OK**.
-6. Look at the list under "OAuth 2.0 Client IDs". Click the **Download icon** (a down arrow pointing into a tray) on the far right side of your newly created credentials.
-7. A file with a long name ending in `.json` will download.
-8. Move this downloaded file directly into your working folder (`ggsrun-workspace`).
-9. **Rename the file to exactly:** `client_secret.json`
+`ggsrun` provides two ways to authorize your local machine with Google Cloud. We strongly recommend **Option A: Simplified Quick Setup** as it saves you about 10 steps of manual configuration.
 
 ---
 
-## Step 3: Link Your Google Cloud Project to Google Apps Script
+### Option A: Simplified Quick Setup (Recommended)
+This method automates API enabling and guides you directly to credentials creation.
 
-Now, you must tell your Google Apps Script project to use the specific cloud credentials you just generated.
-
-### 3.1 Get Your Project Number
-
-1. Return to your [Google Cloud Console](https://console.cloud.google.com/).
-2. Click on the **Dashboard** or **Welcome** page of your project.
-3. Look for the **Project Info** card. Copy the **Project number** (this is a long string of numbers, e.g., `123456789012`). Do not copy the Project ID text; you specifically need the numerical number.
-
-### 3.2 Change the Project in the Google Apps Script Editor
-
-1. Go to the [Google Apps Script Dashboard](https://script.google.com/) and open the specific script project you wish to run, or create a **New Project**.
-2. On the left sidebar of the modern GAS editor, click the gear icon (**Project Settings**).
-3. Scroll down to the section titled **Google Cloud Platform (GCP) Project**.
-4. Click the **Change project** button.
-5. Paste the **Project number** you copied in the previous step into the text box.
-6. Click **Set project**. Your Apps Script project is now linked with your cloud infrastructure.
-
----
-
-## Step 4: Perform the Automated Authorization
-
-1. Open your terminal application and change your directory to your working folder where `ggsrun` and `client_secret.json` are placed:
+1. **Open your terminal** and navigate to your workspace folder where `ggsrun` is located:
    - **Windows Command Prompt:** `cd %USERPROFILE%\Desktop\ggsrun-workspace`
    - **macOS/Linux Terminal:** `cd ~/Desktop/ggsrun-workspace`
-2. Run the authentication command:
+2. **Run the setup command**:
+   - **Windows:** `ggsrun setup`
+   - **macOS/Linux:** `./ggsrun setup`
+3. **Follow Browser Instructions**:
+   - `ggsrun` will ask to open your browser to a tailored GCP Quick Flow link. Choose **Y** (or press Enter) to proceed.
+   - This link automatically enables Drive, Google Apps Script, Sheets, Gmail, Slides, and Docs APIs.
+   - Once enabled, Google Cloud will redirect you straight to the **Create Credentials** page.
+4. **Create Credentials**:
+   - On the GCP Console, choose **+ CREATE CREDENTIALS** at the top > **OAuth client ID**.
+   - Select **Desktop app** under "Application type". Name it `ggsrun Desktop Client` and click **Create**.
+   - Download the JSON credential file to your computer.
+     *(Note: It is NOT required to rename this file to "client_secret.json" for setup mode. You can leave it as its default downloaded name or save it to any path, such as `{your path}/{credential file name}.json`)*
+5. **Register Credentials inside ggsrun**:
+   - In your terminal, `ggsrun` will ask you how to load credentials.
+   - Choose **[1]** and paste the path to your downloaded JSON file, OR choose **[2]** and paste the Client ID and Client Secret manually.
+6. **Launch Authorization**:
+   - `ggsrun` will ask to launch the browser for authorization. Press **Y** to proceed.
+   - Log in with your Google account. You may see a safety warning screen stating _"Google hasn't verified this app"_. Click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
+   - Click **Allow** to grant permission.
+   - Your local environment is now fully authorized!
+7. **Configure Default Values (Optional):**
+   - Finally, `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional). Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
+
+---
+
+### Option B: Traditional Manual Setup (Fallback)
+If you already have a configured Google Cloud Project or prefer to manage everything manually:
+
+#### B.1: Configure Your Google Cloud Project
+1. Open your browser and navigate to the [Google Cloud Console](https://console.cloud.google.com/).
+2. Log in, click the project dropdown menu at the top left, select **New Project**, and name it `My-ggsrun-Project`.
+3. Enable **Google Drive API** and **Google Apps Script API** inside the API Library.
+4. Setup the **OAuth consent screen** (choose External, fill App info, and **CRITICAL**: add your own Gmail address as a **Test User**).
+5. Navigate to **Credentials** > **+ CREATE CREDENTIALS** > **OAuth client ID**, choose **Desktop app**, click **Create**, download the JSON file, move it to your workspace, and rename it to exactly `client_secret.json`.
+
+#### B.2: Perform the Automated Authorization
+1. Execute in your workspace terminal:
    - **Windows:** `ggsrun auth`
    - **macOS/Linux:** `./ggsrun auth`
-3. `ggsrun` will automatically open your default web browser and present a standard Google login page.
-4. Select your Google account. You may see a safety warning screen stating _"Google hasn't verified this app"_. Since this is your own private project, click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
-5. Click **Allow** to grant permission.
-6. The browser will display a success message saying authentication is complete. You can close the browser window.
-7. **Configure Default Values (Highly Recommended):** In the terminal, the latest version of `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional).
-   - Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
-   - A file named `ggsrun.cfg` is automatically generated in your folder; this stores your login session and configurations securely.
+2. Google login will open automatically in your browser. Select your account, bypass the unverified warning (Click *Advanced* > *Go to ggsrun Client*), and click **Allow** to complete authorization and save `ggsrun.cfg`.
+
+---
+
+## Step 3: Link Your Google Cloud Project to Google Apps Script (Mandatory for both Methods)
+
+No matter which method you used above, you must link your Apps Script project with your newly configured Google Cloud environment.
+
+### 3.1 Get Your Project Number
+1. Return to your [Google Cloud Console](https://console.cloud.google.com/).
+2. Click on the **Dashboard** or **Welcome** page of your project.
+3. Look for the **Project Info** card. Copy the **Project number** (this is a long string of numbers, e.g., `123456789012`).
+
+### 3.2 Link the Project in your GAS Editor
+1. Go to the [Google Apps Script Dashboard](https://script.google.com/) and open the specific script project you wish to run, or create a **New Project**.
+2. On the left sidebar of the modern GAS editor, click the gear icon (**Project Settings**).
+3. Scroll down to **Google Cloud Platform (GCP) Project** and click **Change project**.
+4. Paste the **Project number** you copied in the previous step and click **Set project**. Your Apps Script project is now linked with your cloud infrastructure.
 
 ---
 
@@ -397,22 +398,47 @@ The following compiled binaries are available:
 
 ### 2. Obtain Google Cloud Credentials
 
-1. Access the [Google Cloud Console](https://console.cloud.google.com/).
-2. Create a new Project.
-3. Navigate to **APIs & Services > Library**. Enable both the **Google Drive API** and **Google Apps Script API**.
-4. Configure the **OAuth consent screen** (External/Internal).
-5. Navigate to **Credentials > Create Credentials > OAuth client ID**. Select **Desktop app**.
-6. Download the resulting JSON file, move it to your working directory, and rigorously rename it to exactly `client_secret.json`.
+### 2. Choose Your Setup & Authorization Method
 
-### 3. Automated Authorization (OAuth2 Loopback)
+`ggsrun` provides two different authentication methods. You can choose the **Simplified Quick Setup (Recommended)** or the **Traditional Manual Setup**.
 
-With your `client_secret.json` in the current directory, execute:
+---
 
-```bash
-$ ggsrun auth
-```
+#### Option A: Simplified Quick Setup (Recommended)
+This method utilizes Google Cloud Quick Flows to bypass tedious manual configuration. It automates API enablement, guides you straight to credentials creation, and does not require you to pre-download a `client_secret.json` file if you prefer manual copy-pasting.
 
-`ggsrun` spins up a secure local loopback listener. Your default browser will launch, request authorization, and securely hand the token back to the CLI. A persistent `ggsrun.cfg` file is generated.
+1. **Initiate Setup**:
+   Simply run the setup command in your terminal:
+   ```bash
+   $ ggsrun setup
+   ```
+2. **Enable APIs**:
+   `ggsrun` will automatically open your default browser directly to a customized GCP Quick Flow link. This automatically enables all required Drive and Google Apps Script APIs, then redirects you directly to the Credentials creation page.
+3. **Register Credentials**:
+   * Create a **Desktop app** credential on the GCP Console.
+   * Back in the terminal, `ggsrun` will ask if you want to provide the path to your downloaded client secret JSON file or paste the Client ID / Client Secret manually.
+4. **Authorize**:
+   `ggsrun` will launch the standard browser consent prompt, spin up a local loopback server, and securely save `ggsrun.cfg`.
+
+---
+
+#### Option B: Traditional Manual Setup (Fallback)
+If you already have a configured Google Cloud Project or prefer to manage everything manually:
+
+1. **GCP Setup**:
+   * Access the [Google Cloud Console](https://console.cloud.google.com/).
+   * Create a new Project.
+   * Navigate to **APIs & Services > Library**. Enable both the **Google Drive API** and **Google Apps Script API**.
+   * Configure the **OAuth consent screen** (External/Internal).
+   * Navigate to **Credentials > Create Credentials > OAuth client ID**. Select **Desktop app**.
+2. **Save Secret**:
+   * Download the resulting JSON file, move it to your working directory, and rigorously rename it to exactly `client_secret.json`.
+3. **Perform Authorization**:
+   * Execute:
+     ```bash
+     $ ggsrun auth
+     ```
+   * A local loopback browser window will open to complete the authentication and generate `ggsrun.cfg`.
 
 ### 4. Set Up Execution Server (GAS Side)
 
@@ -460,6 +486,7 @@ _(Note: Change `"pass1"` to a secure custom password if you plan to execute weba
 
 | Command           | Action                                                                                         |
 | :---------------- | :--------------------------------------------------------------------------------------------- |
+| `$ ggsrun setup`  | Initiates the simplified quick-setup onboarding flow. Automates API enabling and credentials registration. |
 | `$ ggsrun auth`   | Initiates the secure OAuth2 loopback flow. Use `--port` to change the binding port.            |
 | `$ ggsrun status` | Health diagnostic tool to verify the validity and expiration of your current Access Token.     |
 | `$ ggsrun mcp`    | Starts the stdio-bound MCP Server. Listens for tools like `searchfiles`, `download`, `upload`. |
@@ -1118,6 +1145,8 @@ For architectural questions, advanced enterprise integrations, or bug disclosure
 
 ### ggsrun
 
+- **v5.3.7 (June 2026) - Simplified Quick Onboarding, On-demand Setup Prompting, Optional Credentials Path, and Seamless Configuration Initializer**
+  Introduced the groundbreaking, extremely easy-to-use `$ ggsrun setup` onboarding command to dramatically simplify Google Cloud API and OAuth2 credentials setup, while keeping traditional `$ ggsrun auth` fully intact for backward compatibility. This command automates Google Cloud Workspace API enablement (Drive, Sheets, Slides, Docs, Google Apps Script, Gmail) using GCP Quick Flows, immediately redirecting users straight to the Credentials creation page. It removes any credential filename renaming constraints (you can load credentials from any custom file path like `{your path}/{credential name}.json` rather than renaming to exactly `client_secret.json`) or supports manual credential copy-pasting. Added a dynamic config initializer (`ggsrunIniForSetup`) to gracefully bypass "missing client_secret.json" startup errors on first-time runs, and added interactive prompts to configure Script IDs and Web Apps URLs with automated pre-filled defaults from existing configurations.
 - **v5.3.6 (June 2026) - Key Re-mapping, Advanced Search with Highlighting, WebView URL Integration, Directory Tree Previews, and Real-Time Progress Bars**
   Mapped function keys to standard actions in FD (Filer) Mode: `F1` to copy, `F2` to move, `F3` to delete, `F5` to create directory/folder, and `F8` to search. Added help text for sort function (`s` key) and clipboard yank (`y` key) to the help menu. Added recursive local search and Drive-wide search (including Shared Drives). Highlights the search results panel with a yellow border/title and shows a helper text to return (press `r` to return). Appended direct web view links to Google Drive file information overlay (`i`). Integrated real-time progress bars for both single and parallel file transfers inside the TUI, and added directory tree preview generation for source folders before transfer.
 - **v5.3.5 (June 2026) - CLI/TUI Conflict Resolution, Exit Dialog Confirmation, and MCP Agent Enhancements**

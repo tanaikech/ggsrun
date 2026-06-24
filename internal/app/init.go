@@ -118,3 +118,13 @@ func (a *AuthContainer) readClientSecret() *AuthContainer {
 	}
 	return a
 }
+
+// GgsrunIniForSetup : Initialize ggsrun specifically for simplified setup, allowing configuration absence.
+func (a *AuthContainer) ggsrunIniForSetup(c *cli.Context) *AuthContainer {
+	a.UpdateStatus("Checking existing configuration...")
+	cfgPath := a.resolveConfigFile()
+	if cfgdata, err := os.ReadFile(cfgPath); err == nil {
+		_ = json.Unmarshal(cfgdata, &a.GgsrunCfg)
+	}
+	return a
+}

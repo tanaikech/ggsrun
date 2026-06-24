@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.6"
+	app.Version = "5.3.7"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -539,6 +539,19 @@ func Run() {
 			Usage:       "Initiates the OAuth2 authorization flow.",
 			Description: "Automatically launches secure browser auth flow and stores tokens based on hierarchy configuration.",
 			Action:      reAuth,
+			Flags: append([]cli.Flag{
+				&cli.IntFlag{
+					Name:  "port, p",
+					Usage: "Port binding for temporary OAuth loopback web server.",
+					Value: 8080,
+				},
+			}, getCommonFlags()...),
+		},
+		{
+			Name:        "setup",
+			Usage:       "Initiates the simplified quick-setup onboarding flow.",
+			Description: "Guides you through quick setup by automatically opening a customized Google API Quick Flow link, assisting credentials registration, and launching the OAuth2 authorization process.",
+			Action:      quickSetup,
 			Flags: append([]cli.Flag{
 				&cli.IntFlag{
 					Name:  "port, p",

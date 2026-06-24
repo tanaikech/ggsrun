@@ -16,6 +16,7 @@
   - For High Security
   - Installation Flow
 - [How to Install](#howtoinstall)
+  - [Simplified Quick Setup (ggsrun setup)](#simplifiedsetup)
   - [Install Google Apps Script API](#onstallexecutionapi)
   - [Install Web Apps](#installwebapps)
 - [How to Execute Google Apps Script Using ggsrun](#howtoexecutegoogleappsscriptusingggsrun)
@@ -239,6 +240,28 @@ Use go get.
 ```bash
 $ go get -u github.com/tanaikech/ggsrun
 ```
+
+<a name="simplifiedsetup"></a>
+
+## 1.5 Simplified Quick Setup (Recommended) 🚀
+
+With the release of **v5.3.7**, setting up `ggsrun` has become **incredibly simple and fast**! You no longer need to manually navigate through Google Cloud Console pages to enable APIs one by one, and you don't even need to rename your downloaded credentials JSON file.
+
+Simply run the following command in your terminal:
+```bash
+$ ggsrun setup
+```
+
+And follow the highly automated interactive CLI prompts:
+
+1. **Automated API Enablement**: `ggsrun` will ask to open your default web browser to a tailored Google Cloud Quick Flow link. Choose **Y** (or hit Enter) to proceed. This automatically enables all required Google Workspace APIs (including Drive, Sheets, Slides, Docs, Google Apps Script, and Gmail APIs) at once, and then automatically redirects you directly to the **Create Credentials** page on the Google Cloud Console.
+2. **Create Desktop Client Credentials**: On the Google Cloud Console, click **+ CREATE CREDENTIALS** > **OAuth client ID**, select **Desktop app** under "Application type", and click **Create**. Finally, download the security credentials JSON file to your computer.
+   - *Note: Unlike the traditional manual configuration, you do NOT need to rename this file to `client_secret.json`! Any filename and directory path is fully supported (e.g. `{your path}/{credential file name}.json`).*
+3. **Load Credentials**: Go back to the terminal where `ggsrun` is running. It will ask how you want to load credentials. Enter `1` and paste the path to your downloaded JSON file, or enter `2` to copy-paste the Client ID and Client Secret manually.
+4. **Authorize**: Confirm to launch the web browser for OAuth2 consent authorization. Login with your Google account. You may see a safety warning screen stating *"Google hasn't verified this app"*. Click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed, then click **Allow**. The CLI loopback server will capture the code and fully authorize your environment.
+5. **Configure default script ID & Web Apps URL**: Finally, `ggsrun` will ask you to input your Apps Script **Project Script ID** and/or **Web Apps URL** (optional). Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing `-i` or `-u` options every time! If an existing `ggsrun.cfg` is present, it will dynamically pre-fill defaults for easy confirmation or modification.
+
+Your local ggsrun environment is now completely operational under higher security and automated ease of use!
 
 <a name="setupggsrunserver"></a>
 
