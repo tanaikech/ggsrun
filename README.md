@@ -1036,7 +1036,7 @@ The following script attempts to perform both authorized and unauthorized operat
 ```javascript
 function runDemo() {
   // 1. Authorized Spreadsheet Access (Whitelisted ID)
-  var sheet = SpreadsheetApp.openById('1il8RnZ_A7vKXzIJyZTxgbxg87JeN9ERMkU0sNP4tq7o');
+  var sheet = SpreadsheetApp.openById('#####');
   Logger.log("Successfully opened whitelisted spreadsheet!");
 
   // 2. Unauthorized Outbound Request (Blocked URL)
