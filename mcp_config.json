@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ggsrun-mcp": {
+      "command": "ggsrun",
+      "args": ["mcp"]
+    },
+    "workspace-developer": {
+      "serverUrl": "https://workspace-developer.goog/mcp",
+      "trust": true
+    }
+  }
+}

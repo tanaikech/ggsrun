@@ -1,0 +1,28 @@
+{
+  "ggsrun-plugin": {
+    "PreToolUse": [
+      {
+        "matcher": "call_mcp_tool",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./scripts/before_tool_sandbox.js",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "call_mcp_tool",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./scripts/after_tool_cleanup.js",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "ggsrun-plugin",
+  "description": "Antigravity CLI plugin for safe Google Apps Script development via ggsrun MCP and sandbox guardrails."
+}
