@@ -15,3 +15,22 @@ Follow these guidelines when writing, reviewing, and executing Google Apps Scrip
 
 ## Verifying GAS API Usage
 * **Documentation Search**: When you are unsure about the methods, behaviors, or parameters of built-in GAS classes (e.g., `DriveApp`, `GmailApp`, `SpreadsheetApp`), query the `workspace-developer` MCP server to fetch detailed class references and usage examples.
+
+## Code Review & Security Checklist
+
+When reviewing or before executing generated GAS code, you must strictly perform a security code review.
+
+### Security Checklist
+
+1. **Google Drive & Document Access**: Does the script read, write, or delete files/folders (`DriveApp`, `SpreadsheetApp`, `DocumentApp`, `SlidesApp`)? Verify that only authorized files/folders are modified or deleted.
+2. **Gmail & Mailing**: Does the script read emails, drafts, or send messages (`GmailApp`, `MailApp`)? Check if recipient addresses and message contents are safe and authorized.
+3. **Calendar Events**: Does the script read, write, or delete calendar events (`CalendarApp`)? Confirm that only designated Calendars and Events are manipulated.
+4. **Outbound Network Connections**: Does the script fetch external resources (`UrlFetchApp`)? Validate the target URL to ensure no credentials or sensitive data are being exfiltrated to untrusted endpoints.
+5. **Hardcoded Secrets**: Are there any hardcoded API keys, OAuth tokens, or passwords? Ensure no credentials are exposed in the source code.
+6. **Destructive Actions**: Does the code perform any bulk or irreversible deletion/overwriting of data?
+
+### How to Proceed with Execution
+
+Before executing the script using `ggsrun`'s `exe1`:
+- **Summarize Accessed Services**: Clearly show the user which Google APIs and external URLs the script will access.
+- **Request Confirmation**: Prompt the user to confirm whether they want to proceed with execution (e.g., "Would you like to execute this script?").
