@@ -909,6 +909,8 @@ Before using this plugin, ensure you have completed the installation and setup o
 Once these tools are ready, install the plugin directly from this repository:
 
 ```bash
+agy plugin install https://github.com/tanaikech/ggsrun
+# or
 agy plugin install https://github.com/tanaikech/ggsrun.git
 ```
 
