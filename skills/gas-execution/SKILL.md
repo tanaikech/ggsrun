@@ -13,6 +13,43 @@ Follow these guidelines when writing, reviewing, and executing Google Apps Scrip
 * **Detailed Logs**: You can return detailed logs or execution summaries as the final return string to provide context and results to the user.
 * **JSON Serialization**: If returning structured data (such as objects, arrays, or status maps), use `JSON.stringify()` to serialize it before returning.
 
+## Other ggsrun MCP Server Tools
+
+Beyond the stateful script execution (`exe1`), you can leverage the following tools from the `ggsrun-mcp` server for managing files, projects, and directories on Google Drive:
+
+### 1. `searchfiles`
+* **Purpose**: Search for files or folders in Google Drive using standard Drive API v3 queries, with optional local regex filtering on filenames.
+* **Usage Guide**: Specify the `query` (e.g., `name = 'MyScript' and trashed = false` or `mimeType = 'application/vnd.google-apps.folder'`). Optionally provide a `regex` pattern to filter result names.
+* **Example Case**: Finding the folder ID named "Backup" or discovering spreadsheet files with a matching pattern:
+  * Arguments: `{ "query": "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false", "regex": "^Production_.*" }`
+
+### 2. `filelist`
+* **Purpose**: Perform exact matches by File Name or resolve filenames by File ID on Google Drive.
+* **Usage Guide**: Use `searchbyname` to find IDs matching an exact name, or `searchbyid` to get the metadata of a specific ID.
+* **Example Case**: Quick lookup of a target Spreadsheet ID before execution:
+  * Arguments: `{ "searchbyname": "TargetSpreadsheet" }`
+
+### 3. `download`
+* **Purpose**: Download files or entire recursive folder structures to your local system, supporting on-the-fly Google Workspace format export.
+* **Usage Guide**: Provide the target `fileid`. Use the `extension` parameter to convert Google Docs, Sheets, Slides, or Drawings to local formats (e.g., Doc -> PDF/Markdown, Sheet -> Excel/CSV).
+* **Example Case**: Fetching a Google Spreadsheet as an `.xlsx` file into a local `./downloads` folder:
+  * Arguments: `{ "fileid": "SPREADSHEET_ID", "extension": "xlsx", "destination": "./downloads", "conflict-mode": "OverwriteIfNewer" }`
+
+### 4. `upload`
+* **Purpose**: Upload local files or recursive directory structures to Google Drive.
+* **Usage Guide**: Specify the local `filename` to upload. By default, it automatically maps extensions to convert them into Google Workspace formats. You can set `convertto` (e.g., 'sheet', 'doc', 'slide') or use `noconvert: true` to bypass.
+* **Example Case**: Uploading local CSV reports into Google Drive and converting them into Google Sheets under a specific folder:
+  * Arguments: `{ "filename": "./data/report.csv", "convertto": "sheet", "parentfolderid": "FOLDER_ID" }`
+
+### 5. `updateproject`
+* **Purpose**: Synchronize local scripts to an existing remote GAS project.
+* **CRITICAL Agent Rules**:
+  1. Do NOT use this tool if you need to run the script afterward; use `exe1` instead.
+  2. **User Confirmation Required**: Since it overwrites files remotely, you must display the list of local files to the user and obtain their permission (Y/N) before executing.
+  3. If conflict resolution is ambiguous, ask the user whether to `overwrite` or `add` duplicates.
+* **Example Case**: Deploying a folder of source files to an existing Apps Script project ID:
+  * Arguments: `{ "projectid": "SCRIPT_ID", "filename": "./src/", "conflict": "overwrite", "backup": true }`
+
 ## Verifying GAS API Usage
 * **Documentation Search**: When you are unsure about the methods, behaviors, or parameters of built-in GAS classes (e.g., `DriveApp`, `GmailApp`, `SpreadsheetApp`), query the `workspace-developer` MCP server to fetch detailed class references and usage examples.
 
