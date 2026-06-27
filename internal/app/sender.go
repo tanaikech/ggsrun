@@ -36,6 +36,13 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 
 	if c.String("stringscript") != "" {
 		rawScript := c.String("stringscript")
+		var err error
+		rawScript, err = InjectSandbox(rawScript, c.String("sandbox"))
+		if err != nil {
+			e.FailStatus("Sandbox Injection Error")
+			pterm.Error.Println(err)
+			utl.Exit(1)
+		}
 		timestamp := time.Now().Format("20060102150405")
 		tempFileName := "ggsrun_exe1_temp_" + timestamp
 		e.UpdateStatus("Preparing project update and backup (temporary file)...")
@@ -54,6 +61,12 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 		rawScript, err := readAllStdin()
 		if err != nil {
 			e.FailStatus("Stdin Read Error")
+			pterm.Error.Println(err)
+			utl.Exit(1)
+		}
+		rawScript, err = InjectSandbox(rawScript, c.String("sandbox"))
+		if err != nil {
+			e.FailStatus("Sandbox Injection Error")
 			pterm.Error.Println(err)
 			utl.Exit(1)
 		}
@@ -190,6 +203,15 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 					name = "ggsrun/" + strings.TrimSuffix(base, ext) + ".json"
 				}
 				source := utl.ConvGasToUpload(elm)
+				if filetype == "SERVER_JS" {
+					var err error
+					source, err = InjectSandbox(source, c.String("sandbox"))
+					if err != nil {
+						e.FailStatus("Sandbox Injection Error")
+						pterm.Error.Println(err)
+						utl.Exit(1)
+					}
+				}
 
 				var exists bool
 				var existingIndex int

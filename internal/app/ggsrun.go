@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.7"
+	app.Version = "5.3.8"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -84,6 +84,10 @@ func Run() {
 				&cli.BoolFlag{
 					Name:  "jsonparser, j",
 					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
+				},
+				&cli.StringFlag{
+					Name:  "sandbox",
+					Usage: "Path to a configuration JSON file to control API and URL sandboxing.",
 				},
 			}, getCommonFlags()...),
 		},

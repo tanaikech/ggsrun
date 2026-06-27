@@ -176,6 +176,10 @@ func runMCP(c *cli.Context) error {
 									"type":        "string",
 									"description": "Raw Google Apps Script code provided directly as an inline string to upload/synchronize before execution. Either `scriptfile` or `stringscript` is required.",
 								},
+								"sandbox": map[string]interface{}{
+									"type":        "string",
+									"description": "Optional path to a configuration JSON file to control API and URL sandboxing.",
+								},
 								"function": map[string]interface{}{
 									"oneOf": []map[string]interface{}{
 										{
