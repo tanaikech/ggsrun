@@ -1,0 +1,15 @@
+{
+  "allowedFileIds": ["DEFAULT_TEST_SPREADSHEET_ID"],
+  "allowedFolderIds": ["DEFAULT_TEST_FOLDER_ID"],
+  "allowedEmails": ["sandbox-tester@example.com"],
+  "allowedCalendarIds": ["primary"],
+  "allowedEventIds": [],
+  "allowedUrls": [
+    "https://httpbin.org/anything/*",
+    "https://*.google.com/*"
+  ],
+  "blockedUrls": [
+    "https://*.google.com/blocked/*",
+    "https://example.com"
+  ]
+}
