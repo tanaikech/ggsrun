@@ -94,23 +94,48 @@ $ ggsrun <command> [options]
   ```
   *Retrieves `script_id` from local `ggsrun.cfg` as fallback, uploads inline string, executes `main()`, and yields clean JSON.*
 
-#### Architecture Workflow
+#### Architecture Workflow (Stateful Execution with Sandboxing & Auto-Cleanup)
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant CLI as ggsrun (Local PC)
-    participant AAPI as Apps Script API
-    participant EAPI as Execution API
-    participant GAS as Remote GAS Project
+    actor Dev as Developer (CLI)
+    participant CLI as ggsrun (Local CLI)
+    participant API as Google Apps Script API
+    participant V8 as Cloud V8 Runtime
 
-    CLI->>AAPI: PUT /v1/projects/{id}/content<br>(Push local .js files)
-    AAPI-->>CLI: 200 OK (Project Overwritten)
-    CLI->>EAPI: POST /v1/scripts/{id}:run<br>Target: targetFunction
-    EAPI->>GAS: trigger targetFunction()
-    Note right of GAS: Executes utilizing the<br>permanently saved code
-    GAS-->>EAPI: Return Value
-    EAPI-->>CLI: Pure JSON Result
+    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "myFunc" --sandbox "config.json" --deleteScript
+
+    rect rgb(240, 245, 255)
+        note over CLI, API: [1] Load Configs & Memory Backup
+        CLI->>CLI: Read --sandbox "config.json" (whitelists)<br/>InjectSandbox() on "my_script.js" (replace objects with wrappers)
+        CLI->>API: GET /v1/projects/{id}/content (Get file list)
+        API-->>CLI: Return current remote project files
+        CLI->>CLI: Store original files list in-memory as backup
+    end
+
+    rect rgb(240, 250, 240)
+        note over CLI, API: [2] Push Sandbox-Injected Files
+        CLI->>CLI: Append/overwrite project files in memory with sandboxed script
+        CLI->>API: PUT /v1/projects/{id}/content (Upload updated files list)
+        API-->>CLI: 200 OK (Project Updated)
+    end
+
+    rect rgb(255, 245, 240)
+        note over CLI, V8: [3] Remote Guarded Execution
+        CLI->>API: POST /v1/scripts/{id}:run (Execute "myFunc")
+        API->>V8: Compiles & runs "myFunc" under sandbox rules
+        V8-->>CLI: Return execution results & logs
+    end
+
+    rect rgb(245, 240, 255)
+        note over CLI, API: [4] Auto-Cleanup (--deleteScript / Backed up state)
+        CLI->>CLI: Trigger cleanup: restore original file list from memory backup
+        CLI->>API: PUT /v1/projects/{id}/content (Upload original files list)
+        API-->>CLI: 200 OK (Original Remote State Restored)
+    end
+
+    CLI-->>Dev: Print final execution output
 ```
 
 ---
@@ -484,5 +509,6 @@ If `-cm` is omitted, `ggsrun` presents an **interactive terminal selection promp
 - 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Learn how to build and configure your GCP credentials.
 - 🛡️ **[Security Sandbox Guide](sandbox_guide.md)** - Set up execution sandboxing for `exe1`.
 - 🤖 **[MCP Server Guide](mcp_guide.md)** - Run `ggsrun` as an autonomous background server.
+- 🔄 **[Stateful Execution Lifecycle Guide](exe1_lifecycle.md)** - Step-by-step backup, sandboxing, execution, and rollback details for the `exe1` command.
 - 🧪 **[Manual Integration Tests Suite](../manual-tests/README.md)** - Perform manual test validations.
 - 🏡 **[Back to Home](../README.md)**

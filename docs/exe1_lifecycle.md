@@ -1,0 +1,164 @@
+# Google Apps Script Stateful Project Execution (exe1) - Detailed Lifecycle & Diagram
+
+This document provides a highly detailed guide explaining the exact execution lifecycle of `ggsrun`'s stateful Apps Script execution command (`exe1`), both in standard CLI mode and when called autonomously by AI agents via the Model Context Protocol (MCP) server. 
+
+---
+
+## 1. Concrete Execution Walkthrough Scenario
+
+To understand how `exe1` performs dynamic sandboxing and safe rollback operations under the hood, let us trace a real-world scenario.
+
+### A. The User's Prompt
+Imagine a user or an AI agent attempts to execute the following instruction:
+> *"Access the Google Spreadsheet with ID `1A2B3C4D5E...` and append a log entry 'Connected successfully!' with the current date. Then, retrieve the API health status from `https://api.example.com/v1/health` and return the result."*
+
+### B. The Generated GAS Code
+The AI agent writes standard Google Apps Script code to achieve this task:
+```javascript
+function main() {
+  var sheet = SpreadsheetApp.openById('1A2B3C4D5E...');
+  sheet.appendRow([new Date(), 'Connected successfully!']);
+  
+  var response = UrlFetchApp.fetch('https://api.example.com/v1/health');
+  return response.getContentText();
+}
+```
+
+---
+
+## 2. In-Memory Sandbox Injection
+
+Before uploading the code to the remote Google Cloud environment, `ggsrun` checks the active sandbox policy. By default (unless sandbox is explicitly bypassed via `--sandbox bypass` or `"sandbox": "bypass"`), `ggsrun` injects a secure proxy layer.
+
+1. **Whitelisting Configuration:**
+   `ggsrun` injects authorized resources (configured locally or passed via parameters) directly into the sandbox variables:
+   * `allowedFileIds` $\rightarrow$ `["1A2B3C4D5E..."]`
+   * `allowedUrls` $\rightarrow$ `["https://api.example.com/v1/health"]`
+
+2. **Static Token Replacement:**
+   `ggsrun` scans the target script and substitutes standard global Google service objects with proxy variables:
+   * `SpreadsheetApp` $\rightarrow$ `_wrappedSpreadsheetApp`
+   * `UrlFetchApp` $\rightarrow$ `_wrappedUrlFetchApp`
+
+3. **Prepending `for_sandbox_gas.js`:**
+   The `for_sandbox_gas.js` runtime security template is prepended to the script. This script declares the proxy objects (like `_wrappedSpreadsheetApp` and `_wrappedUrlFetchApp`) which intercept the calls, perform whitelist checks, and throw a **`Sandbox Runtime Blocked`** error if unauthorized resource IDs or domains are requested.
+
+### The Resulting Script Uploaded to Google Apps Script
+```javascript
+// === SANDBOX SECURITY GUARD INJECTED ===
+function createSafeWrapper(original, overrides) { ... }
+
+var _wrappedSpreadsheetApp = (function(global) {
+  var allowedFileIds = ["1A2B3C4D5E..."];
+  return createSafeWrapper(SpreadsheetApp, {
+    openById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Spreadsheet ID '" + id + "' is not whitelisted.");
+      }
+      return SpreadsheetApp.openById(id);
+    }
+  });
+})(this);
+
+var _wrappedUrlFetchApp = (function(global) {
+  var allowedUrls = ["https://api.example.com/v1/health"];
+  var blockedUrls = [];
+  // (Pattern matching & URL verification logic...)
+  return createSafeWrapper(UrlFetchApp, {
+    fetch: function(url, ...args) {
+      checkUrl(url); // Verifies url is whitelisted and not blacklisted
+      return UrlFetchApp.fetch.apply(UrlFetchApp, [url, ...args]);
+    }
+  });
+})(this);
+// === END OF SANDBOX SECURITY GUARD ===
+
+// Original Script (Statically Replaced)
+function main() {
+  var sheet = _wrappedSpreadsheetApp.openById('1A2B3C4D5E...');
+  sheet.appendRow([new Date(), 'Connected successfully!']);
+  
+  var response = _wrappedUrlFetchApp.fetch('https://api.example.com/v1/health');
+  return response.getContentText();
+}
+```
+
+---
+
+## 3. End-to-End Architectural Flow
+
+The entire end-to-end lifecycle under the hood in `ggsrun` behaves as follows, visualizing the CLI interaction with `--sandbox` and `--deleteScript` options:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer (CLI/User)
+    participant CLI as ggsrun (Local CLI)
+    participant API as Google Apps Script API
+    participant V8 as Cloud V8 Runtime
+
+    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "main" --sandbox "config.json" --deleteScript
+
+    rect rgb(240, 245, 255)
+        note over CLI, API: [1] Load Configs & Memory Backup
+        CLI->>CLI: Read --sandbox "config.json" (whitelists)<br/>InjectSandbox() on "my_script.js" (replace objects with wrappers)
+        CLI->>API: GET /v1/projects/{id}/content (Get file list)
+        API-->>CLI: Return current remote project files
+        CLI->>CLI: Store original files list in-memory as backup
+    end
+
+    rect rgb(240, 250, 240)
+        note over CLI, API: [2] Push Sandbox-Injected Files
+        CLI->>CLI: Append/overwrite project files in memory with sandboxed script
+        CLI->>API: PUT /v1/projects/{id}/content (Upload updated files list)
+        API-->>CLI: 200 OK (Project Updated)
+    end
+
+    rect rgb(255, 245, 240)
+        note over CLI, V8: [3] Remote Guarded Execution
+        CLI->>API: POST /v1/scripts/{id}:run (Execute "main")
+        API->>V8: Compiles & runs "main" under sandbox rules
+        
+        alt Execution Scenario A: Whitelisted Actions (Success)
+            V8->>V8: Safe wrapper verification check passed! Forward to native Apps Script API
+            V8-->>CLI: Return execution results & logs
+        else Execution Scenario B: Blocked Action (Runtime Error)
+            V8->>V8: Safe wrapper detects non-whitelisted ID or URL
+            V8-->>CLI: Throw "Sandbox Runtime Blocked" error and terminate execution
+        end
+    end
+
+    rect rgb(245, 240, 255)
+        note over CLI, API: [4] Auto-Cleanup & Resilient Rollback
+        CLI->>CLI: Trigger cleanup: restore original file list from memory backup<br/>(Fires on success, error, or OS Signal interrupt)
+        CLI->>API: PUT /v1/projects/{id}/content (Upload original files list)
+        API-->>CLI: 200 OK (Original Remote State Restored)
+    end
+
+    CLI-->>Dev: Print final execution output
+```
+
+---
+
+## 4. Key Architectural Stages Explained
+
+### A. Static Analysis & Security Gate Check (MCP Server Only)
+Before any execution command is delegated to the compiler in `ggsrun exe1`, the MCP Server acts as an immediate safety guardrail:
+* It reads the raw script files/strings and runs `analyzeGASScript()`.
+* If write or egress API keywords (like `.appendRow`, `.fetch`, `.setValue`) are detected and the `"confirm"` argument is not set to `true`, the MCP Server **aborts execution** instantly, returning a diagnostic report of the accessed resources and demanding manual verification.
+
+### B. Stateful Project Backup in Memory
+* `ggsrun` downloads the exact layout and metadata of files currently residing in the target script project.
+* It stores these original file manifests securely inside `e.InitVal.originalFiles` in memory. This eliminates disk-bound backup delays while ensuring we have an absolute, correct state to roll back to.
+
+### C. Sandbox Injection
+* If whitelisting configurations are enabled, standard GAS references inside the script are mapped to custom wrapper objects.
+* `for_sandbox_gas.js` acts as an embedded engine that wraps fundamental GAS interactions (Drive, Sheets, Docs, Gmail, Calendar, UrlFetchApp, etc.) and performs prefix/whitelisting checks.
+
+### D. Cloud Project Upload & Compilation
+* The updated file list is pushed via `projectUpdate2()` using the remote `content` PUT API.
+* The script compilation occurs on Google's cloud server. If a script imports unsupported constructs or references missing identifiers, the execution fails gracefully.
+
+### E. Resilient Rollback & State Restoration
+* Regardless of whether the target function succeeds, throws an exception, or if the local terminal process is terminated mid-execution (e.g., via a standard `SIGINT` / `Ctrl+C` interrupt signal), `ggsrun` enters the deferred `performRollback()` block.
+* This clean-up handler replaces the remote script project back to `e.InitVal.originalFiles`, completely wiping out any sandbox-injected code, temporary functions, and file modifications. This guarantees that your remote production source repository is left 100% clean and pristine.

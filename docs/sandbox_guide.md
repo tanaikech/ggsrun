@@ -184,4 +184,5 @@ You can use the following test scenarios to verify that your security sandboxing
 - 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Initial GCP credential and loopback token configuration.
 - 📖 **[Command Reference Manual](commands_reference.md)** - Reference CLI parameters for `exe1`.
 - 🤖 **[MCP Server Guide](mcp_guide.md)** - Running stateful and secure executions via LLM agents.
+- 🔄 **[Stateful Execution Lifecycle Guide](exe1_lifecycle.md)** - Step-by-step backup, sandboxing, execution, and rollback details for the `exe1` command.
 - 🏡 **[Back to Home](../README.md)**

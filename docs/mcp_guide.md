@@ -173,4 +173,5 @@ You can instruct your connected AI agent to perform complex operations using the
 - 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Enable Workspace APIs and acquire loopback tokens.
 - 📖 **[Command Reference Manual](commands_reference.md)** - Detailed description of underlying CLI command tools.
 - 🛡️ **[Security Sandbox Guide](sandbox_guide.md)** - Restrict and secure Google Workspace API scopes during agent actions.
+- 🔄 **[Stateful Execution Lifecycle Guide](exe1_lifecycle.md)** - Step-by-step backup, sandboxing, execution, and rollback details for the `exe1` command.
 - 🏡 **[Back to Home](../README.md)**
