@@ -166,3 +166,11 @@ You can instruct your connected AI agent to perform complex operations using the
   1. The agent writes the Javascript logic locally to `cleanup_records.gs`.
   2. The agent calls the `exe1` tool, passing `cleanup_records.gs` as the `scriptfile` argument and `cleanup` as the `function` argument.
   3. The script executes remotely, and the agent parses and displays the returned execution results.
+
+---
+
+### Related Links:
+- 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Enable Workspace APIs and acquire loopback tokens.
+- 📖 **[Command Reference Manual](commands_reference.md)** - Detailed description of underlying CLI command tools.
+- 🛡️ **[Security Sandbox Guide](sandbox_guide.md)** - Restrict and secure Google Workspace API scopes during agent actions.
+- 🏡 **[Back to Home](../README.md)**

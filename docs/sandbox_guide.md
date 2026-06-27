@@ -156,12 +156,32 @@ You can use the following test scenarios to verify that your security sandboxing
 
 ### Test 1: Outbound HTTP Fetch (UrlFetchApp Sandbox Test)
 * **Prompt**: "Create a script `test_fetch.gs` that fetches data from `https://api.github.com/users/octocat` using `UrlFetchApp.fetch()`. Execute it using the `exe1` command of `ggsrun` with sandboxing."
-* **Expected Result**: Execution fails with a `Sandbox Runtime Blocked` exception unless the GitHub API endpoint is explicitly whitelisted.
+* **Expected Result**: Execution fails with a `Sandbox Runtime Blocked: URL 'https://api.github.com/users/octocat' is not whitelisted. Default policy is BLOCK ALL.` exception unless the GitHub API endpoint is explicitly whitelisted.
 
 ### Test 2: Drive Directory Traversal (DriveApp Sandbox Test)
 * **Prompt**: "Write a script `list_files.gs` that loops over `DriveApp.getFiles()` to print the names of all files in my Drive, and execute it using `exe1`."
-* **Expected Result**: The wrapper intercepts the query iterator. Since no file IDs are whitelisted, the script halts immediately with a security exception.
+* **Expected Result**: The wrapper intercepts the query iterator. Since no file IDs are whitelisted, the script halts immediately with a security exception, preventing bulk listing.
 
-### Test 3: Email Access Block (GmailApp Sandbox Test)
+### Test 3: Email Access Block (GmailApp/MailApp Sandbox Test)
 * **Prompt**: "Write a script `send_secret.gs` that creates an email draft to `attacker@example.com` with the text 'Secret data' using `GmailApp.createDraft()`. Execute it using `exe1`."
-* **Expected Result**: The wrapper checks the recipient, detects a non-whitelisted address, and aborts the execution before Google's mail server is touched.
+* **Expected Result**: The wrapper checks the recipient address, detects a non-whitelisted address, and raises a `Sandbox Runtime Blocked: Recipient address 'attacker@example.com' is not whitelisted` exception.
+
+### Test 4: End-to-End Spreadsheet Access Workflow
+* **Prompt**: "Please update the local `sandbox_config.json` to whitelist the Spreadsheet ID `YOUR_ID` in the `allowedFileIds` array. Then, create a new script file `write_hello.gs` and write a function `writeHello()` that opens the spreadsheet with ID `YOUR_ID`, retrieves the first sheet, and sets the value of cell `A1` to `'Hello World'`. Once completed, synchronize and execute the script using the `exe1` command of `ggsrun`."
+* **Expected Result**: 
+  1. The agent updates `sandbox_config.json` to add your Spreadsheet ID.
+  2. The agent writes the `writeHello()` code.
+  3. The agent executes `exe1`. `ggsrun` parses `sandbox_config.json` successfully, injects the `SpreadsheetApp` wrapper, and uploads the script.
+  4. The spreadsheet proxy validates the ID successfully, allowing Google V8 to write `'Hello World'` in cell `A1`.
+
+### Test 5: Outbound Email / API Request Guarding (Non-File ID Whitelist Tests)
+* **Prompt**: "Write a script `notify_user.gs` that sends a notification email to `admin@example.com` using `MailApp.sendEmail()` and posts a status payload to `https://api.example.com/status` using `UrlFetchApp.fetch()`. Run the function using `ggsrun`'s `exe1` tool."
+* **Expected Result**: The sandbox intercepts both calls. If `admin@example.com` is not in `allowedEmails` or `https://api.example.com/status` is not in `allowedUrls` within `sandbox_config.json`, execution will immediately halt with a security exception (e.g., `Sandbox Runtime Blocked: URL 'https://api.example.com/status' is not whitelisted.`), verifying the protection of non-file resources.
+
+---
+
+### Related Links:
+- 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Initial GCP credential and loopback token configuration.
+- 📖 **[Command Reference Manual](commands_reference.md)** - Reference CLI parameters for `exe1`.
+- 🤖 **[MCP Server Guide](mcp_guide.md)** - Running stateful and secure executions via LLM agents.
+- 🏡 **[Back to Home](../README.md)**

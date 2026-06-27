@@ -1,29 +1,30 @@
 # ggsrun - Command Reference and Usage Guide
 
-This document provides a highly detailed specification, flag listing, and practical execution examples for all commands supported by `ggsrun`.
+This document provides a highly detailed specification, flag listing, and practical execution examples (recipes) for all commands supported by `ggsrun`.
 
 ---
 
 ## Table of Contents
 1. [General Command Layout](#1-general-command-layout)
 2. [Command Categorization](#2-command-categorization)
-3. [Executing Google Apps Script](#3-executing-google-apps-script)
-   - [exe1 (Stateful Script Execution)](#exe1-stateful-script-execution)
-   - [exe2 (Stateless API Execution)](#exe2-stateless-api-execution)
-   - [webapps (Web App Execution)](#webapps-web-app-execution)
+3. [Deep Dive: Executing Google Apps Script (exe1, exe2, webapps)](#3-deep-dive-executing-google-apps-script-exe1-exe2-webapps)
+   - [Mode 1: exe1 (Stateful Project Execution)](#mode-1-exe1-stateful-project-execution)
+   - [Mode 2: exe2 (Stateless Dynamic Execution)](#mode-2-exe2-stateless-dynamic-execution)
+   - [Mode 3: webapps (Anonymous or Secure Web App Execution)](#mode-3-webapps-anonymous-or-secure-web-app-execution)
+   - [Verification & Diagnostics](#verification--diagnostics)
 4. [File and Directory Transfers](#4-file-and-directory-transfers)
-   - [download (Parallel Pull)](#download-parallel-pull)
-   - [upload (Parallel Push)](#upload-parallel-push)
-   - [updateproject (Project Code Sync)](#updateproject-project-code-sync)
+   - [download (Massively Parallel Pull)](#download-massively-parallel-pull)
+   - [upload (Massively Parallel Push)](#upload-massively-parallel-push)
+   - [updateproject (GAS Project Sync)](#updateproject-gas-project-sync)
 5. [Drive Querying and Search](#5-drive-querying-and-search)
-   - [filelist (List Files)](#filelist-list-files)
-   - [searchfiles (Advanced Search)](#searchfiles-advanced-search)
+   - [filelist (Metadata Query)](#filelist-metadata-query)
+   - [searchfiles (Advanced Query Syntax)](#searchfiles-advanced-query-syntax)
 6. [Interactive Terminal File Manager](#6-interactive-terminal-file-manager)
    - [fd (PC-98 Filer Mode)](#fd-pc-98-filer-mode)
 7. [System and Authentication Utilities](#7-system-and-authentication-utilities)
-   - [setup (Quick Onboarding)](#setup-quick-onboarding)
-   - [auth (OAuth Loopback)](#auth-oauth-loopback)
-   - [status (Health Diagnostic)](#status-health-diagnostic)
+   - [setup (Simplified Onboarding)](#setup-simplified-onboarding)
+   - [auth (OAuth Loopback Port)](#auth-oauth-loopback-port)
+   - [status (Token Health Diagnostic)](#status-token-health-diagnostic)
 8. [Conflict Resolution Guide](#8-conflict-resolution-guide)
 
 ---
@@ -36,10 +37,10 @@ All `ggsrun` commands support the following global options to override configura
 $ ggsrun <command> [options]
 ```
 
-| Global Flag | Alias | Description |
-| :--- | :--- | :--- |
-| `--credentials <path>` | `--cred` | Absolute path to a custom Google Cloud credentials JSON file. |
-| `--config <dir>` | `--conf` | Custom folder containing `ggsrun.cfg` (overrides default search priorities). |
+| Global Flag | Alias | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `--credentials <path>` | `--cred` | String | Absolute path to a custom Google Cloud credentials JSON file. |
+| `--config <dir>` | `--conf` | String | Custom folder containing `ggsrun.cfg` (overrides default search priorities). |
 
 ---
 
@@ -48,27 +49,29 @@ $ ggsrun <command> [options]
 `ggsrun` categorizes its operations into distinct high-performance modules:
 
 * **Execution Engine**: `exe1`, `exe2`, `webapps`
-* **Concurreny Transfers**: `download`, `upload`, `updateproject`
-* **Metadata & Quota**: `filelist`, `searchfiles`, `driveinformation`
+* **Concurrency Transfers**: `download`, `upload`, `updateproject`
+* **Metadata & Quota**: `filelist`, `searchfiles`
 * **Interactive TUI**: `fd`
 * **Onboarding & Auth**: `setup`, `auth`, `status`
 
 ---
 
-## 3. Executing Google Apps Script
+## 3. Deep Dive: Executing Google Apps Script (exe1, exe2, webapps)
 
-### `exe1` (Stateful Script Execution)
+`ggsrun` provides three distinct modes for executing Google Apps Script. Each mode satisfies a specific architecture and security model:
+
+### Mode 1: `exe1` (Stateful Project Execution)
 * **Aliases**: `e1`
-* **Purpose**: Synchronizes local scripts or directories to a remote GAS project on Google Drive and triggers a designated entry function.
-* **Automation Safety**: If `--deleteScript` (`-d`) is supplied, all script files uploaded during execution are automatically and cleanly removed from the remote project once execution finishes.
+* **Purpose**: Relies on the Apps Script API to upload (synchronize) your local script files or directories to the remote GAS project on Google Drive, and then invokes a specified entry function via the Execution API.
+* **When to Use**: You want to run code in the cloud. If you are uploading temporary files/folders and want them cleaned up immediately after execution, you can use the automatic deletion flag. Requires an OAuth Token.
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
 | :--- | :--- | :--- | :--- |
-| `--scriptid` | `-i` | String | Target Google Apps Script Project ID. |
-| `--scriptfile` | `-s` | String | Path to local script file (`.gs`, `.js`) or directory. |
+| `--scriptid` | `-i` | String | Target Google Apps Script Project Script ID. |
+| `--scriptfile` | `-s` | String | Path to local script file (`.gs`, `.js`) or directory to upload. |
 | `--stringscript`| `-ss` | String | Inline GAS script snippet provided as a raw string. |
-| `--function` | `-f` | StringSlice | Repeats to pass function name and arguments sequentially. |
+| `--function` | `-f` | StringSlice | First declaration sets function name, subsequent declarations are sequential arguments. |
 | `--deleteScript`| `-d` | Boolean | Safely auto-deletes uploaded files remotely post-execution. |
 | `--conflict` | | String | Remote file conflict strategy: `overwrite` (default) or `add`. |
 | `--jsonparser` | `-j` | Boolean | Mutes terminal UI spinners and returns pure JSON streams. |
@@ -79,39 +82,85 @@ $ ggsrun <command> [options]
   ```bash
   $ ggsrun exe1 -i "SCRIPT_ID" -s "my_logic.js" -f "processData" -f "arg_val1" -f "arg_val2"
   ```
+  *Here, `processData("arg_val1", "arg_val2")` is triggered remotely.*
 * **Recursively upload a local directory, run a function, and auto-cleanup**:
   ```bash
   $ ggsrun exe1 -i "SCRIPT_ID" -s "./src" -f "main" --deleteScript
   ```
+  *Recursively uploads `./src`, executes `main()`, and deletes the uploaded files immediately upon completion.*
 * **Run inline script with default fallback script ID**:
   ```bash
   $ ggsrun exe1 -ss "function main() { return 'Hello!'; }" -f "main" -j
   ```
+  *Retrieves `script_id` from local `ggsrun.cfg` as fallback, uploads inline string, executes `main()`, and yields clean JSON.*
+
+#### Architecture Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLI as ggsrun (Local PC)
+    participant AAPI as Apps Script API
+    participant EAPI as Execution API
+    participant GAS as Remote GAS Project
+
+    CLI->>AAPI: PUT /v1/projects/{id}/content<br>(Push local .js files)
+    AAPI-->>CLI: 200 OK (Project Overwritten)
+    CLI->>EAPI: POST /v1/scripts/{id}:run<br>Target: targetFunction
+    EAPI->>GAS: trigger targetFunction()
+    Note right of GAS: Executes utilizing the<br>permanently saved code
+    GAS-->>EAPI: Return Value
+    EAPI-->>CLI: Pure JSON Result
+```
 
 ---
 
-### `exe2` (Stateless API Execution)
+### Mode 2: `exe2` (Stateless Dynamic Execution)
 * **Aliases**: `e2`
 * **Purpose**: Transmits a local script payload inside a JSON-encoded string directly to the remote Google Apps Script `ExecutionApi` wrapper. Bypasses file updates completely.
+* **When to Use**: Rapid local prototyping and executing complex data-extraction algorithms in the cloud without modifying or polluting the production GAS project's codebase. Requires an OAuth Token.
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
 | :--- | :--- | :--- | :--- |
 | `--scriptid` | `-i` | String | Remote GAS Project ID containing the gateway server. |
-| `--scriptfile` | `-s` | String | Path to local script file (Entry point MUST be named `main()`). |
-| `--value` | `-v` | String | A raw string or JSON string argument passed into `main()`. |
+| `--scriptfile` | `-s` | String | Path to local script file. **The local entry point must be named `main()`.** |
+| `--value` | `-v` | String | A raw string or JSON string argument passed into the remote `main()` function. |
 
 #### Execution Recipes
 * **Stateless execution passing a JSON payload**:
   ```bash
-  $ ggsrun exe2 -i "SCRIPT_ID" -f ExecutionApi -s "extract.js" -v '{"limit":10}' -j
+  $ ggsrun exe2 -i "SCRIPT_ID" -f ExecutionApi -s "compute.js" -v '{"limit":10}' -j
   ```
+
+#### Architecture Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLI as ggsrun (Local PC)
+    participant API as Execution API
+    participant GAS as GAS Project (ggsrunif)
+    participant V8 as V8 Engine
+
+    CLI->>CLI: Wrap local code in IIFE<br>Encode to JSON literal
+    CLI->>API: POST /v1/scripts/{id}:run<br>Target: ExecutionApi
+    API->>GAS: trigger ExecutionApi(payload)
+    GAS->>V8: eval(script string)
+    Note right of V8: Executes stateless logic<br>without saving files to Drive
+    V8-->>GAS: Return Object/Value
+    GAS-->>API: Response Wrapper
+    API-->>CLI: Pure JSON Result
+```
 
 ---
 
-### `webapps` (Web App Execution)
+### Mode 3: `webapps` (Anonymous OR Secure Endpoint Execution)
 * **Aliases**: `w`
 * **Purpose**: Routes script payloads via HTTP POST directly to a deployed Google Web App gateway URL. Supports secure redirect authorization.
+* **When to Use**: 
+  - **Secure Mode**: You want to execute arbitrary scripts natively on a highly-secured ("Only myself") endpoint utilizing the `drive` scope OAuth token.
+  - **Anonymous Mode**: You need to execute GAS scripts from a remote CI/CD pipeline **without deploying an OAuth token**. (Requires the Web App to be deployed as "Anyone" and utilizes the `-p` password flag).
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
@@ -125,14 +174,55 @@ $ ggsrun <command> [options]
   ```bash
   $ ggsrun webapps -u "https://script.google.com/macros/s/XXX/exec" -s "job.js" -j
   ```
+  *(Note: If `ggsrun auth` has been executed locally, the CLI automatically detects the token, bypasses the `-p` requirement, and securely traverses Google's 302 redirects to execute the code.)*
+
+#### Architecture Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CLI as ggsrun (Local PC)
+    participant URL as Web App URL
+    participant GAS as GAS Project (doPost)
+    participant V8 as V8 Engine
+
+    CLI->>CLI: URL-encode payload & Verify Token
+    alt Has OAuth Token
+        CLI->>URL: HTTP POST (Bearer Token attached)
+        URL-->>CLI: 302 Redirect (Google Auth)
+        CLI->>URL: Follow Redirect (Bearer Token re-attached)
+    else Anonymous Mode
+        CLI->>URL: HTTP POST (No Token, requires "Anyone" access)
+    end
+
+    URL->>GAS: trigger doPost(e)
+    GAS->>V8: eval(script string)
+    V8-->>GAS: Return Object/Value
+    GAS-->>URL: ContentService (MimeType.JSON)
+    URL-->>CLI: Pure JSON Result
+```
+
+---
+
+### Verification & Diagnostics
+
+To quickly verify the functionality of all execution modes using a stateless beacon request, run:
+
+```bash
+ggsrun e1 -ss "const main = (_) => ggsrunif.Beacon();" -j
+ggsrun e2 -ss "const main = (_) => ggsrunif.Beacon();" -j
+ggsrun w -ss "const main = (_) => ggsrunif.Beacon();" -j
+```
 
 ---
 
 ## 4. File and Directory Transfers
 
-### `download` (Parallel Pull)
+`ggsrun` transfers directories and files using channel-based Go workers built on `golang.org/x/sync/errgroup` for high-throughput, concurrent I/O.
+
+### `download` (Massively Parallel Pull)
 * **Aliases**: `d`
-* **Purpose**: Recursively pulls files or entire directory trees from Google Drive utilizing concurrent channel workers.
+* **Purpose**: Recursively pulls files or entire directory trees from Google Drive. Target IDs can belong to Standard Drives, Shared Drives, or Team Drives seamlessly.
 * **Auto-Conversion**: Automatically exports native Google Workspace entities (Docs, Sheets, Slides) into user-defined formats (e.g., Markdown, XLSX, PDF) on-the-fly.
 
 #### Command-specific Flags
@@ -141,29 +231,62 @@ $ ggsrun <command> [options]
 | `--scriptid` | `-i` | String | Comma-separated File or Folder IDs to download concurrently. |
 | `--workers` | `-w` | Integer | Parallel network workers to spawn (Default: 5). |
 | `--extension` | `-e` | String | Export conversion targets: `xlsx`, `docx`, `pdf`, `md`, etc. |
+| `--mimetype` | `-m` | String | Filter downloaded files recursively by specific MIME type. |
 | `--conflict-mode`| `-cm` | String | Conflict resolution: `skip`, `overwrite`, `rename`, `update`. |
 | `--destination`| `-d` | String | Destination folder directory path (Default: current directory). |
 | `--zip` | `-z` | Boolean | Packages download files together into a clean local `.zip` file. |
+| `--rawdata` | `-r` | Boolean | Downloads a GAS project natively as raw `.json` payload. |
 
 #### Transfer Recipes
-* **Download folder structure concurrently with conflict updates**:
+* **Download specific files concurrently**:
   ```bash
-  $ ggsrun download -i "FOLDER_ID" -w 10 -cm update -d "./local_sync"
+  $ ggsrun download -i "FILE_ID1, FILE_ID2" -w 5
   ```
-* **Download and transpile Google Doc into Markdown**:
+* **Recursively map and download an entire folder tree**:
   ```bash
-  $ ggsrun download -i "DOC_FILE_ID" -e md
+  $ ggsrun download -i "FOLDER_ID" -w 10
   ```
-* **Download GAS project as a packaged ZIP**:
+* **Convert and export a Google Sheet into an `.xlsx` binary**:
+  ```bash
+  $ ggsrun download -i "SPREADSHEET_ID" -e xlsx
+  ```
+* **Convert and export a Google Doc into a Markdown (`.md`) file**:
+  ```bash
+  $ ggsrun download -i "DOCUMENT_ID" -e md
+  ```
+* **Convert and export a Google Doc into a PDF (`.pdf`) file**:
+  ```bash
+  $ ggsrun download -i "DOCUMENT_ID" -e pdf
+  ```
+* **Recursively download folder but filter specifically for PDFs**:
+  ```bash
+  $ ggsrun download -i "FOLDER_ID" -m "application/pdf"
+  ```
+* **Download GAS project as a packaged local ZIP**:
   ```bash
   $ ggsrun download -i "SCRIPT_ID" -z
   ```
+* **Download GAS project natively as a raw JSON payload**:
+  ```bash
+  $ ggsrun download -i "SCRIPT_ID" -r
+  ```
+* **Download folder recursively with collision updates**:
+  ```bash
+  $ ggsrun download -i "FOLDER_ID" -cm update
+  ```
+* **Download folder recursively and save inside a custom local directory**:
+  ```bash
+  $ ggsrun download -i "FOLDER_ID" -d "./downloads"
+  ```
+
+> [!NOTE]
+> When downloading a folder concurrently, specified export extensions via `-e` are dynamically validated against each file's native format. For example, if you download a folder with `-e xlsx`, Sheets inside the folder will convert to `.xlsx` files while unsupported files (like Slides or Docs) will print a warning and skip, allowing the queue to continue without failure.
 
 ---
 
-### `upload` (Parallel Push)
+### `upload` (Massively Parallel Push)
 * **Aliases**: `u`
-* **Purpose**: Recursively uploads local files or entire directories to Google Drive. Fully supports Resumable chunked uploading for massive binaries.
+* **Purpose**: Pushes local hierarchical structures to Google Drive recursively. Fully supports Resumable chunked uploading for massive binaries.
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
@@ -173,22 +296,56 @@ $ ggsrun <command> [options]
 | `--convertto` | `-c` | String | Convert to Drive format: `sheet`, `doc`, `slide`. |
 | `--conflict-mode`| `-cm` | String | Conflict resolution: `skip`, `overwrite`, `rename`, `update`. |
 | `--projectname`| | String | Sets the remote script title when uploading script files standalone. |
+| `--projecttype`| | String | Used with `-pid` to upload scripts as Container-Bound scripts. |
+| `--parentprojectid`| `-pid` | String | Parent ID of Google Document to bind the script to. |
+| `--chunksize` | | Integer | Resumable Upload chunk size in Megabytes (Default: 100). |
 
 #### Transfer Recipes
-* **Upload local folder structure with 5 parallel workers**:
+* **Upload multiple files sequentially or concurrently**:
   ```bash
-  $ ggsrun upload -f "./documents" -p "DRIVE_FOLDER_ID" -w 5 -cm rename
+  $ ggsrun upload -f "a.txt, b.txt" -p "FOLDER_ID"
   ```
-* **Upload CSV and automatically convert to Google Spreadsheet**:
+* **Upload a local directory recursively, duplicating the tree on Drive**:
   ```bash
-  $ ggsrun upload -f "metrics.csv" -c sheet -p "DRIVE_FOLDER_ID"
+  $ ggsrun upload -f "/path/to/folder" -p "FOLDER_ID" -w 5
   ```
+* **Upload a local script and provision as a standalone GAS Project**:
+  ```bash
+  $ ggsrun upload -f "script.js" --projectname "MyAPI"
+  ```
+* **Upload a local script as a Container-Bound Script attached to a Google Sheet**:
+  ```bash
+  $ ggsrun upload -f "script.js" -pid "SHEET_ID" --projecttype "spreadsheet"
+  ```
+* **Upload CSV and convert automatically to Google Spreadsheet**:
+  ```bash
+  $ ggsrun upload -f "data.csv" -c "sheet"
+  ```
+* **Upload Word Document and convert to native Google Doc**:
+  ```bash
+  $ ggsrun upload -f "document.docx" -c "doc"
+  ```
+* **Upload PowerPoint and convert to native Google Slide**:
+  ```bash
+  $ ggsrun upload -f "slides.pptx" -c "slide"
+  ```
+* **Upload massive files utilizing larger 250MB resumable chunks**:
+  ```bash
+  $ ggsrun upload -f "large_file.mp4" --chunksize 250
+  ```
+* **Upload directory, appending timestamps to any conflicting filenames**:
+  ```bash
+  $ ggsrun upload -f "/path/to/folder" -p "FOLDER_ID" -cm rename
+  ```
+
+> [!NOTE]
+> Recursive folder uploads natively support batch conversion. When specifying `-c` (or `--convertto`), every eligible file within the uploaded folder tree is evaluated and converted to the target Workspace format concurrently. Files that cannot be converted will log a conversion error warning and skip, leaving other files in the queue unaffected.
 
 ---
 
-### `updateproject` (Project Code Sync)
+### `updateproject` (GAS Project Sync)
 * **Aliases**: `ud`
-* **Purpose**: Synchronizes local directory structures or file groups to an existing remote GAS project. 
+* **Purpose**: Synchronizes local directory structures or file groups to an existing remote GAS project.
 * **User Safety**: Before updating, `ggsrun` lists all target modifications in a clean bullet list and requests hard terminal confirmation (Y/N) to protect remote files from accidental loss.
 
 #### Command-specific Flags
@@ -198,9 +355,14 @@ $ ggsrun <command> [options]
 | `--filename` | `-f` | String | Local file or folder paths to synchronize. |
 | `--deletefiles`| | Boolean | Deletes files from remote project if they are missing locally. |
 | `--backup` | `-b` | Boolean | Downloads a local backup (`.zip` or `.json`) before applying updates. |
+| `--rearrange` | `-r` | Boolean | Interactively rearranges script order inside remote GAS project. |
 
 #### Sync Recipes
-* **Sync local src folder recursively**:
+* **Overwrite remote GAS files with local files**:
+  ```bash
+  $ ggsrun updateproject -p "PROJECT_ID" -f "Code.js, index.html"
+  ```
+* **Recursively synchronize local src folder structure**:
   ```bash
   $ ggsrun updateproject -p "SCRIPT_ID" -f "./src"
   ```
@@ -208,20 +370,24 @@ $ ggsrun <command> [options]
   ```bash
   $ ggsrun updateproject -p "SCRIPT_ID" -f "./src" --deletefiles -b
   ```
+* **Interactively rearrange order of scripts inside remote project**:
+  ```bash
+  $ ggsrun updateproject -p "PROJECT_ID" -r
+  ```
+
+> [!WARNING]
+> Since the `updateproject` command overwrites files inside the remote Google Apps Script project, `ggsrun` will display a bulleted list of all targeted local files and prompt you with a hard interactive confirmation (Y/N) before executing any remote updates. Standard LLM agents using the MCP tool mode will also request your approval prior to running this command.
 
 ---
 
 ## 5. Drive Querying and Search
 
-### `filelist` (List Files)
-* **Aliases**: `ls`
-* **Purpose**: Lists all files and folders available on Google Drive.
+Query Google Drive using Standard Google Drive API v3 queries and regex patterns.
 
-#### Command-specific Flags
-| Flag | Shorthand | Type | Description |
-| :--- | :--- | :--- | :--- |
-| `--limit` | | Integer | Max file count limit to output (Default: 100). |
-| `--searchbyid` | | String | Performs direct metadata query lookup on a specific File ID. |
+### `filelist` (Metadata Query)
+* **Aliases**: `ls`
+* **Purpose**: Lists files and folders available on Google Drive.
+* **Flag**: `--limit` (Default: 100), `--searchbyid` (Direct ID lookup).
 
 ```bash
 $ ggsrun filelist --limit 10
@@ -229,15 +395,15 @@ $ ggsrun filelist --limit 10
 
 ---
 
-### `searchfiles` (Advanced Search)
+### `searchfiles` (Advanced Query Syntax)
 * **Aliases**: `sf`
-* **Purpose**: Searches your Google Drive using precise Google Drive API v3 query syntax and local filename Regex filtering. Supports Shared Drives seamlessly.
+* **Purpose**: Searches Google Drive using standard query schemas and local regex filters. Supports Shared Drives seamlessly.
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
 | :--- | :--- | :--- | :--- |
-| `--query` | `-q` | String | Google Drive API v3 standard query syntax. |
-| `--regex` | `-r` | String | Regular expression to filter file name outcomes locally. |
+| `--query` | `-q` | String | Google Drive API v3 standard query string. |
+| `--regex` | `-r` | String | Local regex filter applied over matching file names. |
 
 #### Search Recipes
 * **Search for non-trashed spreadsheets**:
@@ -254,20 +420,24 @@ $ ggsrun filelist --limit 10
 ## 6. Interactive Terminal File Manager
 
 ### `fd` (PC-98 Filer Mode)
-* **Purpose**: Launches a dual-pane, split-screen terminal user interface (TUI) file manager inspired by the PC-98 Japanese classic. It bridges your local computer with Google Drive.
-* **Key capabilities**: Copy (`F1`), Move (`F2`), and Delete (`F3`) files between panels. Search files (`F8`) recursively on local system or Drive-wide with yellow highlight overlays. Execute GAS scripts (`e` key) on focused files. Open files in a host web browser.
+* **Purpose**: Launches a highly responsive, split-screen Terminal User Interface (TUI) dual-pane file manager inspired by the PC-98 classics. It enables local and cloud files to be organized side-by-side using rapid muscle-memory keyboard shortcuts.
+* **Key capabilities**: Centered 70% responsive dialogs, Clipboard synchronization, Function key mapping, yellow highlights, directory previews, and individual real-time transfer progress bars.
 
 ```bash
 $ ggsrun fd
 ```
 
-*For complete keybindings and navigation parameters, check [manual-tests/README.md](../manual-tests/README.md#keybindings-reference).*
+> [!IMPORTANT]
+> **Keybindings, Navigation & Development Insights:**
+> For the complete keybindings, design specifications, development history, and interactive TUI configurations, please consult the dedicated **[Interactive TUI Filer (FD Mode) Guide](tui_guide.md)**.
 
 ---
 
 ## 7. System and Authentication Utilities
 
-### `setup` (Quick Onboarding)
+Onboarding and diagnostic commands.
+
+### `setup` (Simplified Onboarding)
 * **Purpose**: Automatically enables all 6 required Workspace APIs via Google Cloud Quick Flow redirect and initializes your default configuration (`ggsrun.cfg`) in seconds.
 
 ```bash
@@ -276,7 +446,7 @@ $ ggsrun setup
 
 ---
 
-### `auth` (OAuth Loopback)
+### `auth` (OAuth Loopback Port)
 * **Purpose**: Performs local OAuth2 authorization loopback.
 
 ```bash
@@ -285,7 +455,7 @@ $ ggsrun auth --port 8080
 
 ---
 
-### `status` (Health Diagnostic)
+### `status` (Token Health Diagnostic)
 * **Aliases**: `st`
 * **Purpose**: Quick diagnostic tool verifying the validity, expiry, and permissions of your local OAuth2 credentials and configuration paths.
 
@@ -306,4 +476,13 @@ Commands such as `download` and `upload` handle file name collisions based on th
 | **`rename`** | Appends a timestamp (`_YYYYMMDD_HHMMSS`) locally. | Appends a timestamp (`_YYYYMMDD_HHMMSS`) to remote name. |
 | **`update`** | Overwrites only if the remote file is newer. | Overwrites only if the local file is newer. |
 
-If `-cm` is omitted, `ggsrun` presents an **interactive terminal selection prompt** allowing you to resolve collisions individually. When running in pure JSON mode (`-j`), the prompt is bypassed, defaulting to `update` (OverwriteIfNewer) to protect your pipeline.
+If `-cm` is omitted, `ggsrun` presents an **interactive terminal selection prompt** allowing you to resolve collisions individually. When running in pure JSON mode (`-j`), the prompt is bypassed, defaulting to `update` (OverwriteIfNewer) to protect automated execution pipelines.
+
+---
+
+### Related Links:
+- 🚀 **[Setup & Onboarding Guide](setup_guide.md)** - Learn how to build and configure your GCP credentials.
+- 🛡️ **[Security Sandbox Guide](sandbox_guide.md)** - Set up execution sandboxing for `exe1`.
+- 🤖 **[MCP Server Guide](mcp_guide.md)** - Run `ggsrun` as an autonomous background server.
+- 🧪 **[Manual Integration Tests Suite](../manual-tests/README.md)** - Perform manual test validations.
+- 🏡 **[Back to Home](../README.md)**
