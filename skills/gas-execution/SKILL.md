@@ -8,7 +8,10 @@ description: Guidelines for writing and executing Google Apps Script code using 
 Follow these guidelines when writing, reviewing, and executing Google Apps Script (GAS) applications:
 
 ## Script Execution via ggsrun
-* **Execution Tool**: Always use the `exe1` tool of the `ggsrun` MCP server to synchronize local code and run the entry function in a single step.
+
+* **Execution Tool (`exe1`)**: Always prefer the `exe1` tool of the `ggsrun` MCP server to synchronize local code/directories and run the entry function in a single transaction.
+* **In-Memory Sandbox (`sandbox`)**: For secure execution, pass the path of your whitelist configuration JSON (e.g. `sandbox: "sandbox_config.json"`) to `exe1`. This instructs `ggsrun` to inject wrappers (like `_wrappedSpreadsheetApp` and `_wrappedUrlFetchApp`) that restrict access only to whitelisted File IDs, domains, and email addresses.
+* **Auto-Cleanup & Resilient Rollback**: `ggsrun` performs an in-memory backup of the remote project state. On execution completion, runtime sandboxing halts, or process interrupts (`Ctrl+C`), `ggsrun` automatically rolls back all file changes on the remote script project, leaving your codebase 100% clean and pristine. Use the `deleteScript: true` flag to ensure newly uploaded script files are automatically deleted remotely post-execution.
 * **Designing Return Values**: The execution response displays only the value returned by the `return` statement of the executed function. Design your script to return a meaningful value representing the execution result.
 * **Detailed Logs**: You can return detailed logs or execution summaries as the final return string to provide context and results to the user.
 * **JSON Serialization**: If returning structured data (such as objects, arrays, or status maps), use `JSON.stringify()` to serialize it before returning.
@@ -66,8 +69,13 @@ When reviewing or before executing generated GAS code, you must strictly perform
 5. **Hardcoded Secrets**: Are there any hardcoded API keys, OAuth tokens, or passwords? Ensure no credentials are exposed in the source code.
 6. **Destructive Actions**: Does the code perform any bulk or irreversible deletion/overwriting of data?
 
-### How to Proceed with Execution
+### How to Proceed with Execution & Safety Gate
 
-Before executing the script using `ggsrun`'s `exe1`:
-- **Summarize Accessed Services**: Clearly show the user which Google APIs and external URLs the script will access.
-- **Request Confirmation**: Prompt the user to confirm whether they want to proceed with execution (e.g., "Would you like to execute this script?").
+Before executing the script using `ggsrun`'s `exe1` tool, follow this secure orchestration workflow:
+
+1. **Summarize Accessed Services**: Clearly show the user which Google APIs and external URLs the script will access.
+2. **Configure Whitelists**: Ask the user to verify if they have configured `sandbox_config.json` (or your specific config file) to include the required File IDs, folder IDs, emails, and URLs.
+3. **Handle MCP Safety Gate**:
+   * For safety, the MCP server automatically intercepts `exe1` calls and performs a static analysis check (`analyzeGASScript`).
+   * If any potential write/egress APIs are detected, and `"confirm": false` (or omitted), execution is **blocked** and returns a warning report.
+   * To proceed with execution on authorized projects, you **MUST explicitly call the tool again setting `"confirm": true`**. Do not guess or skip this parameter when you have user consent.
