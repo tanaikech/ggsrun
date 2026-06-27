@@ -4,3 +4,4 @@ bin/
 .vscode/
 node_modules/
 # sandbox_config.json
+temp/
