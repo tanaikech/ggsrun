@@ -460,23 +460,43 @@ When you use GAS, you have ever seen [a message of "Authorization required"](htt
 ```
 $ ggsrun e1 -help
 NAME:
-   ggsrun exe1 - Updates project and Executes the function in the project.
+   ggsrun exe1 - Updates the GAS project with a local script or directory and executes a specified function.
 
 USAGE:
    ggsrun exe1 [command options] [arguments...]
 
 DESCRIPTION:
-   In this mode, an access token is required.
+   Requires an access token. Synchronizes local scripts or directories to the Drive project and triggers the execution API.
+
+   API & URL Sandboxing (Default: STRICT BLOCK ALL):
+     To restrict Google APIs and external URL requests during execution, use the '--sandbox' option.
+     - Default behavior (option omitted or '--sandbox ""'): Applies an ultra-strict sandboxing with empty whitelists, blocking all external requests (Drive, Mail, URL fetch, etc.).
+     - To specify a custom whitelist: Pass the path to a JSON configuration file (e.g. '--sandbox sandbox_config.json').
+     - To completely disable sandboxing: Pass '--sandbox bypass' or '--sandbox none'.
+
+     The sandbox configuration JSON structure must follow this format:
+     {
+       "allowedFileIds": ["id1"],        // Whitelisted Drive file IDs
+       "allowedFolderIds": ["id2"],      // Whitelisted Drive folder IDs
+       "allowedCalendarIds": ["primary"],// Whitelisted Calendar IDs
+       "allowedEventIds": [],            // Whitelisted Calendar Event IDs
+       "allowedEmails": ["a@b.com"],     // Whitelisted email recipients for Mail/Gmail
+       "allowedUrls": ["https://*"],     // Whitelisted URL patterns (supports '*' wildcard)
+       "blockedUrls": ["https://xxx"]    // Blacklisted URL patterns (highest priority)
+     }
 
 OPTIONS:
    --scriptid value, -i value        Script ID of project on Google Drive
-   --scriptfile value, -s value      GAS file (.gs, .gas, .js, .txt, .coffee) on local PC
+   --scriptfile value, -s value      GAS file (.gs, .gas, .js, .txt, .coffee) or directory path on local PC
    --stringscript value, -ss value   GAS script provided directly as strings.
-   --function value, -f value        Function name which is executed. Default is 'main'.
-   --value value, -v value           Give a value to the function which is executed.
+   --function value, -f value        Function name which is executed. Subsequent '-f' flags represent arguments sequentially. If script ID (-i) is omitted but -f is provided, the script_id from ggsrun.cfg will be used. Default is 'main'.
+   --value value, -v value           Give a value to the function which is executed. (Fallback option if subsequent '-f' is not used)
+   --deleteScript, -d                Automatically and safely delete uploaded files from the remote GAS project after execution completes. (Strictly for exe1 only)
+   --conflict value                  Conflict resolution strategy when duplicate script name exists: 'overwrite' or 'add'.
    --backup, -b                      Backup project with script ID you set as a local file.
    --onlyresult, -r                  Display only 'result' field in JSON outputs.
    --jsonparser, -j                  Bypass TUI and display outputs strictly as pure JSON.
+   --sandbox value                   Path to a configuration JSON file to control API and URL sandboxing. Default (empty) applies a strict sandbox (BLOCK ALL). Set to 'bypass' or 'none' to disable sandboxing.
 ```
 
 #### Command `exe2`

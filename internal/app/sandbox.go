@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -46,18 +47,22 @@ func ensureSlices(config *SandboxConfig) {
 }
 
 func InjectSandbox(rawScript string, configPath string) (string, error) {
-	if configPath == "" {
+	if configPath == "bypass" || configPath == "none" {
 		return rawScript, nil
 	}
 
-	content, err := os.ReadFile(configPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read sandbox config file: %w", err)
-	}
-
 	var config SandboxConfig
-	if err := json.Unmarshal(content, &config); err != nil {
-		return "", fmt.Errorf("failed to parse sandbox config JSON: %w", err)
+	if configPath == "" {
+		// Use default empty (strictly blocked) whitelists
+	} else {
+		content, err := os.ReadFile(configPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read sandbox config file: %w", err)
+		}
+
+		if err := json.Unmarshal(content, &config); err != nil {
+			return "", fmt.Errorf("failed to parse sandbox config JSON: %w", err)
+		}
 	}
 
 	ensureSlices(&config)
@@ -78,6 +83,30 @@ func InjectSandbox(rawScript string, configPath string) (string, error) {
 	guardCode = strings.ReplaceAll(guardCode, "__ALLOWED_EMAILS__", string(allowedEmailsJSON))
 	guardCode = strings.ReplaceAll(guardCode, "__ALLOWED_URLS__", string(allowedUrlsJSON))
 	guardCode = strings.ReplaceAll(guardCode, "__BLOCKED_URLS__", string(blockedUrlsJSON))
+
+	// Static token replacement for sandboxed execution
+	replacements := map[string]string{
+		"DriveApp":       "_wrappedDriveApp",
+		"GmailApp":       "_wrappedGmailApp",
+		"MailApp":        "_wrappedMailApp",
+		"SpreadsheetApp": "_wrappedSpreadsheetApp",
+		"DocumentApp":    "_wrappedDocumentApp",
+		"SlidesApp":      "_wrappedSlidesApp",
+		"CalendarApp":    "_wrappedCalendarApp",
+		"FormApp":        "_wrappedFormApp",
+		"UrlFetchApp":    "_wrappedUrlFetchApp",
+		"Drive":          "_wrappedDrive",
+		"Sheets":         "_wrappedSheets",
+		"Docs":           "_wrappedDocs",
+		"Slides":         "_wrappedSlides",
+		"Gmail":          "_wrappedGmail",
+		"Calendar":       "_wrappedCalendar",
+	}
+
+	for orig, repl := range replacements {
+		re := regexp.MustCompile(`\b` + orig + `\b`)
+		rawScript = re.ReplaceAllString(rawScript, repl)
+	}
 
 	return guardCode + "\n" + rawScript, nil
 }

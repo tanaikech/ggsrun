@@ -178,7 +178,7 @@ func runMCP(c *cli.Context) error {
 								},
 								"sandbox": map[string]interface{}{
 									"type":        "string",
-									"description": "Optional path to a configuration JSON file to control API and URL sandboxing.",
+									"description": "Path to a configuration JSON file to control API and URL sandboxing. POLICY FOR LLM AGENTS: You MUST use sandboxing by default. To do so, check if the user has provided a configuration JSON file (e.g., 'sandbox_config.json') on their local system. If the user does not have one ready or is new to sandboxing, YOU (the LLM Agent) MUST proactively print the JSON schema format, explain how to prepare this file, and ask the user to create it before proceeding. Do NOT create or write this file yourself. If the file is omitted or path is left empty, an ultra-strict sandbox with empty whitelists is applied by default (blocking all API/URL accesses). Pass 'bypass' or 'none' ONLY when the user explicitly instructs to run without any sandbox. The configuration JSON structure must follow this format:\n\n{\n  \"allowedFileIds\": [\"string\"],     // Whitelisted Drive file IDs\n  \"allowedFolderIds\": [\"string\"],   // Whitelisted Drive folder IDs\n  \"allowedCalendarIds\": [\"string\"], // Whitelisted Calendar IDs (e.g., [\"primary\"])\n  \"allowedEventIds\": [\"string\"],    // Whitelisted Calendar Event IDs\n  \"allowedEmails\": [\"string\"],      // Whitelisted email recipients for Mail/Gmail\n  \"allowedUrls\": [\"string\"],        // Whitelisted URL patterns (supports '*' wildcard)\n  \"blockedUrls\": [\"string\"]         // Blacklisted URL patterns (always blocked)\n}",
 								},
 								"function": map[string]interface{}{
 									"oneOf": []map[string]interface{}{

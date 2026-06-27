@@ -146,11 +146,14 @@
   3. Overhauled focus restoration inside `showTextPreview` to fall back to the global `lastActiveTable` variable when restoring focus, preventing focus from being lost to closed loading overlays.
   4. Replaced hardcoded conversion switch cases in `getConvertOptions` with dynamic checks calling `utl.GetImportTargets` to align convertible options with the official specification, automatically bypassing conversion prompts for unsupported types.
 
-- **v5.3.8 (June 2026) - Native Sandbox Integration, Memory-based Injection, and MCP Server Sandbox Extension**
+- **v5.3.8 (June 2026) - Native Sandbox Integration, Memory-based Injection, MCP Server Sandbox Extension, and Default-Strict Policy**
   1. **Native Sandbox Integration**: Incorporated the Javascript security sandbox guard logic directly into the ggsrun Go codebase, compiling the `for_sandbox_gas.js` template statically using Go's `embed` package.
   2. **Memory-based Injection**: Injected the sandboxing wrapper into Google Apps Script execution payloads in-memory, ensuring no temporary files are written to the local disk and eliminating the need for local cleanups.
   3. **New --sandbox Option**: Added the `--sandbox` flag to the `exe1` command to load a local JSON configuration specifying whitelisted IDs (Files, Folders, Calendars, Events, Emails) and whitelisted/blacklisted URLs for UrlFetchApp.
   4. **MCP Sandbox Extension**: Extended the MCP server's `exe1` tool schema to support an optional `sandbox` parameter, seamlessly passing sandbox configuration paths to the native sandboxed execution engine.
+  5. **Default-Strict Sandboxing**: Configured the sandboxing engine to run in an ultra-strict (BLOCK ALL) mode by default when `--sandbox` is empty or omitted, permitting execution without sandbox ONLY when explicitly passed with `"bypass"` or `"none"`.
+  6. **Legacy Hooks Cleanup**: Removed the obsolete Node.js Hooks implementation (`hooks.json` and `scripts/`) to run sandboxing purely native inside the Go codebase. Moved legacy scripts to `old/` directory.
+  7. **LLM Agent Guidance**: Enhanced the MCP server's parameter description to dynamically instruct LLM agents to print the JSON schema and guide first-time users on creating configuration files instead of writing them programmatically.
 
 - **v5.3.7 (June 2026) - Simplified Quick Onboarding, On-demand Setup Prompting, Optional Credentials Path, and Seamless Configuration Initializer**
   1. **Simplified Quick Setup**: Introduced the `$ ggsrun setup` command to dramatically simplify onboarding and credentials configuration, while keeping legacy `$ ggsrun auth` completely intact for backward compatibility.

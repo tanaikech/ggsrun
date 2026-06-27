@@ -1,16 +1,65 @@
 // === SANDBOX SECURITY GUARD INJECTED ===
-const DriveApp = (function() {
-  const original = this.DriveApp;
+function createSafeWrapper(original, overrides) {
   if (!original) return null;
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
-  const allowedFolderIds = __ALLOWED_FOLDER_IDS__;
+  var wrapper = {
+    _isProxied: true
+  };
+
+  var proto = original;
+  while (proto && proto !== Object.prototype) {
+    var props = Object.getOwnPropertyNames(proto);
+    for (var i = 0; i < props.length; i++) {
+      (function(prop) {
+        if (prop === 'constructor' || wrapper.hasOwnProperty(prop)) return;
+        try {
+          var desc = Object.getOwnPropertyDescriptor(proto, prop);
+          if (desc && (desc.get || desc.set)) {
+            Object.defineProperty(wrapper, prop, {
+              get: function() { return original[prop]; },
+              set: function(val) { original[prop] = val; },
+              configurable: true,
+              enumerable: true
+            });
+            return;
+          }
+          var value = original[prop];
+          if (typeof value === 'function') {
+            wrapper[prop] = function(...args) {
+              return value.apply(original, args);
+            };
+          } else {
+            Object.defineProperty(wrapper, prop, {
+              get: function() { return original[prop]; },
+              set: function(val) { original[prop] = val; },
+              configurable: true,
+              enumerable: true
+            });
+          }
+        } catch(e) {}
+      })(props[i]);
+    }
+    proto = Object.getPrototypeOf(proto);
+  }
+
+  for (var key in overrides) {
+    if (overrides.hasOwnProperty(key)) {
+      wrapper[key] = overrides[key];
+    }
+  }
+
+  return wrapper;
+}
+
+var _wrappedDriveApp = (function(global) {
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
+  var allowedFolderIds = __ALLOWED_FOLDER_IDS__;
 
   function wrapIterator(iter) {
     return {
       hasNext: function() { return iter.hasNext(); },
       next: function() {
-        const item = iter.next();
-        const id = item.getId();
+        var item = iter.next();
+        var id = item.getId();
         if (!allowedFileIds.includes(id) && !allowedFolderIds.includes(id)) {
           throw new Error("Sandbox Runtime Blocked: Accessed resource ID '" + id + "' is not whitelisted.");
         }
@@ -19,406 +68,289 @@ const DriveApp = (function() {
     };
   }
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'getFileById') {
-        return function(id) {
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: File ID '" + id + "' is not in the whitelist.");
-          }
-          return original.getFileById(id);
-        };
+  return createSafeWrapper(DriveApp, {
+    getFileById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: File ID '" + id + "' is not in the whitelist.");
       }
-      if (prop === 'getFolderById') {
-        return function(id) {
-          if (!allowedFolderIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Folder ID '" + id + "' is not in the whitelist.");
-          }
-          return original.getFolderById(id);
-        };
+      return DriveApp.getFileById(id);
+    },
+    getFolderById: function(id) {
+      if (!allowedFolderIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Folder ID '" + id + "' is not in the whitelist.");
       }
-      if (prop === 'getRootFolder') {
-        return function() {
-          throw new Error("Sandbox Runtime Blocked: Direct access to Root Folder is prohibited.");
-        };
+      return DriveApp.getFolderById(id);
+    },
+    getRootFolder: function() {
+      throw new Error("Sandbox Runtime Blocked: Direct access to Root Folder is prohibited.");
+    },
+    getFiles: function() { return wrapIterator(DriveApp.getFiles()); },
+    getFilesByName: function(name) { return wrapIterator(DriveApp.getFilesByName(name)); },
+    searchFiles: function(query) { return wrapIterator(DriveApp.searchFiles(query)); }
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+var _wrappedGmailApp = (function(global) {
+  var allowedEmails = __ALLOWED_EMAILS__;
+
+  return createSafeWrapper(GmailApp, {
+    sendEmail: function(recipient, ...args) {
+      if (!allowedEmails.includes(recipient)) {
+        throw new Error("Sandbox Runtime Blocked: Recipient address '" + recipient + "' is not whitelisted.");
       }
-      if (prop === 'getFiles' || prop === 'searchFiles' || prop === 'getFilesByName') {
-        return function(...args) {
-          const rawIter = original[prop].apply(original, args);
-          return wrapIterator(rawIter);
-        };
+      return GmailApp.sendEmail.apply(GmailApp, [recipient, ...args]);
+    },
+    createDraft: function(recipient, ...args) {
+      if (!allowedEmails.includes(recipient)) {
+        throw new Error("Sandbox Runtime Blocked: Recipient address '" + recipient + "' is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return GmailApp.createDraft.apply(GmailApp, [recipient, ...args]);
+    },
+    getInboxThreads: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); },
+    getSpamThreads: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); },
+    getTrashThreads: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); },
+    search: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); },
+    getChatThreads: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); },
+    getStarredThreads: function() { throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited."); }
+  });
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+var _wrappedMailApp = (function(global) {
+  var allowedEmails = __ALLOWED_EMAILS__;
+
+  return createSafeWrapper(MailApp, {
+    sendEmail: function(recipient, ...args) {
+      if (!allowedEmails.includes(recipient)) {
+        throw new Error("Sandbox Runtime Blocked: Recipient address '" + recipient + "' is not whitelisted.");
+      }
+      return MailApp.sendEmail.apply(MailApp, [recipient, ...args]);
     }
   });
-  try {
-    Object.defineProperty(this, 'DriveApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const GmailApp = (function() {
-  const original = this.GmailApp;
-  if (!original) return null;
-  const allowedEmails = __ALLOWED_EMAILS__;
+var _wrappedSpreadsheetApp = (function(global) {
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'sendEmail' || prop === 'createDraft') {
-        return function(recipient, ...args) {
-          if (!allowedEmails.includes(recipient)) {
-            throw new Error("Sandbox Runtime Blocked: Recipient address '" + recipient + "' is not whitelisted.");
-          }
-          return original[prop].apply(original, [recipient, ...args]);
-        };
+  return createSafeWrapper(SpreadsheetApp, {
+    openById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Spreadsheet ID '" + id + "' is not whitelisted.");
       }
-      if (prop === 'getInboxThreads' || prop === 'getSpamThreads' || prop === 'getTrashThreads' ||
-          prop === 'search' || prop === 'getChatThreads' || prop === 'getStarredThreads') {
-        return function() {
-          throw new Error("Sandbox Runtime Blocked: Inbox scanning is prohibited.");
-        };
+      return SpreadsheetApp.openById(id);
+    },
+    openByUrl: function(url) {
+      var match = url.match(/\/d\/([^\/]+)/);
+      var id = match ? match[1] : url;
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Spreadsheet URL '" + url + "' is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return SpreadsheetApp.openByUrl(url);
     }
   });
-  try {
-    Object.defineProperty(this, 'GmailApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const MailApp = (function() {
-  const original = this.MailApp;
-  if (!original) return null;
-  const allowedEmails = __ALLOWED_EMAILS__;
+var _wrappedDocumentApp = (function(global) {
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'sendEmail') {
-        return function(recipient, ...args) {
-          if (!allowedEmails.includes(recipient)) {
-            throw new Error("Sandbox Runtime Blocked: Recipient address '" + recipient + "' is not whitelisted.");
-          }
-          return original.sendEmail(recipient, ...args);
-        };
+  return createSafeWrapper(DocumentApp, {
+    openById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Document ID '" + id + "' is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return DocumentApp.openById(id);
+    },
+    openByUrl: function(url) {
+      var match = url.match(/\/d\/([^\/]+)/);
+      var id = match ? match[1] : url;
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Document URL '" + url + "' is not whitelisted.");
+      }
+      return DocumentApp.openByUrl(url);
     }
   });
-  try {
-    Object.defineProperty(this, 'MailApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const SpreadsheetApp = (function() {
-  const original = this.SpreadsheetApp;
-  if (!original) return null;
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
+var _wrappedSlidesApp = (function(global) {
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'openById') {
-        return function(id) {
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Spreadsheet ID '" + id + "' is not whitelisted.");
-          }
-          return original.openById(id);
-        };
+  return createSafeWrapper(SlidesApp, {
+    openById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Presentation ID '" + id + "' is not whitelisted.");
       }
-      if (prop === 'openByUrl') {
-        return function(url) {
-          const match = url.match(/\/d\/([^\/]+)/);
-          const id = match ? match[1] : url;
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Spreadsheet URL '" + url + "' is not whitelisted.");
-          }
-          return original.openByUrl(url);
-        };
+      return SlidesApp.openById(id);
+    },
+    openByUrl: function(url) {
+      var match = url.match(/\/d\/([^\/]+)/);
+      var id = match ? match[1] : url;
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Presentation URL '" + url + "' is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return SlidesApp.openByUrl(url);
     }
   });
-  try {
-    Object.defineProperty(this, 'SpreadsheetApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const DocumentApp = (function() {
-  const original = this.DocumentApp;
-  if (!original) return null;
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
+var _wrappedCalendarApp = (function(global) {
+  var allowedCalendarIds = __ALLOWED_CALENDAR_IDS__;
+  var allowedEventIds = __ALLOWED_EVENT_IDS__;
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'openById') {
-        return function(id) {
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Document ID '" + id + "' is not whitelisted.");
-          }
-          return original.openById(id);
-        };
+  return createSafeWrapper(CalendarApp, {
+    getCalendarById: function(id) {
+      if (!allowedCalendarIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Calendar ID '" + id + "' is not whitelisted.");
       }
-      if (prop === 'openByUrl') {
-        return function(url) {
-          const match = url.match(/\/d\/([^\/]+)/);
-          const id = match ? match[1] : url;
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Document URL '" + url + "' is not whitelisted.");
-          }
-          return original.openByUrl(url);
-        };
+      return CalendarApp.getCalendarById(id);
+    },
+    getDefaultCalendar: function() {
+      if (!allowedCalendarIds.includes('primary')) {
+        throw new Error("Sandbox Runtime Blocked: Default Calendar is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return CalendarApp.getDefaultCalendar();
+    },
+    getEventById: function(id) {
+      if (!allowedEventIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Event ID '" + id + "' is not whitelisted.");
+      }
+      return CalendarApp.getEventById(id);
+    },
+    getEventSeriesById: function(id) {
+      if (!allowedEventIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Event Series ID '" + id + "' is not whitelisted.");
+      }
+      return CalendarApp.getEventSeriesById(id);
+    },
+    getOwnedCalendars: function() {
+      return CalendarApp.getOwnedCalendars().filter(cal => allowedCalendarIds.includes(cal.getId()));
+    },
+    getSharedCalendars: function() {
+      return CalendarApp.getSharedCalendars().filter(cal => allowedCalendarIds.includes(cal.getId()));
+    },
+    getCalendarsByName: function(name) {
+      return CalendarApp.getCalendarsByName(name).filter(cal => allowedCalendarIds.includes(cal.getId()));
     }
   });
-  try {
-    Object.defineProperty(this, 'DocumentApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const SlidesApp = (function() {
-  const original = this.SlidesApp;
-  if (!original) return null;
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
+var _wrappedFormApp = (function(global) {
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'openById') {
-        return function(id) {
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Presentation ID '" + id + "' is not whitelisted.");
-          }
-          return original.openById(id);
-        };
+  return createSafeWrapper(FormApp, {
+    openById: function(id) {
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Form ID '" + id + "' is not whitelisted.");
       }
-      if (prop === 'openByUrl') {
-        return function(url) {
-          const match = url.match(/\/d\/([^\/]+)/);
-          const id = match ? match[1] : url;
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Presentation URL '" + url + "' is not whitelisted.");
-          }
-          return original.openByUrl(url);
-        };
+      return FormApp.openById(id);
+    },
+    openByUrl: function(url) {
+      var match = url.match(/\/d\/([^\/]+)/);
+      var id = match ? match[1] : url;
+      if (!allowedFileIds.includes(id)) {
+        throw new Error("Sandbox Runtime Blocked: Form URL '" + url + "' is not whitelisted.");
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return FormApp.openByUrl(url);
     }
   });
-  try {
-    Object.defineProperty(this, 'SlidesApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-const CalendarApp = (function() {
-  const original = this.CalendarApp;
-  if (!original) return null;
-  const allowedCalendarIds = __ALLOWED_CALENDAR_IDS__;
-  const allowedEventIds = __ALLOWED_EVENT_IDS__;
-
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'getCalendarById') {
-        return function(id) {
-          if (!allowedCalendarIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Calendar ID '" + id + "' is not whitelisted.");
-          }
-          return original.getCalendarById(id);
-        };
-      }
-      if (prop === 'getDefaultCalendar') {
-        return function() {
-          if (!allowedCalendarIds.includes('primary')) {
-            throw new Error("Sandbox Runtime Blocked: Default Calendar is not whitelisted.");
-          }
-          return original.getDefaultCalendar();
-        };
-      }
-      if (prop === 'getEventById') {
-        return function(id) {
-          if (!allowedEventIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Event ID '" + id + "' is not whitelisted.");
-          }
-          return original.getEventById(id);
-        };
-      }
-      if (prop === 'getEventSeriesById') {
-        return function(id) {
-          if (!allowedEventIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Event Series ID '" + id + "' is not whitelisted.");
-          }
-          return original.getEventSeriesById(id);
-        };
-      }
-      if (prop === 'getOwnedCalendars' || prop === 'getSharedCalendars' || prop === 'getCalendarsByName') {
-        return function(...args) {
-          const rawArr = original[prop].apply(original, args);
-          return rawArr.filter(cal => allowedCalendarIds.includes(cal.getId()));
-        };
-      }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
-    }
-  });
-  try {
-    Object.defineProperty(this, 'CalendarApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
-
-const FormApp = (function() {
-  const original = this.FormApp;
-  if (!original) return null;
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
-
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'openById') {
-        return function(id) {
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Form ID '" + id + "' is not whitelisted.");
-          }
-          return original.openById(id);
-        };
-      }
-      if (prop === 'openByUrl') {
-        return function(url) {
-          const match = url.match(/\/d\/([^\/]+)/);
-          const id = match ? match[1] : url;
-          if (!allowedFileIds.includes(id)) {
-            throw new Error("Sandbox Runtime Blocked: Form URL '" + url + "' is not whitelisted.");
-          }
-          return original.openByUrl(url);
-        };
-      }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
-    }
-  });
-  try {
-    Object.defineProperty(this, 'FormApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
-
-const UrlFetchApp = (function() {
-  const original = this.UrlFetchApp;
-  if (!original) return null;
-  const allowedUrls = __ALLOWED_URLS__;
-  const blockedUrls = __BLOCKED_URLS__;
+var _wrappedUrlFetchApp = (function(global) {
+  var allowedUrls = __ALLOWED_URLS__;
+  var blockedUrls = __BLOCKED_URLS__;
 
   function matchPattern(url, pattern) {
-    const escaped = pattern.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&');
-    const regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
-    const regex = new RegExp(regexStr, 'i');
+    var escaped = pattern.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&');
+    var regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
+    var regex = new RegExp(regexStr, 'i');
     return regex.test(url);
   }
 
   function checkUrl(url) {
-    const isBlocked = blockedUrls.some(pattern => matchPattern(url, pattern));
+    var isBlocked = blockedUrls.some(pattern => matchPattern(url, pattern));
     if (isBlocked) {
       throw new Error("Sandbox Runtime Blocked: URL '" + url + "' is explicitly blacklisted.");
     }
-    const isAllowed = allowedUrls.some(pattern => matchPattern(url, pattern));
+    var isAllowed = allowedUrls.some(pattern => matchPattern(url, pattern));
     if (!isAllowed) {
       throw new Error("Sandbox Runtime Blocked: URL '" + url + "' is not whitelisted. Default policy is BLOCK ALL.");
     }
   }
 
-  const proxy = new Proxy(original, {
-    get(target, prop) {
-      if (prop === 'fetch') {
-        return function(url, ...args) {
-          checkUrl(url);
-          return original.fetch(url, ...args);
-        };
-      }
-      if (prop === 'fetchAll') {
-        return function(requests, ...args) {
-          if (Array.isArray(requests)) {
-            requests.forEach(req => {
-              if (typeof req === 'string') {
-                checkUrl(req);
-              } else if (req && typeof req.url === 'string') {
-                checkUrl(req.url);
-              }
-            });
+  return createSafeWrapper(UrlFetchApp, {
+    fetch: function(url, ...args) {
+      checkUrl(url);
+      return UrlFetchApp.fetch.apply(UrlFetchApp, [url, ...args]);
+    },
+    fetchAll: function(requests, ...args) {
+      if (Array.isArray(requests)) {
+        requests.forEach(req => {
+          if (typeof req === 'string') {
+            checkUrl(req);
+          } else if (req && typeof req.url === 'string') {
+            checkUrl(req.url);
           }
-          return original.fetchAll(requests, ...args);
-        };
+        });
       }
-      const value = target[prop];
-      return typeof value === 'function' ? value.bind(target) : value;
+      return UrlFetchApp.fetchAll.apply(UrlFetchApp, [requests, ...args]);
     }
   });
-  try {
-    Object.defineProperty(this, 'UrlFetchApp', { value: proxy, configurable: true, writable: true });
-  } catch(e) {}
-  return proxy;
-})();
+})(typeof globalThis !== 'undefined' ? globalThis : this);
 
-// === ADVANCED GOOGLE SERVICES SECURITY PROXIES ===
+// === ADVANCED GOOGLE SERVICES SECURITY WRAPPERS ===
+var _wrappedDrive, _wrappedSheets, _wrappedDocs, _wrappedSlides, _wrappedGmail, _wrappedCalendar;
 (function(global) {
-  const allowedFileIds = __ALLOWED_FILE_IDS__;
-  const allowedFolderIds = __ALLOWED_FOLDER_IDS__;
-  const allowedCalendarIds = __ALLOWED_CALENDAR_IDS__;
-  const allowedEmails = __ALLOWED_EMAILS__;
+  var allowedFileIds = __ALLOWED_FILE_IDS__;
+  var allowedFolderIds = __ALLOWED_FOLDER_IDS__;
+  var allowedCalendarIds = __ALLOWED_CALENDAR_IDS__;
+  var allowedEmails = __ALLOWED_EMAILS__;
 
-  const allAllowedIds = [].concat(allowedFileIds, allowedFolderIds, allowedCalendarIds, allowedEmails);
+  var allAllowedIds = [].concat(allowedFileIds, allowedFolderIds, allowedCalendarIds, allowedEmails);
 
-  function createAdvancedServiceProxy(originalService, serviceName) {
+  function wrapAdvancedService(originalService, serviceName) {
     if (!originalService) return null;
 
-    function wrap(obj, path) {
-      return new Proxy(obj, {
-        get(target, prop) {
-          const value = target[prop];
-          if (typeof value === 'function') {
-            return function(...args) {
-              for (const arg of args) {
-                if (typeof arg === 'string') {
-                  const isPotentialId = (arg.length >= 20 && /^[a-zA-Z0-9-_]+$/.test(arg)) || 
-                                        arg.includes('@') || 
-                                        arg === 'primary';
-                  
-                  if (isPotentialId) {
-                    const isWhitelisted = allAllowedIds.some(id => id === arg);
-                    if (!isWhitelisted) {
-                      throw new Error("Sandbox Runtime Blocked: Advanced Service '" + serviceName + "' accessed non-whitelisted ID: '" + arg + "'");
+    var overrides = {};
+    
+    var proto = originalService;
+    while (proto && proto !== Object.prototype) {
+      var props = Object.getOwnPropertyNames(proto);
+      for (var i = 0; i < props.length; i++) {
+        (function(prop) {
+          if (prop === 'constructor') return;
+          try {
+            var value = originalService[prop];
+            if (typeof value === 'function') {
+              overrides[prop] = function(...args) {
+                for (var arg of args) {
+                  if (typeof arg === 'string') {
+                    var isPotentialId = (arg.length >= 20 && /^[a-zA-Z0-9-_]+$/.test(arg)) || 
+                                          arg.includes('@') || 
+                                          arg === 'primary';
+                    
+                    if (isPotentialId) {
+                      var isWhitelisted = allAllowedIds.some(id => id === arg);
+                      if (!isWhitelisted) {
+                        throw new Error("Sandbox Runtime Blocked: Advanced Service '" + serviceName + "' accessed non-whitelisted ID: '" + arg + "'");
+                      }
                     }
                   }
                 }
-              }
-              return value.apply(target, args);
-            };
-          } else if (value !== null && typeof value === 'object') {
-            return wrap(value, path + '.' + String(prop));
-          }
-          return value;
-        }
-      });
+                return value.apply(originalService, args);
+              };
+            }
+          } catch(e) {}
+        })(props[i]);
+      }
+      proto = Object.getPrototypeOf(proto);
     }
 
-    return wrap(originalService, serviceName);
+    return createSafeWrapper(originalService, overrides);
   }
 
-  const advancedServices = ['Drive', 'Sheets', 'Docs', 'Slides', 'Gmail', 'Calendar'];
-  for (const serviceName of advancedServices) {
-    if (global[serviceName]) {
-      const proxy = createAdvancedServiceProxy(global[serviceName], serviceName);
-      try {
-        Object.defineProperty(global, serviceName, { value: proxy, configurable: true, writable: true });
-      } catch(e) {}
-    }
-  }
+  try { _wrappedDrive = wrapAdvancedService(Drive, 'Drive'); } catch(e) {}
+  try { _wrappedSheets = wrapAdvancedService(Sheets, 'Sheets'); } catch(e) {}
+  try { _wrappedDocs = wrapAdvancedService(Docs, 'Docs'); } catch(e) {}
+  try { _wrappedSlides = wrapAdvancedService(Slides, 'Slides'); } catch(e) {}
+  try { _wrappedGmail = wrapAdvancedService(Gmail, 'Gmail'); } catch(e) {}
+  try { _wrappedCalendar = wrapAdvancedService(Calendar, 'Calendar'); } catch(e) {}
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 // === END OF SANDBOX SECURITY GUARD ===

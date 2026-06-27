@@ -1,0 +1,16 @@
+{
+  "allowedFileIds": [
+    "1A2B3C4D5E6F7G8H9I0J1K2L3M4N5O6P"
+  ],
+  "allowedFolderIds": [],
+  "allowedCalendarIds": [],
+  "allowedEmails": [
+    "allowed-tester@example.com"
+  ],
+  "allowedUrls": [
+    "https://httpbin.org/anything/*"
+  ],
+  "blockedUrls": [
+    "https://httpbin.org/anything/blocked"
+  ]
+}

@@ -573,9 +573,10 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 	var testFeedBack FeedBackData
 	json.Unmarshal(body, &testFeedBack)
 
-	if err != nil && (strings.Contains(testFeedBack.Error.Message, "Script function not found: ExecutionApi") ||
-		(len(testFeedBack.Error.Detailes) > 0 && strings.Contains(testFeedBack.Error.Detailes[0].ErrorMessage, "Script function not found: ExecutionApi"))) {
+	isMissingExecutionApi := strings.Contains(testFeedBack.Error.Message, "Script function not found: ExecutionApi") ||
+		(len(testFeedBack.Error.Detailes) > 0 && strings.Contains(testFeedBack.Error.Detailes[0].ErrorMessage, "Script function not found: ExecutionApi"))
 
+	if (err != nil || len(testFeedBack.Error.Message) > 0) && isMissingExecutionApi {
 		e.UpdateStatus("Self-healing: Deploying 'ExecutionApi' helper function...")
 		if errRecover := e.recoverMissingExecutionApi(c); errRecover == nil {
 			msg := "Auto-installed helper script 'ggsrun_api_helper.gs' successfully."
@@ -585,6 +586,10 @@ func (e *ExecutionContainer) esenderForExe2(c *cli.Context) *ExecutionContainer 
 				pterm.Success.Println("==================================================")
 			}
 			e.Msg = append(e.Msg, msg)
+
+			// Wait for GAS to compile and sync the new helper script
+			e.UpdateStatus("Waiting 3 seconds for GAS script compilation...")
+			time.Sleep(3000 * time.Millisecond)
 
 			// Retry request after helper deployment
 			body, err = r.FetchAPI()

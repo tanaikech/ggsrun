@@ -887,9 +887,9 @@ You can use the following sample prompts to instruct an AI Agent (e.g. Claude De
 
 ---
 
-## Antigravity CLI Plugin & Security Sandbox
+## Security Sandbox & Whitelisting
 
-The **ggsrun-plugin** is a security manifest and extension for the **Antigravity CLI** (`agy`). It establishes a local runtime security sandbox with fine-grained access control (whitelisting) to protect your Google Workspace data when running scripts autonomously via AI agents.
+`ggsrun` features a built-in, native security sandbox to restrict Google Workspace APIs and outbound URL fetch requests during script execution. It establishes a local runtime security sandbox with fine-grained access control (whitelisting) to protect your Google Workspace data when running scripts autonomously via AI agents or local CLI commands.
 
 ### 1. Security Problem & Purpose
 When autonomous AI agents develop and execute Google Apps Script (GAS) applications statefully (via the `exe1` tool), they gain access to Google's built-in Workspace APIs. Without restrictions, a rogue or misconfigured agent could:
@@ -897,50 +897,11 @@ When autonomous AI agents develop and execute Google Apps Script (GAS) applicati
 * Read private emails or send spoofed/spam emails to arbitrary external addresses.
 * Fetch confidential keys and exfiltrate them to untrusted external APIs.
 
-The **ggsrun-plugin** acts as a local security guardrail. By intercepting tool calls, it dynamically wraps built-in GAS services in a Proxy-based whitelist container, halting execution instantly if the script tries to touch unauthorized resources.
+The sandbox acts as a local security guardrail. During the project preparation phase, `ggsrun` parses script contents and dynamically wraps Google Workspace services in a custom, non-Proxy based wrapper container, halting execution instantly if the script tries to touch unauthorized resources.
 
-### 2. Installation & Prerequisites
+### 2. Sandboxing Architecture & Workflow
 
-#### Prerequisites
-Before using this plugin, ensure you have completed the installation and setup of:
-1. **Antigravity CLI (`agy`)**: The parent CLI tool which manages the plugin hook system.
-2. **ggsrun (v5.3.7)**: The CLI tool and MCP server for remote GAS execution.
-
-Once these tools are ready, install the plugin directly from this repository:
-
-```bash
-agy plugin install https://github.com/tanaikech/ggsrun
-# or
-agy plugin install https://github.com/tanaikech/ggsrun.git
-```
-
-To uninstall the plugin at any time:
-```bash
-agy plugin uninstall ggsrun-plugin
-```
-
-### 3. Plugin Directory Structure
-
-The integrated plugin structure inside this repository consists of the following components:
-
-```
-ggsrun/
-├── hooks.json              # Hook registration linking call_mcp_tool tool calls to scripts
-├── mcp_config.json        # MCP server definitions (ggsrun-mcp, workspace-developer)
-├── package.json            # Node.js dependencies for the sandbox hooks
-├── plugin.json             # Plugin metadata config for Antigravity CLI
-├── sandbox_config.json     # Default whitelist configuration template
-├── scripts/
-│   ├── after_tool_cleanup.js    # Reverts injected proxy codes from local source files
-│   └── before_tool_sandbox.js   # Verifies configuration, runs AST analysis, and injects proxies
-└── skills/
-    └── gas-execution/
-        └── SKILL.md        # AI agent guidelines for GAS development and execution
-```
-
-### 4. Sandboxing Architecture & Workflow
-
-The sandbox functions via a double-hook mechanism (`PreToolUse` and `PostToolUse`) that coordinates local validation, proxy injection, remote execution, and local cleanups.
+The sandbox is integrated directly into the `ggsrun` binary (statically compiled using Go's `embed` package). 
 
 #### Sandbox Execution Lifecycle
 
@@ -950,62 +911,38 @@ The sequence diagram below visualizes how the sandbox intercepts a script execut
 sequenceDiagram
     autonumber
     actor Agent as Agent / User
-    participant HookPre as Pre-Tool Hook (before_tool_sandbox.js)
-    participant Cwd as Local Workspace
-    participant Ggsrun as ggsrun MCP (exe1)
+    participant Ggsrun as ggsrun (exe1 / mcp)
     participant GAS as GAS Runtime (Google Cloud)
-    participant HookPost as Post-Tool Hook (after_tool_cleanup.js)
 
-    Agent->>Ggsrun: Request exe1 (run script.gs)
-    Note over Ggsrun: PreToolUse Matcher Triggers Hook
-    Ggsrun->>HookPre: Trigger before_tool_sandbox.js
-    HookPre->>Cwd: Read sandbox_config.json
-    alt Config Not Found
-        HookPre->>Cwd: Generate default sandbox_config.json
-        HookPre->>Agent: Deny execution with detailed config guide
-    end
-    HookPre->>Cwd: Parse script.gs & perform AST Validation (eval & obfuscation check)
-    alt AST Check Fails
-        HookPre->>Agent: Deny execution (Security Restriction)
-    end
-    HookPre->>Cwd: Inject Proxy Guard Code into script.gs
-    HookPre-->>Ggsrun: Allow tool execution
-    Ggsrun->>GAS: Upload script.gs (with proxies) & run entry function
+    Agent->>Ggsrun: Request exe1 (run script.gs) with --sandbox
+    Note over Ggsrun: Read sandbox_config.json
+    Note over Ggsrun: Wrap GAS API calls with wrappers (e.g. DriveApp -> _wrappedDriveApp)
+    Ggsrun->>GAS: Upload script.gs (with security wrappers) & run function
     Note over GAS: Script starts executing
     GAS->>GAS: Access built-in service (e.g. DriveApp.getFiles())
-    Note over GAS: Proxy intercepts call & checks allowedFileIds in sandbox_config.json
+    Note over GAS: Wrapper intercepts call & checks allowedFileIds
     alt ID is Whitelisted
         GAS->>GAS: Execute original method & return result
     else ID not Whitelisted
         GAS-->>Ggsrun: Throw "Sandbox Runtime Blocked" Exception
     end
     Ggsrun->>Agent: Return execution result/error
-    Note over Ggsrun: PostToolUse Matcher Triggers Hook
-    Ggsrun->>HookPost: Trigger after_tool_cleanup.js
-    HookPost->>Cwd: Remove injected Proxy Guard Code from script.gs
-    HookPost-->>Ggsrun: Cleanup complete
 ```
 
 #### Step-by-Step Execution Workflow
 
-1. **Triggering Execution**: The agent or user invokes the `exe1` tool of `ggsrun` to run a local script file (e.g., `temp_script.gs`).
-2. **Pre-Tool Hook Execution**: The `PreToolUse` matcher intercepts the call and runs `before_tool_sandbox.js`.
-3. **Whitelist Verification**: The hook checks for the presence of `sandbox_config.json` in the current workspace.
-   * If missing, it creates a default template containing default values and blocks execution, prompting the user with a detailed setup guide.
-4. **AST Static Code Analysis**: The hook parses the user script using `acorn` to detect:
-   * Any use of `eval()` or obfuscated member access (e.g., dynamic property resolution designed to bypass variable name checks).
-   * If detected, the execution is immediately denied.
-5. **Proxy Guard Injection**: The hook dynamically prepends security Proxy objects to the local script file. These proxies redefine built-in global services (`DriveApp`, `GmailApp`, `MailApp`, `SpreadsheetApp`, `DocumentApp`, `SlidesApp`, `CalendarApp`, `UrlFetchApp`) on the global scope (`this` / `globalThis`) using `Object.defineProperty` to prevent scoping bypasses (such as trying to bypass standard variables by calling `this.DriveApp` or `globalThis.DriveApp`).
-6. **Remote Sync & Execution**: `ggsrun` uploads the guarded script to Google Apps Script and executes the targeted function.
-7. **Runtime Interception**: During script execution in the cloud:
-   * When any checked method is called (e.g., `DriveApp.getFiles()`, `UrlFetchApp.fetch()`), the Proxy intercepts the call.
-   * It extracts the accessed resource ID (or URL, email) and cross-references it with the whitelisted items loaded from `sandbox_config.json`.
-   * If the resource is whitelisted, the original Google API is called. If not, a `Sandbox Runtime Blocked` error is immediately thrown, terminating the script execution.
-8. **Cleanup Hook**: After execution concludes (successfully or with an error), the `PostToolUse` hook runs `after_tool_cleanup.js`, reverting the local script file back to its original clean state.
+1. **Triggering Execution**: The agent or user invokes the `exe1` command of `ggsrun` (or calls the `exe1` tool via the MCP server).
+2. **Injecting Sandboxing**: `ggsrun` checks the `--sandbox` parameter:
+   - **Default strict mode** (flag omitted, left empty `""`): Applies an ultra-strict sandboxing with empty whitelists, blocking all Google API and URL fetch requests.
+   - **Custom whitelist mode**: Pass the path to a JSON configuration file (e.g., `--sandbox sandbox_config.json`).
+   - **Bypass mode**: Pass `--sandbox bypass` or `--sandbox none` to completely disable sandboxing.
+3. **Wrapper Injection**: `ggsrun` prepends the security wrapper code (`for_sandbox_gas.js`) and performs token replacement in the source script (e.g. replacing `DriveApp` with `_wrappedDriveApp` to bypass re-declaration errors in the V8 engine).
+4. **Remote Sync & Execution**: `ggsrun` uploads the guarded script to Google Apps Script and executes the targeted function.
+5. **Runtime Interception**: During script execution in the cloud, if any checked method is called (e.g., `DriveApp.getFileById()`, `UrlFetchApp.fetch()`), the wrapper intercepts the call, cross-references it with the loaded whitelist, and throws a `Sandbox Runtime Blocked` error if not permitted.
 
-### 5. Whitelist Configuration (`sandbox_config.json`)
+### 3. Whitelist Configuration (`sandbox_config.json`)
 
-To whitelist resources, configure the `sandbox_config.json` file in your workspace:
+To whitelist resources, configure a JSON file in your workspace:
 
 ```json
 {
@@ -1015,22 +952,26 @@ To whitelist resources, configure the `sandbox_config.json` file in your workspa
   "allowedFolderIds": [
     "YOUR_FOLDER_ID"
   ],
-  "allowedEmails": [
-    "your-recipient@example.com"
-  ],
   "allowedCalendarIds": [
     "primary"
   ],
   "allowedEventIds": [],
+  "allowedEmails": [
+    "your-recipient@example.com"
+  ],
   "allowedUrls": [
-    "https://api.github.com/users/"
+    "https://api.github.com/users/*"
+  ],
+  "blockedUrls": [
+    "https://api.github.com/users/blocked"
   ]
 }
 ```
 
-If `sandbox_config.json` is missing in the current working directory, a default one will be automatically generated with detailed configuration guidelines output to the console in English.
+* **Note:** Whitelisting is strict. The default policy is **BLOCK ALL**. Access to any resource ID or URL fetch not explicitly listed in these whitelists will throw a `Sandbox Runtime Blocked` runtime exception on the GAS side.
+* **LLM Agent Policy:** LLM Agents must check if the user has provided or created a configuration JSON file. If the user does not have one ready or is new to sandboxing, the LLM Agent must explain this JSON schema format and ask the user to create it before proceeding. LLM Agents must NOT write or modify this JSON file themselves to avoid safety violations.
 
-### 6. Security Validation & Demonstration
+### 4. Security Validation & Demonstration
 
 #### Sample Script (`demo_script.gs`)
 The following script attempts to perform both authorized and unauthorized operations:
@@ -1038,18 +979,18 @@ The following script attempts to perform both authorized and unauthorized operat
 ```javascript
 function runDemo() {
   // 1. Authorized Spreadsheet Access (Whitelisted ID)
-  var sheet = SpreadsheetApp.openById('#####');
+  var sheet = SpreadsheetApp.openById('YOUR_SPREADSHEET_ID');
   Logger.log("Successfully opened whitelisted spreadsheet!");
 
   // 2. Unauthorized Outbound Request (Blocked URL)
-  // This will trigger the UrlFetchApp proxy and halt execution.
+  // This will trigger the UrlFetchApp wrapper and halt execution.
   var response = UrlFetchApp.fetch('https://google.com'); 
   Logger.log("Response code: " + response.getResponseCode());
 }
 ```
 
 #### Execution Log Under Sandbox
-When running this script via `ggsrun` under the security plugin, the execution terminates safely at step 2 before making the external HTTP request:
+When running this script via `ggsrun` under the security sandbox, the execution terminates safely before making the external HTTP request:
 
 ```json
 {
@@ -1059,28 +1000,28 @@ When running this script via `ggsrun` under the security plugin, the execution t
     "Access Token was used.",
     "Project was updated.",
     "{code: 3, message: ScriptError, function: checkUrl, linenumber: 286}",
-    "{detailmessage: Error: Sandbox Runtime Blocked: URL 'https://google.com' is not whitelisted.}",
+    "{detailmessage: Error: Sandbox Runtime Blocked: URL 'https://google.com' is not whitelisted. Default policy is BLOCK ALL.}",
     "Function 'runDemo()' was run."
   ],
   "result": null
 }
 ```
 
-### 7. Recommended Security Test Prompts
+### 5. Recommended Security Test Prompts
 
 You can use the following prompts to verify that the sandbox is operating effectively in various contexts.
 
 #### Prompt 1: Outbound HTTP Fetch (UrlFetchApp Sandbox Test)
 > **Prompt**: Create a script `test_fetch.gs` that fetches data from `https://api.github.com/users/octocat` using `UrlFetchApp.fetch()`. Run the script using `ggsrun`'s `exe1`.
-> * **Expected Behavior**: The execution will fail with a `Sandbox Runtime Blocked: URL 'https://api.github.com/users/octocat' is not whitelisted` error unless the GitHub API URL is explicitly whitelisted in `sandbox_config.json`.
+> * **Expected Behavior**: The execution will fail with a `Sandbox Runtime Blocked: URL 'https://api.github.com/users/octocat' is not whitelisted. Default policy is BLOCK ALL.` error unless the GitHub API URL is explicitly whitelisted.
 
 #### Prompt 2: Drive Navigation Check (DriveApp Sandbox Test)
 > **Prompt**: Create a script `list_files.gs` that calls `DriveApp.getFiles()` to find and print the name of every file in my Google Drive. Execute it using `exe1`.
-> * **Expected Behavior**: The script will throw an exception the moment it encounters any file ID that is not whitelisted in `allowedFileIds` or `allowedFolderIds` inside `sandbox_config.json`, preventing bulk listing.
+> * **Expected Behavior**: The script will throw an exception the moment it encounters any file ID that is not whitelisted, preventing bulk listing.
 
 #### Prompt 3: Email Access Block (GmailApp/MailApp Sandbox Test)
 > **Prompt**: Create a script `send_secret.gs` that creates an email draft to `attacker@example.com` containing the text "Secret Data" using `GmailApp.createDraft()`. Execute it using `exe1`.
-> * **Expected Behavior**: The proxy checks `createDraft` and raises a `Sandbox Runtime Blocked: Recipient address 'attacker@example.com' is not whitelisted` exception, blocking draft creation.
+> * **Expected Behavior**: The wrapper checks `createDraft` and raises a `Sandbox Runtime Blocked: Recipient address 'attacker@example.com' is not whitelisted` exception.
 
 #### Prompt 4: End-to-End Spreadsheet Access Workflow
 > **Prompt**: Please update the local `sandbox_config.json` to whitelist the Spreadsheet ID `#####` in the `allowedFileIds` array. Then, create a new script file `write_hello.gs` and write a function `writeHello()` that opens the spreadsheet with ID `#####`, retrieves the first sheet, and sets the value of cell `A1` to `'Hello World'`. Once completed, synchronize and execute the script using the `ggsrun` MCP server's `exe1` tool.
