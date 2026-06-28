@@ -112,6 +112,40 @@ $ ggsrun status
 
 ---
 
+## 🤖 Antigravity CLI Integration (Plugin Installation)
+
+You can easily integrate `ggsrun` into the **Antigravity CLI** (`agy`) as a plugin. Installing this plugin automatically registers the `ggsrun` MCP server and installs the dedicated Apps Script development Agent Skill (`skills/gas-execution/SKILL.md`).
+
+### Installation
+
+Run the following command inside your terminal:
+
+```bash
+$ agy plugin install https://github.com/tanaikech/ggsrun
+# or
+$ agy plugin install https://github.com/tanaikech/ggsrun.git
+```
+
+To uninstall the plugin at any time:
+```bash
+$ agy plugin uninstall ggsrun-plugin
+```
+
+### Plugin Directory Structure
+
+The plugin is structured as follows (excluding legacy Agent Hooks, which are now natively handled by the `ggsrun` core binary):
+
+```
+ggsrun/
+├── plugin.json             # Plugin metadata config for Antigravity CLI
+├── mcp_config.json        # MCP server definitions (ggsrun-mcp, workspace-developer)
+└── skills/
+    └── gas-execution/
+        └── SKILL.md        # AI agent guidelines for GAS development and execution
+```
+
+---
+
 ## 💬 Q&A & Troubleshooting
 
 For general Q&A, standard Google API errors, and runtime limits, please refer to the detailed **[Legacy Q&A Guide](help/README.md#qa)**.
