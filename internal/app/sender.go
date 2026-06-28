@@ -149,28 +149,118 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 						}
 					}
 
-					// 1. Keep / inject executionApi
-					if _, ok := manifest["executionApi"]; !ok {
-						if origManifest != nil {
+					if origManifest != nil {
+						// Merge dependencies
+						origDeps, hasOrigDeps := origManifest["dependencies"].(map[string]interface{})
+						newDeps, hasNewDeps := manifest["dependencies"].(map[string]interface{})
+						if hasOrigDeps {
+							if !hasNewDeps {
+								manifest["dependencies"] = origDeps
+								modified = true
+							} else {
+								// Merge libraries
+								origLibs, _ := origDeps["libraries"].([]interface{})
+								newLibs, _ := newDeps["libraries"].([]interface{})
+								
+								// Local helper to merge libraries
+								libMap := make(map[string]interface{})
+								getLibKey := func(lib interface{}) string {
+									if m, ok := lib.(map[string]interface{}); ok {
+										if id, ok := m["libraryId"].(string); ok && id != "" {
+											return id
+										}
+										if sym, ok := m["userSymbol"].(string); ok && sym != "" {
+											return sym
+										}
+									}
+									return ""
+								}
+								for _, lib := range origLibs {
+									key := getLibKey(lib)
+									if key != "" {
+										libMap[key] = lib
+									}
+								}
+								for _, lib := range newLibs {
+									key := getLibKey(lib)
+									if key != "" {
+										libMap[key] = lib
+									}
+								}
+								var mergedLibs []interface{}
+								for _, lib := range libMap {
+									mergedLibs = append(mergedLibs, lib)
+								}
+								newDeps["libraries"] = mergedLibs
+
+								// Merge enabledAdvancedServices
+								origServices, _ := origDeps["enabledAdvancedServices"].([]interface{})
+								newServices, _ := newDeps["enabledAdvancedServices"].([]interface{})
+								
+								serviceMap := make(map[string]interface{})
+								getServiceKey := func(srv interface{}) string {
+									if m, ok := srv.(map[string]interface{}); ok {
+										if id, ok := m["serviceId"].(string); ok && id != "" {
+											return id
+										}
+										if sym, ok := m["userSymbol"].(string); ok && sym != "" {
+											return sym
+										}
+									}
+									return ""
+								}
+								for _, srv := range origServices {
+									key := getServiceKey(srv)
+									if key != "" {
+										serviceMap[key] = srv
+									}
+								}
+								for _, srv := range newServices {
+									key := getServiceKey(srv)
+									if key != "" {
+										serviceMap[key] = srv
+									}
+								}
+								var mergedServices []interface{}
+								for _, srv := range serviceMap {
+									mergedServices = append(mergedServices, srv)
+								}
+								newDeps["enabledAdvancedServices"] = mergedServices
+
+								modified = true
+							}
+						}
+
+						// Merge executionApi
+						if _, ok := manifest["executionApi"]; !ok {
 							if origExec, ok := origManifest["executionApi"]; ok {
 								manifest["executionApi"] = origExec
 								modified = true
 							}
 						}
-						if !modified {
-							manifest["executionApi"] = map[string]interface{}{"access": "MYSELF"}
-							modified = true
-						}
-					}
-
-					// 2. Keep / inject webapp
-					if _, ok := manifest["webapp"]; !ok {
-						if origManifest != nil {
+						// Merge webapp
+						if _, ok := manifest["webapp"]; !ok {
 							if origWebapp, ok := origManifest["webapp"]; ok {
 								manifest["webapp"] = origWebapp
 								modified = true
 							}
 						}
+						// Merge other missing root level keys from original
+						for k, v := range origManifest {
+							if k == "dependencies" || k == "executionApi" || k == "webapp" {
+								continue
+							}
+							if _, ok := manifest[k]; !ok {
+								manifest[k] = v
+								modified = true
+							}
+						}
+					}
+
+					// Ensure executionApi exists
+					if _, ok := manifest["executionApi"]; !ok {
+						manifest["executionApi"] = map[string]interface{}{"access": "MYSELF"}
+						modified = true
 					}
 
 					if modified {

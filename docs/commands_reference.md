@@ -482,10 +482,20 @@ $ ggsrun auth --port 8080
 
 ### `status` (Token Health Diagnostic)
 * **Aliases**: `st`
-* **Purpose**: Quick diagnostic tool verifying the validity, expiry, and permissions of your local OAuth2 credentials and configuration paths.
+* **Purpose**: Quick diagnostic tool verifying the validity, expiry, and permissions of your local OAuth2 credentials and configuration paths. (Version information is displayed at the top).
 
 ```bash
 $ ggsrun status
+```
+
+---
+
+### `recover` (Self-Healing Project Recovery)
+* **Aliases**: `rc`
+* **Purpose**: Rebuilds and deploys the remote GAS project to a clean initial state (restoring `ggsrun.gs` and default `appsscript.json` configs) in case of unexpected script execution corruption or interruption.
+
+```bash
+$ ggsrun recover -i [SCRIPT_ID]
 ```
 
 ---

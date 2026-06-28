@@ -36,7 +36,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.8"
+	app.Version = "5.3.9"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -592,6 +592,23 @@ func Run() {
 			Description: "Runs a stdio listener providing Drive/GAS tools to an MCP client. Does not require LLM API keys natively.\n\nExposed MCP Tools:\n  - searchfiles: Search Google Drive files using standard Google Drive API v3 query syntax. Supports optional regex filtering on filenames.\n  - download: Download files or folder structures from Google Drive to the local environment using File/Folder IDs.\n  - upload: Upload local files or entire recursive directories to Google Drive.\n  - exe1: Upload/synchronize a local Google Apps Script file or raw script string to a remote Google Apps Script project, and execute a specified entry function. Returns the function execution response payload as JSON.\n  - filelist: List files or search by exact File Name or File ID on Google Drive. Outputs corresponding file details.",
 			Action:      runMCP,
 			Flags:       getCommonFlags(),
+		},
+		{
+			Name:        "recover",
+			Aliases:     []string{"rc"},
+			Usage:       "Restores the GAS project to the pristine recovery state.",
+			Description: "Cleans up the remote GAS project by restoring it to the default recovery files (ggsrun.gs and appsscript.json).",
+			Action:      recoverProject,
+			Flags: append([]cli.Flag{
+				&cli.StringFlag{
+					Name:  "scriptid, i",
+					Usage: "Script ID of project on Google Drive",
+				},
+				&cli.BoolFlag{
+					Name:  "jsonparser, j",
+					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
+				},
+			}, getCommonFlags()...),
 		},
 	}
 	app.CommandNotFound = commandNotFound

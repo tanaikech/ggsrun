@@ -23,16 +23,19 @@ func (i *InitVal) resolveConfigFile() string {
 	if i.customCred != "" {
 		return filepath.Join(filepath.Dir(i.customCred), cfgFile)
 	}
-	// Priority 3: GGSRUN_CFG_PATH environment variable
+	// Priority 3: Current working directory
+	pCwd := filepath.Join(i.workdir, cfgFile)
+	if _, err := os.Stat(pCwd); err == nil || i.isAuthCmd {
+		return pCwd
+	}
+	// Priority 4: GGSRUN_CFG_PATH environment variable
 	if i.envConfig != "" {
-		p := filepath.Join(i.envConfig, cfgFile)
-		// Return if exists, or if we are actively provisioning a new auth structure
-		if _, err := os.Stat(p); err == nil || i.isAuthCmd {
-			return p
+		pEnv := filepath.Join(i.envConfig, cfgFile)
+		if _, err := os.Stat(pEnv); err == nil {
+			return pEnv
 		}
 	}
-	// Priority 4: Final fallback to current working directory
-	return filepath.Join(i.workdir, cfgFile)
+	return pCwd
 }
 
 // resolveCredFile determines the exact path to the credentials file based on strict priority.
@@ -41,15 +44,19 @@ func (i *InitVal) resolveCredFile() string {
 	if i.customCred != "" {
 		return i.customCred
 	}
-	// Priority 2: GGSRUN_CFG_PATH directory search
+	// Priority 2: Current working directory
+	pCwd := filepath.Join(i.workdir, clientsecretFile)
+	if _, err := os.Stat(pCwd); err == nil {
+		return pCwd
+	}
+	// Priority 3: GGSRUN_CFG_PATH directory search
 	if i.envConfig != "" {
-		p := filepath.Join(i.envConfig, clientsecretFile)
-		if _, err := os.Stat(p); err == nil {
-			return p
+		pEnv := filepath.Join(i.envConfig, clientsecretFile)
+		if _, err := os.Stat(pEnv); err == nil {
+			return pEnv
 		}
 	}
-	// Priority 3: Final fallback to current working directory
-	return filepath.Join(i.workdir, clientsecretFile)
+	return pCwd
 }
 
 // GgsrunIni : Initialize ggsrun

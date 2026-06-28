@@ -1713,6 +1713,24 @@ Default fields are `storageQuota,user`. Of course, you can modify fields using t
 }
 ```
 
+<a name="projectrecovery"></a>
+
+## 16.5. Project Recovery
+
+If the remote Google Apps Script (GAS) project is left in an inconsistent or corrupted state (e.g. if execution was abruptly terminated before a rollback could occur), you can restore it immediately using the `recover` command.
+
+This command rebuilds the remote project to the pristine ggsrun state, deploying a clean manifest (`appsscript.json`) and the default entry scripts (`ggsrun.gs` containing `doPost` and `ExecutionApi` wrappers).
+
+```bash
+$ ggsrun recover -i [SCRIPT_ID]
+```
+
+Or you can use the alias:
+
+```bash
+$ ggsrun rc -i [SCRIPT_ID]
+```
+
 <a name="useserviceaccount"></a>
 
 ## 17. Use Service Account

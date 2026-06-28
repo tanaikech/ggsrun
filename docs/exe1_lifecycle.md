@@ -159,6 +159,7 @@ Before any execution command is delegated to the compiler in `ggsrun exe1`, the 
 * The updated file list is pushed via `projectUpdate2()` using the remote `content` PUT API.
 * The script compilation occurs on Google's cloud server. If a script imports unsupported constructs or references missing identifiers, the execution fails gracefully.
 
-### E. Resilient Rollback & State Restoration
+### E. Resilient Rollback, State Restoration & Self-Healing
 * Regardless of whether the target function succeeds, throws an exception, or if the local terminal process is terminated mid-execution (e.g., via a standard `SIGINT` / `Ctrl+C` interrupt signal), `ggsrun` enters the deferred `performRollback()` block.
-* This clean-up handler replaces the remote script project back to `e.InitVal.originalFiles`, completely wiping out any sandbox-injected code, temporary functions, and file modifications. This guarantees that your remote production source repository is left 100% clean and pristine.
+* This clean-up handler replaces the remote script project back to `e.InitVal.originalFiles`. In v5.3.9, this rollback guarantees that the entire remote project state—including the original `appsscript.json` manifest and all script files—is completely restored to the pre-execution state.
+* **Self-Healing Recovery**: In the rare event that the execution process crashes abruptly before the rollback can trigger, you can use the `$ ggsrun recover` command to immediately rebuild and redeploy the GAS project to its default pristine state (containing only `ggsrun.gs` and the default `appsscript.json` manifest).

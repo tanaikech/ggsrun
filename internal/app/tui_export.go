@@ -203,12 +203,13 @@ func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
 	performRollback := func() {
 		rollbackOnce.Do(func() {
 			needsUpdate := false
-			if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
+			// Always restore the original project state when executing via TUI/FD
+			if len(e.InitVal.originalFiles) > 0 {
 				e.UpdateStatus("Restoring original script project state...")
-				if len(e.InitVal.originalFiles) > 0 {
-					e.Project.Files = e.InitVal.originalFiles
-					needsUpdate = true
-				} else {
+				e.Project.Files = e.InitVal.originalFiles
+				needsUpdate = true
+			} else {
+				if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
 					if e.InitVal.tempFileNameToCleanup != "" {
 						var newFiles []File
 						for _, f := range e.Project.Files {

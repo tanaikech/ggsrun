@@ -28,10 +28,12 @@ To make onboarding, development, and advanced operations as seamless as possible
 | 📖 **Command Reference Manual** | In-depth breakdown of all 15+ subcommands (e.g. `exe1`, `exe2`, `download`, `upload`), recipes, and Mermaid architectural diagrams. | **[Command Reference](docs/commands_reference.md)** |
 | 🛡️ **Security Sandbox Guide** | Explains the memory-based wrapper injection, whitelist configuration schemas (`sandbox_config.json`), and security validation scenarios. | **[Sandbox Guide](docs/sandbox_guide.md)** |
 | 🔄 **Stateful Execution Lifecycle** | Deep-dive explanation of the backup, sandboxing, upload, execution, and resilient rollback phases of the `exe1` command. | **[Execution Lifecycle](docs/exe1_lifecycle.md)** |
-| 🤖 **MCP Server Manual** | Configuration to run `ggsrun` as an autonomous tool provider in AI environments (like Claude Desktop or Antigravity), schemas, and scenarios. | **[MCP Server Guide](docs/mcp_guide.md)** |
+| 🤖 **MCP Server Guide** | Configuration to run `ggsrun` as an autonomous tool provider in AI environments (like Claude Desktop or Antigravity), schemas, and scenarios. | **[MCP Server Guide](docs/mcp_guide.md)** |
 | 💻 **Interactive TUI Filer Guide** | All keyboard shortcuts, search highlighter rules, clipboard integration, and history for the split-screen Japanese PC-98 Filer Mode (`ggsrun fd`). | **[TUI Filer Guide](docs/tui_guide.md)** |
 | 🧪 **Local Development & Testing** | Detailed guide for configuring environment variables (`.env`), understanding CLI/TUI mock tests, and running automated test suites. | **[Development Guide](docs/development_guide.md)** |
 | 🔬 **Manual Integration Tests Suite** | Guided verification commands to manually test authorization, sandbox policies, tool schemas, and local file operations. | **[Manual Tests Suite](manual-tests/README.md)** |
+| 📚 **Detailed User Manual** | Comprehensive manual detailing all commands, advanced options, custom editor integrations (Sublime Text), and legacy parameters. | **[Detailed Manual](help/README.md)** |
+| 📜 **Version Update History** | Chronological record of all updates, bug fixes, features, and refactoring milestones from v1.0.0 to the latest release. | **[Update History](help/UpdateHistory.md)** |
 
 ---
 
@@ -48,6 +50,7 @@ To make onboarding, development, and advanced operations as seamless as possible
 9. **Advanced Metadata Search**: Query your Google Drive utilizing Google Drive API v3 query syntax and local filename Regular Expressions (Regex).
 10. **Flexible Authentication**: Natively supports both robust browser loopback OAuth2 and secure Service Accounts.
 11. **Security Sandboxing**: Officially integrates with the **Antigravity CLI** via an embedded in-memory security sandbox wrapper (`--sandbox`) to guard Workspace resources.
+12. **Self-Healing Project Recovery**: Restore the remote GAS project to a clean initial state at any time with a single command (`ggsrun recover`).
 
 ---
 

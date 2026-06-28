@@ -73,43 +73,56 @@ func exeAPIWithout(c *cli.Context) error {
 	performRollback := func() {
 		rollbackOnce.Do(func() {
 			needsUpdate := false
-			if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
-				e.UpdateStatus("Restoring original script project state...")
+			isRestoreNeeded := c.Bool("deleteScript") || os.Getenv("GGSRUN_MCP_MODE") == "true"
+
+			if isRestoreNeeded {
 				if len(e.InitVal.originalFiles) > 0 {
+					e.UpdateStatus("Restoring original script project state...")
 					e.Project.Files = e.InitVal.originalFiles
 					needsUpdate = true
 					if !c.Bool("jsonparser") {
-						pterm.Success.Println("Restored original script files from memory backup.")
+						pterm.Success.Println("Restored original script files and appsscript.json from memory backup.")
 					}
-				} else {
-					if e.InitVal.tempFileNameToCleanup != "" {
-						var newFiles []File
-						for _, f := range e.Project.Files {
-							if f.Name != e.InitVal.tempFileNameToCleanup {
-								newFiles = append(newFiles, f)
-							}
-						}
-						e.Project.Files = newFiles
+				}
+			} else {
+				if e.InitVal.tempFileNameToCleanup != "" || len(e.InitVal.uploadedFilesToCleanup) > 0 {
+					e.UpdateStatus("Restoring original script project state...")
+					if len(e.InitVal.originalFiles) > 0 {
+						e.Project.Files = e.InitVal.originalFiles
 						needsUpdate = true
 						if !c.Bool("jsonparser") {
-							pterm.Success.Printf("Cleaned up temporary file '%s' successfully.\n", e.InitVal.tempFileNameToCleanup)
+							pterm.Success.Println("Restored original script files from memory backup.")
 						}
-					}
-					if len(e.InitVal.uploadedFilesToCleanup) > 0 {
-						cleanupMap := make(map[string]bool)
-						for _, name := range e.InitVal.uploadedFilesToCleanup {
-							cleanupMap[name] = true
-						}
-						var newFiles []File
-						for _, f := range e.Project.Files {
-							if !cleanupMap[f.Name] {
-								newFiles = append(newFiles, f)
+					} else {
+						if e.InitVal.tempFileNameToCleanup != "" {
+							var newFiles []File
+							for _, f := range e.Project.Files {
+								if f.Name != e.InitVal.tempFileNameToCleanup {
+									newFiles = append(newFiles, f)
+								}
+							}
+							e.Project.Files = newFiles
+							needsUpdate = true
+							if !c.Bool("jsonparser") {
+								pterm.Success.Printf("Cleaned up temporary file '%s' successfully.\n", e.InitVal.tempFileNameToCleanup)
 							}
 						}
-						e.Project.Files = newFiles
-						needsUpdate = true
-						if !c.Bool("jsonparser") {
-							pterm.Success.Printf("Cleaned up uploaded files: %v successfully.\n", e.InitVal.uploadedFilesToCleanup)
+						if len(e.InitVal.uploadedFilesToCleanup) > 0 {
+							cleanupMap := make(map[string]bool)
+							for _, name := range e.InitVal.uploadedFilesToCleanup {
+								cleanupMap[name] = true
+							}
+							var newFiles []File
+							for _, f := range e.Project.Files {
+								if !cleanupMap[f.Name] {
+									newFiles = append(newFiles, f)
+								}
+							}
+							e.Project.Files = newFiles
+							needsUpdate = true
+							if !c.Bool("jsonparser") {
+								pterm.Success.Printf("Cleaned up uploaded files: %v successfully.\n", e.InitVal.uploadedFilesToCleanup)
+							}
 						}
 					}
 				}
