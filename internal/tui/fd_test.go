@@ -1960,15 +1960,7 @@ func TestTUI_GASIntegration(t *testing.T) {
 		})
 		time.Sleep(100 * time.Millisecond)
 
-		// Dismiss conflict_choice modal
-		tuiApp.QueueUpdate(func() {
-			_, p := pages.GetFrontPage()
-			conflictModal := findModal(p)
-			if conflictModal != nil {
-				conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-			}
-		})
-		time.Sleep(100 * time.Millisecond)
+
 
 		for i := 0; i < 150; i++ {
 			if execGasCalled {
@@ -2063,15 +2055,7 @@ func TestTUI_GASIntegration(t *testing.T) {
 		})
 		time.Sleep(100 * time.Millisecond)
 
-		// Dismiss conflict_choice modal
-		tuiApp.QueueUpdate(func() {
-			_, p := pages.GetFrontPage()
-			conflictModal := findModal(p)
-			if conflictModal != nil {
-				conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-			}
-		})
-		time.Sleep(100 * time.Millisecond)
+
 
 		for i := 0; i < 150; i++ {
 			if execGasCalled {
@@ -2230,35 +2214,7 @@ func TestTUI_LocalDirectoryExecution(t *testing.T) {
 	tuiApp.QueueUpdate(func() {
 		argValInput.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
 	})
-	time.Sleep(100 * time.Millisecond)
-
-	// Step 4: Delete script confirmation modal
-	var confirmModal *tview.Modal
-	tuiApp.QueueUpdate(func() {
-		_, p := pages.GetFrontPage()
-		confirmModal = findModal(p)
-	})
-	time.Sleep(50 * time.Millisecond)
-	if confirmModal != nil {
-		tuiApp.QueueUpdate(func() {
-			confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-		})
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	// Step 5: Conflict choice modal
-	var conflictModal *tview.Modal
-	tuiApp.QueueUpdate(func() {
-		_, p := pages.GetFrontPage()
-		conflictModal = findModal(p)
-	})
-	time.Sleep(50 * time.Millisecond)
-	if conflictModal != nil {
-		tuiApp.QueueUpdate(func() {
-			conflictModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-		})
-		time.Sleep(200 * time.Millisecond) // Goroutine execution
-	}
+	time.Sleep(200 * time.Millisecond) // Goroutine execution
 
 	if !execGasCalled {
 		t.Error("Expected tuiRunExe1Fn to be called for directory")

@@ -923,6 +923,7 @@ func createOpContext(mainCtx *cli.Context, extraFlags map[string]string) *cli.Co
 	set.String("password", "", "")
 	set.String("deletefile", "", "")
 	set.String("conflict", "", "")
+	set.String("sandbox", "", "")
 
 	args := []string{}
 	if mainCtx != nil {
@@ -1397,31 +1398,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 					})
 				}
 
-				if isExe1 {
-					prevFocus := tuiApp.GetFocus()
-
-					showConflictModal := func(undeleteScript bool) {
-						conflictModal := tview.NewModal().
-							SetText("Duplicate filename conflict resolution strategy?\n\nChoose 'Overwrite' (Default) to replace existing script files in the remote GAS project, or 'Add' to upload as new files with unique names.").
-							AddButtons([]string{"Overwrite", "Add"}).
-							SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-								pages.RemovePage("conflict_choice")
-								tuiApp.SetFocus(prevFocus)
-
-								conflictChoice := "overwrite"
-								if buttonLabel == "Add" {
-									conflictChoice = "add"
-								}
-								doExecute(undeleteScript, conflictChoice)
-							})
-						pages.AddPage("conflict_choice", conflictModal, true, true)
-						tuiApp.SetFocus(conflictModal)
-					}
-
-					showConflictModal(false)
-				} else {
-					doExecute(false, "overwrite")
-				}
+				doExecute(false, "overwrite")
 			})
 		}
 
