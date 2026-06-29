@@ -99,6 +99,7 @@ Implement a dual-pane Terminal User Interface (TUI) File Manager (referred to as
   3. `webapps`: Execute local script via Web Apps URL (executes `main` function only).
 - **Execution Workflow**:
   - Before running, prompt the user to input the target `Script ID` (for exe1/exe2) or `Web Apps URL` (for webapps). If these parameters are already configured in `ggsrun.cfg`, display them as the default placeholder value.
+  - For `exe1`, the execution is run with sandboxing bypassed (since the user can verify the script manually in FD mode) and automatically rolls back all changes to the remote GAS project by default, ensuring a clean remote project state without prompting.
   - Show the script ID or Web Apps URL being utilized during the execution.
   - Clearly state in the UI that `exe2` and `webapps` only execute the `main` function.
   - If execution fails or is cancelled, safely return the focus to the previous panel/table.
