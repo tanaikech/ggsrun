@@ -1960,16 +1960,6 @@ func TestTUI_GASIntegration(t *testing.T) {
 		})
 		time.Sleep(100 * time.Millisecond)
 
-		// Dismiss delete_script_confirm modal
-		tuiApp.QueueUpdate(func() {
-			_, p := pages.GetFrontPage()
-			confirmModal := findModal(p)
-			if confirmModal != nil {
-				confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-			}
-		})
-		time.Sleep(100 * time.Millisecond)
-
 		// Dismiss conflict_choice modal
 		tuiApp.QueueUpdate(func() {
 			_, p := pages.GetFrontPage()
@@ -2069,16 +2059,6 @@ func TestTUI_GASIntegration(t *testing.T) {
 			input := findInputField(p)
 			if input != nil {
 				input.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
-			}
-		})
-		time.Sleep(100 * time.Millisecond)
-
-		// Dismiss delete_script_confirm modal
-		tuiApp.QueueUpdate(func() {
-			_, p := pages.GetFrontPage()
-			confirmModal := findModal(p)
-			if confirmModal != nil {
-				confirmModal.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
 			}
 		})
 		time.Sleep(100 * time.Millisecond)

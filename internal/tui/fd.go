@@ -1328,6 +1328,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 							"scriptid":   scriptID,
 							"value":      argVal,
 							"jsonparser": "true",
+							"sandbox":    "bypass",
 						}
 						if conflict != "" {
 							flags["conflict"] = conflict
@@ -1417,18 +1418,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 						tuiApp.SetFocus(conflictModal)
 					}
 
-					cleanupModal := tview.NewModal().
-						SetText("Clean up uploaded scripts on remote GAS project after execution? (-d)\n\nSelecting 'Yes' (Default) ensures your remote Google Apps Script project remains clean by removing any uploaded files after execution completes.").
-						AddButtons([]string{"Yes", "No"}).
-						SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-							pages.RemovePage("delete_script_confirm")
-							tuiApp.SetFocus(prevFocus)
-
-							undeleteScript := (buttonLabel == "No")
-							showConflictModal(undeleteScript)
-						})
-					pages.AddPage("delete_script_confirm", cleanupModal, true, true)
-					tuiApp.SetFocus(cleanupModal)
+					showConflictModal(false)
 				} else {
 					doExecute(false, "overwrite")
 				}
