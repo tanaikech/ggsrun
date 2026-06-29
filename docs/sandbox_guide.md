@@ -36,10 +36,10 @@ The native `ggsrun` security sandbox solves this problem. It establishes a local
 
 Unlike traditional virtual machines, the `ggsrun` sandbox operates at the script level by dynamically wrapping Google's built-in APIs before pushing the code to Google Cloud.
 
-### Memory-based Wrapper Injection
+### Memory-based Wrapper Injection & Separate Script File
 1. **Embedded Assets**: The sandbox interception core (`for_sandbox_gas.js`) is statically compiled and embedded directly inside the `ggsrun` Go executable using Go's native `embed` package.
-2. **In-Memory Transformation**: During an `exe1` or MCP `exe1` execution call, `ggsrun` parses the source files, merges them, and prepends the embedded security wrappers entirely in-memory. No temporary wrapper files are written to the local disk, eliminating cleanup failures and race conditions.
-3. **Identifier Replacement**: The parser scans the source script and substitutes references to built-in objects (such as replacing `DriveApp` with `_wrappedDriveApp`). This prevents re-declaration syntax errors within the Google V8 engine.
+2. **Separate Sandbox Script (`_for_sandbox_gas.gs`)**: During an `exe1` execution call, `ggsrun` compiles the whitelist parameters into the embedded template, generating a separate script file named `_for_sandbox_gas.gs`. By starting with an underscore, it is sorted first alphabetically, ensuring the wrappers are initialized before any other script runs.
+3. **Identifier Replacement**: The parser scans the user's source scripts and substitutes references to built-in objects (such as replacing `DriveApp` with `_wrappedDriveApp`). This redirects native calls to the sandbox wrappers defined in `_for_sandbox_gas.gs` without prepending the boilerplate code to the user's scripts.
 
 ### Execution Lifecycle & Diagram
 
@@ -54,10 +54,11 @@ sequenceDiagram
 
     Agent->>Ggsrun: Request exe1 (run script.gs) with --sandbox config
     Note over Ggsrun: Read sandbox_config.json
-    Note over Ggsrun: Transform code & prepend security wrappers
-    Ggsrun->>GAS: Push code & invoke target function
+    Note over Ggsrun: Transform code (replace tokens) & generate _for_sandbox_gas.gs
+    Ggsrun->>GAS: Push code (including _for_sandbox_gas.gs) & invoke target function
+    Note over GAS: GAS V8 compiles files. _for_sandbox_gas.gs is evaluated first (alphabetically)
     Note over GAS: Script begins execution
-    GAS->>GAS: Call checked method (e.g., UrlFetchApp.fetch())
+    GAS->>GAS: Call checked method (e.g., UrlFetchApp.fetch() redirected to _wrappedUrlFetchApp)
     Note over GAS: Security Wrapper intercepts call
     alt Resource/URL is Whitelisted
         GAS->>GAS: Execute original method & return result
@@ -65,6 +66,7 @@ sequenceDiagram
         GAS-->>Ggsrun: Throw "Sandbox Runtime Blocked" Exception
     end
     Ggsrun->>Agent: Return result or detailed Blocked exception JSON
+    Note over Ggsrun: Auto-cleanup (Default): Restore original remote project state, deleting _for_sandbox_gas.gs
 ```
 
 ---

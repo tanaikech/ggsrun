@@ -24,20 +24,23 @@ func TestInjectSandbox(t *testing.T) {
 	}
 
 	// Test 1: Successful injection with valid config
-	res, err := InjectSandbox("Logger.log('hello');", configPath)
+	_, guard, err := InjectSandbox("Logger.log('hello');", configPath)
 	if err != nil {
 		t.Errorf("expected no error, got: %v", err)
 	}
-	if !strings.Contains(res, "var _wrapped") {
-		t.Errorf("expected wrapped script content, got: %s", res)
+	if !strings.Contains(guard, "var _wrapped") {
+		t.Errorf("expected wrapped guard content, got: %s", guard)
 	}
 
 	// Test 2: Bypass mode
-	resBypass, err := InjectSandbox("Logger.log('hello');", "bypass")
+	resBypass, guardBypass, err := InjectSandbox("Logger.log('hello');", "bypass")
 	if err != nil {
 		t.Errorf("expected no error in bypass mode, got: %v", err)
 	}
 	if resBypass != "Logger.log('hello');" {
 		t.Errorf("expected unmodified script in bypass mode, got: %s", resBypass)
+	}
+	if guardBypass != "" {
+		t.Errorf("expected empty guard in bypass mode, got: %s", guardBypass)
 	}
 }

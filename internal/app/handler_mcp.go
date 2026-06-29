@@ -199,10 +199,6 @@ func runMCP(c *cli.Context) error {
 									"type":        "string",
 									"description": "Optional argument/value to pass into the executed function as a parameter. (Fallback option if function array/slice is not used)",
 								},
-								"deleteScript": map[string]interface{}{
-									"type":        "boolean",
-									"description": "If set to true, files uploaded via this specific execution will be automatically deleted from the remote GAS project after execution completes. (Strictly for exe1 only)",
-								},
 								"conflict": map[string]interface{}{
 									"type":        "string",
 									"description": "Conflict resolution strategy when duplicate script name exists: 'overwrite' (default) or 'add' (adds as a new file with unique name suffix like _1).",
@@ -276,9 +272,7 @@ func runMCP(c *cli.Context) error {
 			}
 
 			if name == "exe1" {
-				if _, ok := argsMap["deleteScript"]; !ok {
-					argsMap["deleteScript"] = true
-				}
+				// Cleanup is now the default in exe1, so we don't need to force deleteScript = true.
 				scriptfile, _ := argsMap["scriptfile"].(string)
 				stringscript, _ := argsMap["stringscript"].(string)
 				confirm, _ := argsMap["confirm"].(bool)

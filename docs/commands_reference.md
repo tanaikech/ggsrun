@@ -63,7 +63,7 @@ $ ggsrun <command> [options]
 ### Mode 1: `exe1` (Stateful Project Execution)
 * **Aliases**: `e1`
 * **Purpose**: Relies on the Apps Script API to upload (synchronize) your local script files or directories to the remote GAS project on Google Drive, and then invokes a specified entry function via the Execution API.
-* **When to Use**: You want to run code in the cloud. If you are uploading temporary files/folders and want them cleaned up immediately after execution, you can use the automatic deletion flag. Requires an OAuth Token.
+* **When to Use**: You want to run code in the cloud. By default, uploaded files/folders are automatically cleaned up immediately after execution (safe rollback). To bypass this cleanup, use the `--undeleteScript` / `--ud` flag. Requires an OAuth Token.
 
 #### Command-specific Flags
 | Flag | Shorthand | Type | Description |
@@ -72,7 +72,8 @@ $ ggsrun <command> [options]
 | `--scriptfile` | `-s` | String | Path to local script file (`.gs`, `.js`) or directory to upload. |
 | `--stringscript`| `-ss` | String | Inline GAS script snippet provided as a raw string. |
 | `--function` | `-f` | StringSlice | First declaration sets function name, subsequent declarations are sequential arguments. |
-| `--deleteScript`| `-d` | Boolean | Safely auto-deletes uploaded files remotely post-execution. |
+| `--deleteScript`| `-d` | Boolean | Deprecated: Cleanup is now enabled by default. |
+| `--undeleteScript`| `--ud` | Boolean | Bypass the default cleanup step, leaving the uploaded script in the remote GAS project. |
 | `--conflict` | | String | Remote file conflict strategy: `overwrite` (default) or `add`. |
 | `--jsonparser` | `-j` | Boolean | Mutes terminal UI spinners and returns pure JSON streams. |
 | `--sandbox` | | String | Path to `sandbox_config.json` to sandbox APIs/URLs. Set to `bypass` to disable. |
@@ -83,11 +84,16 @@ $ ggsrun <command> [options]
   $ ggsrun exe1 -i "SCRIPT_ID" -s "my_logic.js" -f "processData" -f "arg_val1" -f "arg_val2"
   ```
   *Here, `processData("arg_val1", "arg_val2")` is triggered remotely.*
-* **Recursively upload a local directory, run a function, and auto-cleanup**:
+* **Recursively upload a local directory and run a function (cleanup by default)**:
   ```bash
-  $ ggsrun exe1 -i "SCRIPT_ID" -s "./src" -f "main" --deleteScript
+  $ ggsrun exe1 -i "SCRIPT_ID" -s "./src" -f "main"
   ```
-  *Recursively uploads `./src`, executes `main()`, and deletes the uploaded files immediately upon completion.*
+  *Recursively uploads `./src`, executes `main()`, and deletes the uploaded files immediately upon completion by default.*
+* **Recursively upload a local directory, run a function, and bypass cleanup**:
+  ```bash
+  $ ggsrun exe1 -i "SCRIPT_ID" -s "./src" -f "main" --ud
+  ```
+  *Recursively uploads `./src`, executes `main()`, and leaves the uploaded files in the remote GAS project.*
 * **Run inline script with default fallback script ID**:
   ```bash
   $ ggsrun exe1 -ss "function main() { return 'Hello!'; }" -f "main" -j
@@ -104,7 +110,7 @@ sequenceDiagram
     participant API as Google Apps Script API
     participant V8 as Cloud V8 Runtime
 
-    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "myFunc" --sandbox "config.json" --deleteScript
+    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "myFunc" --sandbox "config.json"
 
     rect rgb(240, 245, 255)
         note over CLI, API: [1] Load Configs & Memory Backup
@@ -129,7 +135,7 @@ sequenceDiagram
     end
 
     rect rgb(245, 240, 255)
-        note over CLI, API: [4] Auto-Cleanup (--deleteScript / Backed up state)
+        note over CLI, API: [4] Auto-Cleanup (Default / Backed up state)
         CLI->>CLI: Trigger cleanup: restore original file list from memory backup
         CLI->>API: PUT /v1/projects/{id}/content (Upload original files list)
         API-->>CLI: 200 OK (Original Remote State Restored)

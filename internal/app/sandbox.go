@@ -46,9 +46,9 @@ func ensureSlices(config *SandboxConfig) {
 	}
 }
 
-func InjectSandbox(rawScript string, configPath string) (string, error) {
+func InjectSandbox(rawScript string, configPath string) (string, string, error) {
 	if configPath == "bypass" || configPath == "none" {
-		return rawScript, nil
+		return rawScript, "", nil
 	}
 
 	var config SandboxConfig
@@ -57,11 +57,11 @@ func InjectSandbox(rawScript string, configPath string) (string, error) {
 	} else {
 		content, err := os.ReadFile(configPath)
 		if err != nil {
-			return "", fmt.Errorf("failed to read sandbox config file: %w", err)
+			return "", "", fmt.Errorf("failed to read sandbox config file: %w", err)
 		}
 
 		if err := json.Unmarshal(content, &config); err != nil {
-			return "", fmt.Errorf("failed to parse sandbox config JSON: %w", err)
+			return "", "", fmt.Errorf("failed to parse sandbox config JSON: %w", err)
 		}
 	}
 
@@ -108,5 +108,5 @@ func InjectSandbox(rawScript string, configPath string) (string, error) {
 		rawScript = re.ReplaceAllString(rawScript, repl)
 	}
 
-	return guardCode + "\n" + rawScript, nil
+	return rawScript, guardCode, nil
 }

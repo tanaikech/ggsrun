@@ -914,6 +914,7 @@ func createOpContext(mainCtx *cli.Context, extraFlags map[string]string) *cli.Co
 	set.String("value", "", "")
 	set.Bool("backup", false, "")
 	set.Bool("deleteScript", false, "")
+	set.Bool("undeleteScript", false, "")
 	set.Bool("onlyresult", false, "")
 	set.Bool("foldertree", false, "")
 	set.Bool("convert", false, "")
@@ -1321,7 +1322,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 				promptTitle = " [" + modeName + " (main function only)] Argument Value (Optional) "
 			}
 			promptTextInput(promptTitle, "Argument Value: ", "", func(argVal string) {
-				doExecute := func(deleteScript bool, conflict string) {
+				doExecute := func(undeleteScript bool, conflict string) {
 					runTask("Executing script via "+modeName+" (Script ID: "+scriptID+")...", func() error {
 						flags := map[string]string{
 							"scriptid":   scriptID,
@@ -1333,16 +1334,16 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 						}
 						if isExe1 {
 							flags["function"] = funcName
-							if deleteScript {
-								flags["deleteScript"] = "true"
+							if undeleteScript {
+								flags["undeleteScript"] = "true"
 							}
 						}
 
 						if isLocal {
 							if isMultiOrDir {
 								flags["scriptfile"] = scriptFile
-								if isExe1 && deleteScript {
-									flags["deleteScript"] = "true"
+								if isExe1 && undeleteScript {
+									flags["undeleteScript"] = "true"
 								}
 							} else {
 								contentBytes, err := osReadFileFn(scriptFile)
@@ -1350,8 +1351,8 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 									return fmt.Errorf("failed to read local script: %v", err)
 								}
 								flags["stringscript"] = string(contentBytes)
-								if isExe1 && deleteScript {
-									flags["deleteScript"] = "true"
+								if isExe1 && undeleteScript {
+									flags["undeleteScript"] = "true"
 								}
 							}
 						} else {
@@ -1374,8 +1375,8 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 								return fmt.Errorf("no server script files found in the remote GAS project")
 							}
 							flags["stringscript"] = rawScript
-							if isExe1 && deleteScript {
-								flags["deleteScript"] = "true"
+							if isExe1 && undeleteScript {
+								flags["undeleteScript"] = "true"
 							}
 						}
 
@@ -1398,7 +1399,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 				if isExe1 {
 					prevFocus := tuiApp.GetFocus()
 
-					showConflictModal := func(deleteScript bool) {
+					showConflictModal := func(undeleteScript bool) {
 						conflictModal := tview.NewModal().
 							SetText("Duplicate filename conflict resolution strategy?\n\nChoose 'Overwrite' (Default) to replace existing script files in the remote GAS project, or 'Add' to upload as new files with unique names.").
 							AddButtons([]string{"Overwrite", "Add"}).
@@ -1410,7 +1411,7 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 								if buttonLabel == "Add" {
 									conflictChoice = "add"
 								}
-								doExecute(deleteScript, conflictChoice)
+								doExecute(undeleteScript, conflictChoice)
 							})
 						pages.AddPage("conflict_choice", conflictModal, true, true)
 						tuiApp.SetFocus(conflictModal)
@@ -1423,8 +1424,8 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 							pages.RemovePage("delete_script_confirm")
 							tuiApp.SetFocus(prevFocus)
 
-							deleteScript := (buttonLabel == "Yes")
-							showConflictModal(deleteScript)
+							undeleteScript := (buttonLabel == "No")
+							showConflictModal(undeleteScript)
 						})
 					pages.AddPage("delete_script_confirm", cleanupModal, true, true)
 					tuiApp.SetFocus(cleanupModal)

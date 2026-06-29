@@ -2238,11 +2238,11 @@ func TestTUI_LocalDirectoryExecution(t *testing.T) {
 	// Mock TuiRunExe1 call
 	var execGasCalled bool
 	var scriptFileUsed string
-	var deleteScriptVal string
+	var undeleteScriptVal string
 	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
 		execGasCalled = true
 		scriptFileUsed = ctx.String("scriptfile")
-		deleteScriptVal = fmt.Sprintf("%v", ctx.Bool("deleteScript"))
+		undeleteScriptVal = fmt.Sprintf("%v", ctx.Bool("undeleteScript"))
 		return `{"result": "Success Exe1!"}`, nil
 	}
 
@@ -2286,8 +2286,8 @@ func TestTUI_LocalDirectoryExecution(t *testing.T) {
 	if scriptFileUsed != "/mock/my-script-dir" {
 		t.Errorf("Expected scriptfile argument to be '/mock/my-script-dir', got: '%s'", scriptFileUsed)
 	}
-	if deleteScriptVal != "true" {
-		t.Errorf("Expected deleteScript to be true, got: '%s'", deleteScriptVal)
+	if undeleteScriptVal != "false" {
+		t.Errorf("Expected undeleteScript to be false, got: '%s'", undeleteScriptVal)
 	}
 }
 

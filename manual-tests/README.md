@@ -45,7 +45,7 @@ echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-1
 * The server outputs initialization/diagnostic messages on `stderr` (e.g. `🤖 ggsrun MCP Server initialized`).
 * It outputs a single, clean JSON-RPC response on `stdout` matching the standard structure:
   ```json
-  {"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"ggsrun-mcp-server","version":"5.3.4"}}}
+  {"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"ggsrun-mcp-server","version":"5.3.10"}}}
   ```
 
 ### Test Case B: List Available Tools
@@ -63,14 +63,14 @@ echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":2}' | GGSRUN_CFG_P
 
 ## 3. Security Sandbox & Whitelisting (`exe1`)
 
-Verify that local/remote Google Apps Script execution can be sandboxed using the native `--sandbox` option.
+Verify that local/remote Google Apps Script execution can be sandboxed using the native `--sandbox` option. By default, `ggsrun` will automatically clean up (rollback) any uploaded script files from the remote GAS project after execution. If you wish to leave the uploaded files in the remote project, append the `--ud` / `--undeleteScript` option to your command.
 
 ### Test Case A: Sandbox Bypass / Direct Execution
 In this mode, sandboxing is completely disabled. `ggsrun` will upload and execute the script directly on GAS without any wrapper injection.
 
 **Run Command:**
 ```bash
-GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite -d --sandbox bypass
+GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite --sandbox bypass
 ```
 *(Note: You can also use `--sandbox none`)*
 
@@ -84,7 +84,7 @@ When `--sandbox` is left empty or omitted, `ggsrun` defaults to applying a stric
 
 **Run Command:**
 ```bash
-GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite -d --sandbox ""
+GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite --sandbox ""
 ```
 
 **Expected Result:**
@@ -107,7 +107,7 @@ In this mode, you pass a user-defined configuration JSON file listing the allowe
 
 **Run Command:**
 ```bash
-GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite -d --sandbox manual-tests/sandbox_config.json
+GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main --conflict overwrite --sandbox manual-tests/sandbox_config.json
 ```
 
 **Expected Result:**

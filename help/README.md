@@ -491,7 +491,8 @@ OPTIONS:
    --stringscript value, -ss value   GAS script provided directly as strings.
    --function value, -f value        Function name which is executed. Subsequent '-f' flags represent arguments sequentially. If script ID (-i) is omitted but -f is provided, the script_id from ggsrun.cfg will be used. Default is 'main'.
    --value value, -v value           Give a value to the function which is executed. (Fallback option if subsequent '-f' is not used)
-   --deleteScript, -d                Automatically and safely delete uploaded files from the remote GAS project after execution completes. (Strictly for exe1 only)
+   --deleteScript, -d                Deprecated: Cleanup is now enabled by default. Use --undeleteScript / --ud to bypass cleanup.
+   --undeleteScript, --ud            Bypass the default cleanup step, leaving the uploaded script in the remote GAS project. (Strictly for exe1 only)
    --conflict value                  Conflict resolution strategy when duplicate script name exists: 'overwrite' or 'add'.
    --backup, -b                      Backup project with script ID you set as a local file.
    --onlyresult, -r                  Display only 'result' field in JSON outputs.

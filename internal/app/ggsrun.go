@@ -36,13 +36,13 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.9"
+	app.Version = "5.3.10"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
 			Aliases:     []string{"e1"},
 			Usage:       "Updates the GAS project with a local script or directory and executes a specified function.",
-			Description: "Requires an access token. Synchronizes local scripts or directories to the Drive project and triggers the execution API.\n\nAPI & URL Sandboxing (Default: STRICT BLOCK ALL):\n  To restrict Google APIs and external URL requests during execution, use the '--sandbox' option.\n  - Default behavior (option omitted or '--sandbox \"\"'): Applies an ultra-strict sandboxing with empty whitelists, blocking all external requests (Drive, Mail, URL fetch, etc.).\n  - To specify a custom whitelist: Pass the path to a JSON configuration file (e.g. '--sandbox sandbox_config.json').\n  - To completely disable sandboxing: Pass '--sandbox bypass' or '--sandbox none'.\n\n  The sandbox configuration JSON structure must follow this format:\n  {\n    \"allowedFileIds\": [\"id1\"],        // Whitelisted Drive file IDs\n    \"allowedFolderIds\": [\"id2\"],      // Whitelisted Drive folder IDs\n    \"allowedCalendarIds\": [\"primary\"],// Whitelisted Calendar IDs\n    \"allowedEventIds\": [],            // Whitelisted Calendar Event IDs\n    \"allowedEmails\": [\"a@b.com\"],     // Whitelisted email recipients for Mail/Gmail\n    \"allowedUrls\": [\"https://*\"],     // Whitelisted URL patterns (supports '*' wildcard)\n    \"blockedUrls\": [\"https://xxx\"]    // Blacklisted URL patterns (highest priority)\n  }\n\nUsage Examples:\n  1. Execute a local script file with sequential arguments:\n     ggsrun e1 -i [SCRIPT_ID] -f myFunction -f \"arg1\" -f \"arg2\"\n\n  2. Execute a local directory with automated cleanup:\n     ggsrun e1 -i [SCRIPT_ID] -s path/to/dir -f myFunction -d\n\n  3. Execute an inline script:\n     ggsrun e1 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  4. Execute via standard input (pipe):\n     cat script.js | ggsrun e1 -i [SCRIPT_ID]\n\n  5. Run and backup the project before updating:\n     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b\n\n  6. Execute a stateless beacon request:\n     ggsrun e1 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
+			Description: "Requires an access token. Synchronizes local scripts or directories to the Drive project and triggers the execution API.\n\nAPI & URL Sandboxing (Default: STRICT BLOCK ALL):\n  To restrict Google APIs and external URL requests during execution, use the '--sandbox' option.\n  - Default behavior (option omitted or '--sandbox \"\"'): Applies an ultra-strict sandboxing with empty whitelists, blocking all external requests (Drive, Mail, URL fetch, etc.).\n  - To specify a custom whitelist: Pass the path to a JSON configuration file (e.g. '--sandbox sandbox_config.json').\n  - To completely disable sandboxing: Pass '--sandbox bypass' or '--sandbox none'.\n\n  The sandbox configuration JSON structure must follow this format:\n  {\n    \"allowedFileIds\": [\"id1\"],        // Whitelisted Drive file IDs\n    \"allowedFolderIds\": [\"id2\"],      // Whitelisted Drive folder IDs\n    \"allowedCalendarIds\": [\"primary\"],// Whitelisted Calendar IDs\n    \"allowedEventIds\": [],            // Whitelisted Calendar Event IDs\n    \"allowedEmails\": [\"a@b.com\"],     // Whitelisted email recipients for Mail/Gmail\n    \"allowedUrls\": [\"https://*\"],     // Whitelisted URL patterns (supports '*' wildcard)\n    \"blockedUrls\": [\"https://xxx\"]    // Blacklisted URL patterns (highest priority)\n  }\n\nUsage Examples:\n  1. Execute a local script file with sequential arguments (cleanup is default):\n     ggsrun e1 -i [SCRIPT_ID] -f myFunction -f \"arg1\" -f \"arg2\"\n\n  2. Execute a local directory with automated cleanup bypassed:\n     ggsrun e1 -i [SCRIPT_ID] -s path/to/dir -f myFunction --ud\n\n  3. Execute an inline script:\n     ggsrun e1 -i [SCRIPT_ID] -ss \"function main() { return 'hello'; }\"\n\n  4. Execute via standard input (pipe):\n     cat script.js | ggsrun e1 -i [SCRIPT_ID]\n\n  5. Run and backup the project before updating:\n     ggsrun e1 -i [SCRIPT_ID] -s script.gs -b\n\n  6. Execute a stateless beacon request:\n     ggsrun e1 -ss \"const main = (_) => ggsrunif.Beacon();\" -j",
 			Action:      exeAPIWithout,
 			Flags: append([]cli.Flag{
 				&cli.StringFlag{
@@ -67,7 +67,11 @@ func Run() {
 				},
 				&cli.BoolFlag{
 					Name:  "deleteScript, d",
-					Usage: "Automatically and safely delete uploaded files from the remote GAS project after execution completes. (Strictly for exe1 only)",
+					Usage: "Deprecated: Cleanup is now enabled by default. Use --undeleteScript / --ud to bypass cleanup.",
+				},
+				&cli.BoolFlag{
+					Name:  "undeleteScript, ud",
+					Usage: "Bypass the default cleanup step, leaving the uploaded script in the remote GAS project. Even in this case, the appsscript.json must still be merged properly to preserve executable APIs, WebApps, and other system-level settings. (Strictly for exe1 only)",
 				},
 				&cli.StringFlag{
 					Name:  "conflict",

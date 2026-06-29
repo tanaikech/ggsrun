@@ -40,10 +40,12 @@ Before uploading the code to the remote Google Cloud environment, `ggsrun` check
    * `SpreadsheetApp` $\rightarrow$ `_wrappedSpreadsheetApp`
    * `UrlFetchApp` $\rightarrow$ `_wrappedUrlFetchApp`
 
-3. **Prepending `for_sandbox_gas.js`:**
-   The `for_sandbox_gas.js` runtime security template is prepended to the script. This script declares the proxy objects (like `_wrappedSpreadsheetApp` and `_wrappedUrlFetchApp`) which intercept the calls, perform whitelist checks, and throw a **`Sandbox Runtime Blocked`** error if unauthorized resource IDs or domains are requested.
+3. **Separate Sandbox Script (`_for_sandbox_gas.gs`):**
+   The sandbox wrapper code (containing the whitelists and the proxy objects) is generated as a separate file named `_for_sandbox_gas.gs`. By starting with an underscore, it is sorted first alphabetically, ensuring the wrappers are initialized before any other script runs.
 
-### The Resulting Script Uploaded to Google Apps Script
+### The Resulting Scripts Uploaded to Google Apps Script
+
+#### File 1: `_for_sandbox_gas.gs` (Separate Sandbox Script)
 ```javascript
 // === SANDBOX SECURITY GUARD INJECTED ===
 function createSafeWrapper(original, overrides) { ... }
@@ -72,7 +74,10 @@ var _wrappedUrlFetchApp = (function(global) {
   });
 })(this);
 // === END OF SANDBOX SECURITY GUARD ===
+```
 
+#### File 2: `my_script.gs` (User Script with Token Replacement)
+```javascript
 // Original Script (Statically Replaced)
 function main() {
   var sheet = _wrappedSpreadsheetApp.openById('1A2B3C4D5E...');
@@ -87,7 +92,7 @@ function main() {
 
 ## 3. End-to-End Architectural Flow
 
-The entire end-to-end lifecycle under the hood in `ggsrun` behaves as follows, visualizing the CLI interaction with `--sandbox` and `--deleteScript` options:
+The entire end-to-end lifecycle under the hood in `ggsrun` behaves as follows, visualizing the CLI interaction with `--sandbox` and the default cleanup behavior:
 
 ```mermaid
 sequenceDiagram
@@ -97,11 +102,11 @@ sequenceDiagram
     participant API as Google Apps Script API
     participant V8 as Cloud V8 Runtime
 
-    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "main" --sandbox "config.json" --deleteScript
+    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "main" --sandbox "config.json"
 
     rect rgb(240, 245, 255)
         note over CLI, API: [1] Load Configs & Memory Backup
-        CLI->>CLI: Read --sandbox "config.json" (whitelists)<br/>InjectSandbox() on "my_script.js" (replace objects with wrappers)
+        CLI->>CLI: Read --sandbox "config.json" (whitelists)<br/>InjectSandbox() on "my_script.js" (replace tokens & generate _for_sandbox_gas.gs)
         CLI->>API: GET /v1/projects/{id}/content (Get file list)
         API-->>CLI: Return current remote project files
         CLI->>CLI: Store original files list in-memory as backup
@@ -109,15 +114,15 @@ sequenceDiagram
 
     rect rgb(240, 250, 240)
         note over CLI, API: [2] Push Sandbox-Injected Files
-        CLI->>CLI: Append/overwrite project files in memory with sandboxed script
-        CLI->>API: PUT /v1/projects/{id}/content (Upload updated files list)
+        CLI->>CLI: Add _for_sandbox_gas.gs and token-replaced scripts to the files list in memory
+        CLI->>API: PUT /v1/projects/{id}/content (Upload updated files list including _for_sandbox_gas.gs)
         API-->>CLI: 200 OK (Project Updated)
     end
 
     rect rgb(255, 245, 240)
         note over CLI, V8: [3] Remote Guarded Execution
         CLI->>API: POST /v1/scripts/{id}:run (Execute "main")
-        API->>V8: Compiles & runs "main" under sandbox rules
+        API->>V8: Compiles files. _for_sandbox_gas.gs is evaluated first (alphabetically). Runs "main" under sandbox rules.
         
         alt Execution Scenario A: Whitelisted Actions (Success)
             V8->>V8: Safe wrapper verification check passed! Forward to native Apps Script API
@@ -131,7 +136,7 @@ sequenceDiagram
     rect rgb(245, 240, 255)
         note over CLI, API: [4] Auto-Cleanup & Resilient Rollback
         CLI->>CLI: Trigger cleanup: restore original file list from memory backup<br/>(Fires on success, error, or OS Signal interrupt)
-        CLI->>API: PUT /v1/projects/{id}/content (Upload original files list)
+        CLI->>API: PUT /v1/projects/{id}/content (Upload original files list, deleting _for_sandbox_gas.gs)
         API-->>CLI: 200 OK (Original Remote State Restored)
     end
 

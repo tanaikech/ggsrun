@@ -33,15 +33,41 @@ var (
 
 // Exe1Function : Updates the project and executes the script.
 func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
+	var sandboxGuardCode string
+
+	injectSandboxGuard := func() {
+		if sandboxGuardCode != "" {
+			found := false
+			for i, f := range e.Project.Files {
+				if f.Name == "_for_sandbox_gas" {
+					e.Project.Files[i].Source = sandboxGuardCode
+					e.Project.Files[i].Type = "SERVER_JS"
+					found = true
+					break
+				}
+			}
+			if !found {
+				e.Project.Files = append(e.Project.Files, File{
+					Name:   "_for_sandbox_gas",
+					Type:   "SERVER_JS",
+					Source: sandboxGuardCode,
+				})
+			}
+		}
+	}
 
 	if c.String("stringscript") != "" {
 		rawScript := c.String("stringscript")
 		var err error
-		rawScript, err = InjectSandbox(rawScript, c.String("sandbox"))
+		var guard string
+		rawScript, guard, err = InjectSandbox(rawScript, c.String("sandbox"))
 		if err != nil {
 			e.FailStatus("Sandbox Injection Error")
 			pterm.Error.Println(err)
 			utl.Exit(1)
+		}
+		if guard != "" {
+			sandboxGuardCode = guard
 		}
 		timestamp := time.Now().Format("20060102150405")
 		tempFileName := "ggsrun_exe1_temp_" + timestamp
@@ -54,6 +80,7 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 			Source: rawScript,
 		}
 		e.Project.Files = append(e.Project.Files, filedata)
+		injectSandboxGuard()
 		e.projectUpdate2()
 
 		e.InitVal.tempFileNameToCleanup = tempFileName
@@ -64,11 +91,15 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 			pterm.Error.Println(err)
 			utl.Exit(1)
 		}
-		rawScript, err = InjectSandbox(rawScript, c.String("sandbox"))
+		var guard string
+		rawScript, guard, err = InjectSandbox(rawScript, c.String("sandbox"))
 		if err != nil {
 			e.FailStatus("Sandbox Injection Error")
 			pterm.Error.Println(err)
 			utl.Exit(1)
+		}
+		if guard != "" {
+			sandboxGuardCode = guard
 		}
 		timestamp := time.Now().Format("20060102150405")
 		tempFileName := "ggsrun_exe1_temp_" + timestamp
@@ -81,6 +112,7 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 			Source: rawScript,
 		}
 		e.Project.Files = append(e.Project.Files, filedata)
+		injectSandboxGuard()
 		e.projectUpdate2()
 
 		e.InitVal.tempFileNameToCleanup = tempFileName
@@ -295,11 +327,15 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 				source := utl.ConvGasToUpload(elm)
 				if filetype == "SERVER_JS" {
 					var err error
-					source, err = InjectSandbox(source, c.String("sandbox"))
+					var guard string
+					source, guard, err = InjectSandbox(source, c.String("sandbox"))
 					if err != nil {
 						e.FailStatus("Sandbox Injection Error")
 						pterm.Error.Println(err)
 						utl.Exit(1)
+					}
+					if guard != "" {
+						sandboxGuardCode = guard
 					}
 				}
 
@@ -373,6 +409,7 @@ func (e *ExecutionContainer) exe1Function(c *cli.Context) *ExecutionContainer {
 			}
 		}
 
+		injectSandboxGuard()
 		e.projectUpdate2()
 
 		if c.Bool("deleteScript") {

@@ -6,6 +6,12 @@
 
 ## ggsrun
 
+- **v5.3.10 (June 2026) - Default Safe Cleanup, Separate Sandbox Script, and MCP Hardening**
+  1. **Default Script Cleanup**: Enabled remote project restoration by default for `exe1` execution. After execution completes or on process termination (such as `Ctrl+C`), the remote project is automatically restored to its pre-execution state from memory backup.
+  2. **Bypass Cleanup Flag**: Introduced the `--undeleteScript` / `--ud` flag to bypass the default cleanup, leaving the uploaded scripts in the remote GAS project.
+  3. **Separate Sandbox Script (`_for_sandbox_gas.gs`)**: Re-engineered the sandbox wrapper injection. Instead of prepending the 13KB guard code to every execution script, the sandbox guard is uploaded as a separate file named `_for_sandbox_gas.gs`. Static token replacement is still performed on the execution scripts. By starting the filename with an underscore, it is sorted first alphabetically, ensuring the wrappers are initialized before any other script runs.
+  4. **MCP Server Security Hardening**: Removed the `undeleteScript` option from the MCP server's `exe1` tool. LLM clients can no longer bypass cleanup, ensuring that all agent-triggered executions are always cleanly rolled back.
+
 - **v5.3.9 (June 2026) - Manifest Auto-Merging, Robust Rollback and Project Recovery Command**
   1. **Advanced Manifest (appsscript.json) Merging**: Upgraded the `exe1` script and directory upload logic to perform a deep merge of local and remote `appsscript.json` manifests. Now, dependencies such as `libraries` (e.g., `ggsrunif`) and `enabledAdvancedServices` (e.g., `Drive` API) are merged without duplicates or overwriting other critical properties like `executionApi` and `webapp`.
   2. **Robust Project Rollback & Cleanup**: Re-engineered the rollback mechanics. When running `ggsrun exe1` with `-d`/`--deleteScript` (or executing via TUI/FD and MCP server), `ggsrun` now guarantees to restore the entire remote project state (including both `appsscript.json` and all script files) back to the pristine memory-backed state upon execution completion or process termination (such as Ctrl+C/SIGINT).
