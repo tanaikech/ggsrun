@@ -175,8 +175,8 @@ func TuiCreateDriveFolder(name string, parentID string, a *AuthContainer) (strin
 	return res.ID, nil
 }
 
-// TuiRunExe1 runs the exe1 command logic and returns the response payload as a JSON string.
-func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
+// TuiRunExe1 runs the exe1 command logic and returns the response payload, start time, and last process ID.
+func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, startTime time.Time, lastProcessID string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("internal process exited: %v", r)
@@ -260,12 +260,16 @@ func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
 	}()
 
 	if err := e.autoValidateAndDeployManifest(c, "e1"); err != nil {
-		return "", err
+		return "", time.Time{}, "", err
 	}
 
 	e.exe1Function(c).
 		executionAPIwithoutServer(c).
 		esenderForExe1(c)
+
+	if len(e.Msg) > 0 {
+		e.FeedBackData.Response.Result.Message = e.Msg
+	}
 
 	if len(e.FeedBackData.Error.Message) > 0 {
 		var errMsg string
@@ -275,14 +279,23 @@ func TuiRunExe1(c *cli.Context, a *AuthContainer) (resp string, err error) {
 			errMsg = e.FeedBackData.Error.Message
 		}
 		b, _ := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
-		return string(b), fmt.Errorf("Script Error on GAS side: %s (code: %d)", errMsg, e.FeedBackData.Error.Code)
+		return string(b), e.InitVal.pstart, e.LastProcessID, fmt.Errorf("Script Error on GAS side: %s (code: %d)", errMsg, e.FeedBackData.Error.Code)
 	}
 
 	b, err := json.MarshalIndent(e.FeedBackData.Response.Result, "", "  ")
 	if err != nil {
-		return "", err
+		return "", time.Time{}, "", err
 	}
-	return string(b), nil
+	return string(b), e.InitVal.pstart, e.LastProcessID, nil
+}
+
+// TuiFetchLogsOnly fetches logs from Cloud Logging for a completed TUI execution session.
+func TuiFetchLogsOnly(a *AuthContainer, startTime time.Time, functionName string, lastProcessID string) ([]GASLog, error) {
+	e := a.defExecutionContainer()
+	// Create a dummy cli.Context
+	c := &cli.Context{}
+	logs := e.fetchGASLogs(c, startTime, functionName, lastProcessID)
+	return logs, nil
 }
 
 // TuiRunExe2 runs the exe2 command logic and returns the response payload as a JSON string.

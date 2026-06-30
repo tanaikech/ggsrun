@@ -15,25 +15,37 @@ import (
 
 // resolveConfigFile determines the exact path to ggsrun.cfg based on strict priority.
 func (i *InitVal) resolveConfigFile() string {
+	targetCfgFile := cfgFile
+	if i.profile != "" {
+		targetCfgFile = "ggsrun_" + i.profile + ".cfg"
+	}
+
 	// Priority 1: --config flag explicitly sets the path
 	if i.customConfig != "" {
-		return filepath.Join(i.customConfig, cfgFile)
+		return filepath.Join(i.customConfig, targetCfgFile)
 	}
 	// Priority 2: --credentials implicit path binding
 	if i.customCred != "" {
-		return filepath.Join(filepath.Dir(i.customCred), cfgFile)
+		return filepath.Join(filepath.Dir(i.customCred), targetCfgFile)
 	}
-	// Priority 3: Current working directory
-	pCwd := filepath.Join(i.workdir, cfgFile)
-	if _, err := os.Stat(pCwd); err == nil || i.isAuthCmd {
+	// Priority 3: Current working directory (if file exists)
+	pCwd := filepath.Join(i.workdir, targetCfgFile)
+	if _, err := os.Stat(pCwd); err == nil {
 		return pCwd
 	}
-	// Priority 4: GGSRUN_CFG_PATH environment variable
+	// Priority 4: GGSRUN_CFG_PATH environment variable (if file exists)
 	if i.envConfig != "" {
-		pEnv := filepath.Join(i.envConfig, cfgFile)
+		pEnv := filepath.Join(i.envConfig, targetCfgFile)
 		if _, err := os.Stat(pEnv); err == nil {
 			return pEnv
 		}
+	}
+	// Priority 5: If it is auth/setup command, default to GGSRUN_CFG_PATH (if set) or CWD
+	if i.isAuthCmd {
+		if i.envConfig != "" {
+			return filepath.Join(i.envConfig, targetCfgFile)
+		}
+		return pCwd
 	}
 	return pCwd
 }

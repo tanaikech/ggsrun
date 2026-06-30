@@ -498,6 +498,25 @@ func (e *ExecutionContainer) dispResult(c *cli.Context) {
 		list.Render()
 	}
 
+	if len(res.Log) > 0 {
+		pterm.Println()
+		pterm.DefaultSection.Println("Google Apps Script Console Logs")
+		for _, l := range res.Log {
+			sevStr := l.Severity
+			switch l.Severity {
+			case "ERROR":
+				sevStr = pterm.Red(l.Severity)
+			case "WARNING":
+				sevStr = pterm.Yellow(l.Severity)
+			case "INFO":
+				sevStr = pterm.Blue(l.Severity)
+			case "DEBUG":
+				sevStr = pterm.Gray(l.Severity)
+			}
+			pterm.Printf("[%s] %s - %s\n", sevStr, l.Timestamp, l.Message)
+		}
+	}
+
 	pterm.Println()
 	pterm.DefaultSection.Println("Result Payload")
 

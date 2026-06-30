@@ -63,6 +63,9 @@ type InitVal struct {
 	tempFileNameToCleanup  string
 	uploadedFilesToCleanup []string
 	originalFiles          []File
+	profile               string // Config profile name
+	autoConfirm           bool   // Auto-confirm flag (--yes)
+	LastProcessID         string
 }
 
 // UpdateStatus safely updates the TUI spinner text if active.
@@ -109,6 +112,8 @@ type GgsrunCfg struct {
 	Scopes              []string `json:"scopes"`
 	ExecutionApiChecked bool     `json:"execution_api_checked,omitempty"`
 	WebappsUrl          string   `json:"webapps_url,omitempty"`
+	Projectid           string   `json:"project_id,omitempty"`
+	UseGcloudAuth       bool     `json:"use_gcloud_auth,omitempty"`
 }
 
 // Cinstalled : File of client-secret.json
@@ -224,10 +229,18 @@ type ErrorMsg struct {
 	} `json:"scriptStackTraceElements,omitempty"`
 }
 
+// GASLog : Log entry from Cloud Logging
+type GASLog struct {
+	Timestamp string `json:"timestamp"`
+	Severity  string `json:"severity"`
+	Message   string `json:"message"`
+}
+
 // Resvalue : Results of ggsrun
 type Resvalue struct {
 	Result              interface{}   `json:"result"`
 	Logger              []interface{} `json:"logger,omitempty"`
+	Log                 []GASLog      `json:"log,omitempty"`
 	GoogleEt            float64       `json:"GoogleElapsedTime,omitempty"`
 	TotalEt             float64       `json:"TotalElapsedTime,omitempty"`
 	Date                string        `json:"ScriptDate,omitempty"`
@@ -319,6 +332,8 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	a.InitVal.customConfig = c.String("config")
 	a.InitVal.customCred = c.String("credentials")
 	a.InitVal.envConfig = os.Getenv(cfgpathenv)
+	a.InitVal.profile = c.String("profile")
+	a.InitVal.autoConfirm = c.Bool("yes")
 
 	if c.Command.Name == "exe1" || c.Command.Name == "e1" || len(c.StringSlice("function")) > 0 {
 		fSlice := c.StringSlice("function")

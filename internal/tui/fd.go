@@ -1385,14 +1385,89 @@ func collectExeParams(isExe1 bool, isLocal bool, scriptFile string, remoteScript
 						opCtx := createOpContext(mainCtx, flags)
 						var resp string
 						var err error
+						var startTime time.Time
+						var lastProcessID string
 						if isExe1 {
-							resp, err = tuiRunExe1Fn(opCtx, authContainer)
+							resp, startTime, lastProcessID, err = tuiRunExe1Fn(opCtx, authContainer)
 						} else {
 							resp, err = tuiRunExe2Fn(opCtx, authContainer)
 						}
 
 						tuiApp.QueueUpdateDraw(func() {
+							// 1. Immediately show the execution result (without logs)
 							showExecutionResult(funcName, resp, err)
+
+							// Skip the confirmation modal during automated tests to prevent blocking
+							isTest := flag.Lookup("test.v") != nil
+
+							if isExe1 && err == nil && !isTest {
+								// 2. Overlay the logs confirmation modal on top of the result screen
+								confirmModal := tview.NewModal().
+									SetText("Do you want to retrieve execution logs from Cloud Logging?\n(It may take 5-10 seconds)").
+									AddButtons([]string{"Yes", "No"}).
+									SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+										pages.RemovePage("log_confirm")
+										if buttonLabel == "Yes" {
+											// 3. Show loading status modal on top
+											statusModal := tview.NewModal().
+												SetText("Retrieving execution logs from Cloud Logging...\n(Please wait)").
+												AddButtons([]string{}) // Pure loading indicator
+											pages.AddPage("status_modal", statusModal, true, true)
+											tuiApp.SetFocus(statusModal)
+
+											go func() {
+												// 4. Fetch logs in the background with the extended 6-second post-detection window
+												logs, fetchErr := app.TuiFetchLogsOnly(authContainer, startTime, funcName, lastProcessID)
+												tuiApp.QueueUpdateDraw(func() {
+													pages.RemovePage("status_modal")
+													
+													// Restore focus to the execution result TextView
+													if pr := pages.GetPage("execution_result"); pr != nil {
+														if frontPage, ok := pr.(*tview.Flex); ok {
+															if innerFlex, ok := frontPage.GetItem(1).(*tview.Flex); ok {
+																if textView, ok := innerFlex.GetItem(1).(*tview.TextView); ok {
+																	tuiApp.SetFocus(textView)
+																}
+															}
+														}
+													}
+
+													if fetchErr == nil && len(logs) > 0 {
+														var resVal struct {
+															Result  interface{}   `json:"result"`
+															Logger  []interface{} `json:"logger,omitempty"`
+															TotalEt float64       `json:"TotalElapsedTime,omitempty"`
+															API     string        `json:"API,omitempty"`
+															Log     []app.GASLog  `json:"log,omitempty"`
+															Message []string      `json:"message,omitempty"`
+														}
+														if json.Unmarshal([]byte(resp), &resVal) == nil {
+															resVal.Log = logs
+															if updatedBytes, errMarshal := json.MarshalIndent(resVal, "", "  "); errMarshal == nil {
+																resp = string(updatedBytes)
+															}
+														}
+														// 5. Dynamically update the already open result screen
+														showExecutionResult(funcName, resp, err)
+													}
+												})
+											}()
+										} else {
+											// Restore focus to the execution result TextView if user selected "No"
+											if pr := pages.GetPage("execution_result"); pr != nil {
+												if frontPage, ok := pr.(*tview.Flex); ok {
+													if innerFlex, ok := frontPage.GetItem(1).(*tview.Flex); ok {
+														if textView, ok := innerFlex.GetItem(1).(*tview.TextView); ok {
+															tuiApp.SetFocus(textView)
+														}
+													}
+												}
+											}
+										}
+									})
+								pages.AddPage("log_confirm", confirmModal, true, true)
+								tuiApp.SetFocus(confirmModal)
+							}
 						})
 						return nil
 					})
@@ -1546,14 +1621,88 @@ func showExecutionResult(funcName string, resp string, err error) {
 
 	content := ""
 	if err != nil {
-		content = fmt.Sprintf("Error executing function:\n%v\n\nResponse details:\n%s", err, resp)
+		content = fmt.Sprintf("[red]Error executing function:[white]\n%v\n\n[yellow]Response details:[white]\n%s", err, resp)
 	} else {
-		content = fmt.Sprintf("Function '%s' executed successfully!\n\nResponse JSON:\n%s", funcName, resp)
+		// Parse response JSON to display human-readable report
+		var res struct {
+			Result    interface{}   `json:"result"`
+			Log       []app.GASLog  `json:"log"`
+			Message   []string      `json:"message"`
+			TotalEt   float64       `json:"TotalElapsedTime"`
+			API       string        `json:"API"`
+		}
+
+		if errParse := json.Unmarshal([]byte(resp), &res); errParse == nil {
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("[green]Function '%s' executed successfully![white]\n\n", funcName))
+			sb.WriteString("==================================================\n")
+			sb.WriteString(" Google Apps Script Execution Report\n")
+			sb.WriteString("==================================================\n")
+			sb.WriteString(fmt.Sprintf("API Endpoint   : %s\n", res.API))
+			sb.WriteString(fmt.Sprintf("Execution Time : %.3f sec\n", res.TotalEt))
+			
+			// Format result payload
+			resBytes, errRes := json.MarshalIndent(res.Result, "", "  ")
+			if errRes == nil {
+				sb.WriteString(fmt.Sprintf("Result Payload : %s\n", string(resBytes)))
+			} else {
+				sb.WriteString(fmt.Sprintf("Result Payload : %v\n", res.Result))
+			}
+
+			if len(res.Log) > 0 {
+				sb.WriteString("\n--------------------------------------------------\n")
+				sb.WriteString(" Google Apps Script Console Logs\n")
+				sb.WriteString("--------------------------------------------------\n")
+				for _, l := range res.Log {
+					sevStr := l.Severity
+					switch l.Severity {
+					case "ERROR":
+						sevStr = "[red]ERROR[white]"
+					case "WARNING":
+						sevStr = "[yellow]WARNING[white]"
+					case "INFO":
+						sevStr = "[blue]INFO[white]"
+					case "DEBUG":
+						sevStr = "[gray]DEBUG[white]"
+					}
+					tStr := l.Timestamp
+					if len(tStr) >= 19 {
+						tStr = tStr[11:19] // Show HH:MM:SS
+					}
+					sb.WriteString(fmt.Sprintf("[%s] %s - %s\n", sevStr, tStr, l.Message))
+				}
+			}
+
+			if len(res.Message) > 0 {
+				sb.WriteString("\n--------------------------------------------------\n")
+				sb.WriteString(" System Message Logs\n")
+				sb.WriteString("--------------------------------------------------\n")
+				for _, m := range res.Message {
+					sb.WriteString(fmt.Sprintf("* %s\n", m))
+				}
+			}
+
+			content = sb.String()
+		} else {
+			content = fmt.Sprintf("[green]Function '%s' executed successfully![white]\n\n[yellow]Response JSON:[white]\n%s", funcName, resp)
+		}
+	}
+
+	// If the result page is already open, dynamically update the TextView and redraw
+	if pages.HasPage("execution_result") {
+		if frontPage, ok := pages.GetPage("execution_result").(*tview.Flex); ok {
+			if innerFlex, ok := frontPage.GetItem(1).(*tview.Flex); ok {
+				if textView, ok := innerFlex.GetItem(1).(*tview.TextView); ok {
+					textView.SetText(content)
+					return
+				}
+			}
+		}
 	}
 
 	textView := tview.NewTextView().
 		SetText(content).
-		SetDynamicColors(false)
+		SetDynamicColors(true)
 
 	textView.SetBorder(true).
 		SetTitle(" Execution Result: " + funcName + " ").

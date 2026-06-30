@@ -41,6 +41,7 @@ $ ggsrun <command> [options]
 | :--- | :--- | :--- | :--- |
 | `--credentials <path>` | `--cred` | String | Absolute path to a custom Google Cloud credentials JSON file. |
 | `--config <dir>` | `--conf` | String | Custom folder containing `ggsrun.cfg` (overrides default search priorities). |
+| `--profile <name>` | | String | Specify a configuration profile name (e.g., `--profile dev` loads/saves `ggsrun_dev.cfg`). |
 
 ---
 
@@ -77,6 +78,7 @@ $ ggsrun <command> [options]
 | `--conflict` | | String | Remote file conflict strategy: `overwrite` (default) or `add`. |
 | `--jsonparser` | `-j` | Boolean | Mutes terminal UI spinners and returns pure JSON streams. |
 | `--sandbox` | | String | Path to `sandbox_config.json` to sandbox APIs/URLs. Set to `bypass` to disable. |
+| `--log` | `-l` | Boolean | Enable fetching execution logs from Cloud Logging (adds 5-10s delay). |
 
 #### Execution Recipes
 * **Execute local script with sequential arguments**:
@@ -108,9 +110,10 @@ sequenceDiagram
     actor Dev as Developer (CLI)
     participant CLI as ggsrun (Local CLI)
     participant API as Google Apps Script API
+    participant Logs as Cloud Logging API
     participant V8 as Cloud V8 Runtime
 
-    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "myFunc" --sandbox "config.json"
+    Dev->>CLI: ggsrun exe1 -i "SCRIPT_ID" -s "my_script.js" -f "myFunc" --sandbox "config.json" --log
 
     rect rgb(240, 245, 255)
         note over CLI, API: [1] Load Configs & Memory Backup
@@ -128,10 +131,14 @@ sequenceDiagram
     end
 
     rect rgb(255, 245, 240)
-        note over CLI, V8: [3] Remote Guarded Execution
+        note over CLI, V8: [3] Remote Guarded Execution & Logging
         CLI->>API: POST /v1/scripts/{id}:run (Execute "myFunc")
         API->>V8: Compiles & runs "myFunc" under sandbox rules
-        V8-->>CLI: Return execution results & logs
+        V8-->>CLI: Return execution results
+        opt If --log (-l) is set
+            CLI->>Logs: POST /v2/entries:list (Query Cloud Logging)
+            Logs-->>CLI: Return Logger.log and console.log entries
+        end
     end
 
     rect rgb(245, 240, 255)
@@ -141,8 +148,29 @@ sequenceDiagram
         API-->>CLI: 200 OK (Original Remote State Restored)
     end
 
-    CLI-->>Dev: Print final execution output
+    CLI-->>Dev: Print final execution output (including logs)
 ```
+
+#### Google Apps Script Console Logs Retrieval Details
+
+To balance execution speed, reliability, and usability, `ggsrun` employs a highly optimized, clock-drift-immune, and race-condition-resistant log retrieval system:
+
+1. **Opt-in Design (Ultra-Fast Cycle)**:
+   By default, `ggsrun` executes scripts without retrieving Cloud Logging entries, completing execution in just **1–2 seconds**. Pass the `--log` (or `-l`) flag to explicitly fetch execution logs.
+2. **Clock-Drift Immunity**:
+   Host machines often experience local clock drift. To prevent logs from being filtered out when the local machine's clock is behind, `ggsrun` queries a wide past window (`timestamp >= startTime - 60m`) and **completely omits any future upper bounds** (`timestamp <= ...`). Since logs are matched precisely against the execution's unique `process_id`, there is zero risk of capturing unrelated logs.
+3. **Post-Detection Multi-Poll Buffer (Log Stabilization)**:
+   Google Cloud Logging indexes parallel log streams (e.g., `console.log` vs `Logger.log`) on separate nodes, which can introduce indexing delays of several seconds between them.
+   - When the first log entry for the execution's `process_id` is detected, `ggsrun` enters a **Post-Detection Multi-Poll** phase.
+   - It forces **4 additional query attempts** at 2.0-second intervals (providing a robust 8.0-second stabilization window) to allow all lagging log streams to index.
+   - It continually tracks and returns the largest set of logs retrieved.
+   - An automatic loop-limit extension ensures that the full 5-attempt buffer is executed even if the first log takes a long time to appear.
+4. **TUI On-Demand Async Log Injection**:
+   In TUI (Filer/FD) mode, developers receive instant feedback:
+   - The execution result payload is rendered **instantly** without waiting for logs.
+   - A confirmation dialog (*"Do you want to retrieve execution logs from Cloud Logging?"*) is overlaid on top of the active result screen.
+   - If the user selects **Yes**, a loading modal is shown, and log polling runs in a background goroutine.
+   - Once retrieved, the logs are **dynamically injected** into the already-open result text view without recreating the page, keeping the UI completely responsive.
 
 ---
 
@@ -472,8 +500,14 @@ Onboarding and diagnostic commands.
 * **Purpose**: Automatically enables all 6 required Workspace APIs via Google Cloud Quick Flow redirect and initializes your default configuration (`ggsrun.cfg`) in seconds.
 
 ```bash
-$ ggsrun setup
+$ ggsrun setup [flags]
 ```
+
+#### Command-specific Flags
+| Flag | Shorthand | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `--port` | `-p` | Integer | Port binding for temporary OAuth loopback web server (Default: 8080). |
+| `--yes` | `-y` | Boolean | Auto-confirm all prompts using default/detected values (unattended mode). |
 
 ---
 
@@ -481,8 +515,14 @@ $ ggsrun setup
 * **Purpose**: Performs local OAuth2 authorization loopback.
 
 ```bash
-$ ggsrun auth --port 8080
+$ ggsrun auth [flags]
 ```
+
+#### Command-specific Flags
+| Flag | Shorthand | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `--port` | `-p` | Integer | Port binding for temporary OAuth loopback web server (Default: 8080). |
+| `--yes` | `-y` | Boolean | Auto-confirm all prompts using default/detected values (unattended mode). |
 
 ---
 

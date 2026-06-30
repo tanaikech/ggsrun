@@ -91,7 +91,7 @@ func (a *AuthContainer) tryLoadAuth(c *cli.Context) {
 
 // ReAuth : Overhauled interactive auth configuration command for v5.2.0
 func (a *AuthContainer) reAuth() {
-	// Enforce normalized 13 scopes for new authorization
+	// Enforce normalized 14 scopes for new authorization including Cloud Logging
 	a.GgsrunCfg.Scopes = []string{
 		"https://www.googleapis.com/auth/drive",
 		"https://www.googleapis.com/auth/drive.file",
@@ -106,6 +106,7 @@ func (a *AuthContainer) reAuth() {
 		"https://www.googleapis.com/auth/forms",
 		"https://mail.google.com/",
 		"https://www.googleapis.com/auth/script.webapp.deploy",
+		"https://www.googleapis.com/auth/logging.read",
 	}
 
 	cfgPath := a.resolveConfigFile()
@@ -117,7 +118,12 @@ func (a *AuthContainer) reAuth() {
 	fmt.Println("==================================================")
 	fmt.Println("ggsrun OAuth Authorization Setup")
 	fmt.Println("==================================================")
-	fmt.Printf("Config File Path ('ggsrun.cfg'): %s\n", absCfgPath)
+	fmt.Printf("Config File Path Resolved ('ggsrun.cfg'): %s\n", absCfgPath)
+	fmt.Printf("Credentials File Path Resolved ('client_secret.json'): %s\n", absCredPath)
+	if currentEnvPath != "" {
+		fmt.Printf("Active GGSRUN_CFG_PATH: %s\n", currentEnvPath)
+	}
+	fmt.Println("==================================================")
 	fmt.Printf("Client Secret Path ('client_secret.json'): %s\n", absCredPath)
 	fmt.Printf("GGSRUN_CFG_PATH Environment Variable: '%s'\n", currentEnvPath)
 	fmt.Println("==================================================")
@@ -130,12 +136,17 @@ func (a *AuthContainer) reAuth() {
 		label = "Current"
 	}
 
-	fmt.Printf("Enter directory path to save 'ggsrun.cfg' (%s: %s): ", label, defaultDir)
 	var newDir string
-	fmt.Scanln(&newDir)
-	newDir = strings.TrimSpace(newDir)
-	if newDir == "" {
+	if a.InitVal.autoConfirm {
 		newDir = defaultDir
+		pterm.Info.Printf("Enter directory path to save 'ggsrun.cfg' (%s: %s) [Auto-confirmed]\n", label, defaultDir)
+	} else {
+		fmt.Printf("Enter directory path to save 'ggsrun.cfg' (%s: %s): ", label, defaultDir)
+		fmt.Scanln(&newDir)
+		newDir = strings.TrimSpace(newDir)
+		if newDir == "" {
+			newDir = defaultDir
+		}
 	}
 	absNewDir, err := filepath.Abs(newDir)
 	if err == nil {
@@ -143,6 +154,28 @@ func (a *AuthContainer) reAuth() {
 		cfgPath = filepath.Join(absNewDir, cfgFile)
 		absCfgPath, _ = filepath.Abs(cfgPath)
 		fmt.Printf("Config file will be saved to: %s\n", absCfgPath)
+
+		// Reload configuration from the newly selected path if it exists
+		if cfgdata, err := os.ReadFile(cfgPath); err == nil {
+			var tempCfg GgsrunCfg
+			if err2 := json.Unmarshal(cfgdata, &tempCfg); err2 == nil {
+				if tempCfg.Scriptid != "" {
+					a.GgsrunCfg.Scriptid = tempCfg.Scriptid
+				}
+				if tempCfg.WebappsUrl != "" {
+					a.GgsrunCfg.WebappsUrl = tempCfg.WebappsUrl
+				}
+				if tempCfg.Projectid != "" {
+					a.GgsrunCfg.Projectid = tempCfg.Projectid
+				}
+				if tempCfg.Clientid != "" && a.GgsrunCfg.Clientid == "" {
+					a.GgsrunCfg.Clientid = tempCfg.Clientid
+				}
+				if tempCfg.Clientsecret != "" && a.GgsrunCfg.Clientsecret == "" {
+					a.GgsrunCfg.Clientsecret = tempCfg.Clientsecret
+				}
+			}
+		}
 
 		// Check deviation from environmental GGSRUN_CFG_PATH (only if GGSRUN_CFG_PATH is set)
 		if currentEnvPath != "" {
@@ -160,38 +193,46 @@ func (a *AuthContainer) reAuth() {
 	// Project ID Setup
 	var promptMsg string
 	if a.GgsrunCfg.Scriptid != "" {
-		promptMsg = fmt.Sprintf("Please enter your Google Apps Script project Script ID (Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.Scriptid)
+		promptMsg = fmt.Sprintf("Please enter your Google Apps Script project Script ID (Press Enter to skip, you can register this later) [Current: '%s']: ", a.GgsrunCfg.Scriptid)
 	} else {
 		promptMsg = "Please enter your Google Apps Script project Script ID (Press Enter to skip, you can register this later): "
 	}
-	fmt.Print(promptMsg)
 	var scriptID string
-	fmt.Scanln(&scriptID)
-	scriptID = strings.TrimSpace(scriptID)
+	if a.InitVal.autoConfirm {
+		scriptID = ""
+		pterm.Info.Println("Script ID Setup [Auto-confirmed]")
+	} else {
+		fmt.Print(promptMsg)
+		fmt.Scanln(&scriptID)
+		scriptID = strings.TrimSpace(scriptID)
+	}
 	if scriptID == "" {
 		if a.GgsrunCfg.Scriptid != "" {
 			pterm.Info.Printf("Keeping current Script ID: %s\n", a.GgsrunCfg.Scriptid)
-			pterm.Info.Printf("Directly accessible URL: https://script.google.com/home/projects/%s/edit\n", a.GgsrunCfg.Scriptid)
 		} else {
 			pterm.Warning.Println("Warning: Script ID registration skipped. Google Apps Script capabilities are blocked until configured or run with option '-i'.")
 		}
 	} else {
 		a.GgsrunCfg.Scriptid = scriptID
 		pterm.Success.Printf("Registered Script ID: %s\n", scriptID)
-		pterm.Success.Printf("Directly accessible URL: https://script.google.com/home/projects/%s/edit\n", scriptID)
 	}
 
 	// Web Apps URL Setup
 	var webAppsPrompt string
 	if a.GgsrunCfg.WebappsUrl != "" {
-		webAppsPrompt = fmt.Sprintf("Please enter your Google Apps Script Web Apps URL (Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.WebappsUrl)
+		webAppsPrompt = fmt.Sprintf("Please enter your Google Apps Script Web Apps URL (Press Enter to skip, you can register this later) [Current: '%s']: ", a.GgsrunCfg.WebappsUrl)
 	} else {
 		webAppsPrompt = "Please enter your Google Apps Script Web Apps URL (Press Enter to skip, you can register this later): "
 	}
-	fmt.Print(webAppsPrompt)
 	var webappsURL string
-	fmt.Scanln(&webappsURL)
-	webappsURL = strings.TrimSpace(webappsURL)
+	if a.InitVal.autoConfirm {
+		webappsURL = ""
+		pterm.Info.Println("Web Apps URL Setup [Auto-confirmed]")
+	} else {
+		fmt.Print(webAppsPrompt)
+		fmt.Scanln(&webappsURL)
+		webappsURL = strings.TrimSpace(webappsURL)
+	}
 	if webappsURL == "" {
 		if a.GgsrunCfg.WebappsUrl != "" {
 			pterm.Info.Printf("Keeping current Web Apps URL: %s\n", a.GgsrunCfg.WebappsUrl)
@@ -205,10 +246,17 @@ func (a *AuthContainer) reAuth() {
 
 	// Consent Pre-flight Disclosure
 	a.readClientSecret()
+	if a.Cs.Cid.ClientID == "" && a.Cs.Ciw.ClientID != "" {
+		a.Cs.Cid = a.Cs.Ciw
+	}
+	a.resolveCredentialsConflict()
 
 	fmt.Println("\nOAuth 2.0 Credentials:")
 	fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
 	fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
+	if a.GgsrunCfg.Projectid != "" {
+		fmt.Printf("  GCP Project ID: %s\n", a.GgsrunCfg.Projectid)
+	}
 	fmt.Println("Requested OAuth Scopes:")
 	for _, scope := range a.GgsrunCfg.Scopes {
 		fmt.Printf("  - %s\n", scope)
@@ -217,7 +265,12 @@ func (a *AuthContainer) reAuth() {
 
 	fmt.Print("Proceed to launch browser for authentication? [y/N]: ")
 	var confirm string
-	fmt.Scanln(&confirm)
+	if a.InitVal.autoConfirm {
+		confirm = "y"
+		pterm.Info.Println("Proceed to launch browser for authentication? [y/N] [Auto-confirmed]")
+	} else {
+		fmt.Scanln(&confirm)
+	}
 	if strings.ToLower(strings.TrimSpace(confirm)) != "y" {
 		pterm.Info.Println("Authentication setup aborted.")
 		utl.Exit(0)
@@ -275,6 +328,19 @@ func (a *AuthContainer) makecfgfile() {
 
 // getAtoken : Retrieves accesstoken from refreshtoken.
 func (a *AuthContainer) getAtoken() *AuthContainer {
+	if a.GgsrunCfg.UseGcloudAuth {
+		a.UpdateStatus("Refreshing Access Token via gcloud CLI...")
+		cmd := exec.Command("gcloud", "auth", "print-access-token")
+		out, err := cmd.Output()
+		if err != nil {
+			a.FailStatus("Token Refresh via gcloud Failed")
+			pterm.Error.Printf("Failed to refresh token via gcloud: %v\n", err)
+			utl.Exit(1)
+		}
+		a.GgsrunCfg.Accesstoken = strings.TrimSpace(string(out))
+		a.GgsrunCfg.Expiresin = time.Now().Unix() + 3540 // 59 minutes
+		return a
+	}
 	a.UpdateStatus("Refreshing Access Token...")
 	a.Msg = append(a.Msg, "Got a new accesstoken.")
 	values := url.Values{}
@@ -555,28 +621,41 @@ func (a *AuthContainer) quickSetup() {
 		"https://www.googleapis.com/auth/forms",
 		"https://mail.google.com/",
 		"https://www.googleapis.com/auth/script.webapp.deploy",
+		"https://www.googleapis.com/auth/logging.read",
 	}
 
 	cfgPath := a.resolveConfigFile()
 	absCfgPath, _ := filepath.Abs(cfgPath)
+	credPath := a.resolveCredFile()
+	absCredPath, _ := filepath.Abs(credPath)
+	currentEnvPath := os.Getenv("GGSRUN_CFG_PATH")
 
 	fmt.Println("==================================================")
 	fmt.Println("ggsrun Simplified Onboarding Quick Setup")
 	fmt.Println("==================================================")
-	fmt.Printf("Config File Path ('ggsrun.cfg'): %s\n", absCfgPath)
+	fmt.Printf("Config File Path Resolved ('ggsrun.cfg'): %s\n", absCfgPath)
+	fmt.Printf("Credentials File Path Resolved ('client_secret.json'): %s\n", absCredPath)
+	if currentEnvPath != "" {
+		fmt.Printf("Active GGSRUN_CFG_PATH: %s\n", currentEnvPath)
+	}
 	fmt.Println("==================================================")
 	pterm.Info.Println("Step 1: Enable Google APIs & Create Credentials")
 	pterm.Info.Println("We will open a custom GCP setup link in your browser to:")
-	pterm.Info.Println("  1. Automatically enable Drive and Google Apps Script APIs.")
+	pterm.Info.Println("  1. Automatically enable Drive, Google Apps Script and Cloud Logging APIs.")
 	pterm.Info.Println("  2. Redirect you straight to the Credentials creation page.")
 	fmt.Println()
 
-	quickFlowURL := "https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com,script.googleapis.com,sheets.googleapis.com,gmail.googleapis.com,slides.googleapis.com,docs.googleapis.com&redirect_to=https://console.cloud.google.com/apis/credentials"
+	quickFlowURL := "https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com,script.googleapis.com,sheets.googleapis.com,gmail.googleapis.com,slides.googleapis.com,docs.googleapis.com,logging.googleapis.com&redirect_to=https://console.cloud.google.com/apis/credentials"
 
-	fmt.Print("Proceed to launch browser to set up APIs? [Y/n]: ")
 	var launchConfirm string
-	fmt.Scanln(&launchConfirm)
-	launchConfirm = strings.ToLower(strings.TrimSpace(launchConfirm))
+	if a.InitVal.autoConfirm {
+		launchConfirm = "y"
+		pterm.Info.Println("Proceed to launch browser to set up APIs? [Y/n] [Auto-confirmed]")
+	} else {
+		fmt.Print("Proceed to launch browser to set up APIs? [Y/n]: ")
+		fmt.Scanln(&launchConfirm)
+		launchConfirm = strings.ToLower(strings.TrimSpace(launchConfirm))
+	}
 	if launchConfirm == "" || launchConfirm == "y" {
 		pterm.Info.Println("Launching browser...")
 		var cmd *exec.Cmd
@@ -608,10 +687,14 @@ func (a *AuthContainer) quickSetup() {
 	pterm.Info.Println("Step 2: Load OAuth 2.0 Credentials")
 	pterm.Info.Println("Once you have created the 'Desktop app' credentials, choose an option:")
 	fmt.Println("  [1] Provide path to downloaded client secret JSON file (Recommended)")
-	fmt.Println("      (Note: There is no need to rename the file to 'client_secret.json'.")
-	fmt.Println("       Any path like '{your path}/{credential file name}.json' is perfectly fine.)")
 	fmt.Println("  [2] Enter Client ID and Client Secret manually")
-	fmt.Print("Enter choice [1-2] (Default: 1): ")
+	hasGcloud := isGcloudAvailable()
+	if hasGcloud {
+		fmt.Println("  [3] Use active credentials from gcloud CLI (Auto-detected)")
+		fmt.Print("Enter choice [1-3] (Default: 1): ")
+	} else {
+		fmt.Print("Enter choice [1-2] (Default: 1): ")
+	}
 	var choice string
 	fmt.Scanln(&choice)
 	choice = strings.TrimSpace(choice)
@@ -620,10 +703,66 @@ func (a *AuthContainer) quickSetup() {
 	}
 
 	if choice == "1" {
-		fmt.Print("Enter path to JSON file: ")
+		var candidates []string
+		if a.InitVal.customCred != "" {
+			candidates = append(candidates, a.InitVal.customCred)
+		} else {
+			cwdPath := filepath.Join(a.InitVal.workdir, clientsecretFile)
+			if _, err := os.Stat(cwdPath); err == nil {
+				candidates = append(candidates, cwdPath)
+			}
+			if a.InitVal.envConfig != "" {
+				envPath := filepath.Join(a.InitVal.envConfig, clientsecretFile)
+				if _, err := os.Stat(envPath); err == nil {
+					if absCwd, err1 := filepath.Abs(cwdPath); err1 == nil {
+						if absEnv, err2 := filepath.Abs(envPath); err2 == nil && absCwd != absEnv {
+							candidates = append(candidates, envPath)
+						}
+					} else {
+						candidates = append(candidates, envPath)
+					}
+				}
+			}
+		}
+
 		var jsonPath string
-		fmt.Scanln(&jsonPath)
-		jsonPath = strings.TrimSpace(jsonPath)
+		if len(candidates) > 0 {
+			pterm.Info.Println("Found potential credentials file(s):")
+			for idx, cand := range candidates {
+				absCand, _ := filepath.Abs(cand)
+				fmt.Printf("  [%d] %s\n", idx+1, absCand)
+			}
+			customIdx := len(candidates) + 1
+			var sel string
+			if a.InitVal.autoConfirm {
+				sel = "1"
+				pterm.Info.Printf("Select an option [1-%d] (Default: 1) [Auto-confirmed]: 1\n", customIdx)
+			} else {
+				fmt.Printf("Select an option [1-%d] (Default: 1): ", customIdx)
+				fmt.Scanln(&sel)
+				sel = strings.TrimSpace(sel)
+			}
+			if sel == "" {
+				sel = "1"
+			}
+			selNum, err := strconv.Atoi(sel)
+			if err == nil && selNum >= 1 && selNum <= len(candidates) {
+				jsonPath = candidates[selNum-1]
+			} else if err == nil && selNum == customIdx {
+				fmt.Print("Enter path to JSON file: ")
+				fmt.Scanln(&jsonPath)
+				jsonPath = strings.TrimSpace(jsonPath)
+			} else {
+				pterm.Error.Println("Invalid option selection.")
+				utl.Exit(1)
+			}
+		} else {
+			pterm.Warning.Println("No credentials file found in standard locations.")
+			fmt.Print("Enter path to JSON file: ")
+			fmt.Scanln(&jsonPath)
+			jsonPath = strings.TrimSpace(jsonPath)
+		}
+
 		if jsonPath == "" {
 			pterm.Error.Println("JSON file path cannot be empty.")
 			utl.Exit(1)
@@ -645,6 +784,7 @@ func (a *AuthContainer) quickSetup() {
 		if len(a.Cs.Cid.ClientID) == 0 && len(a.Cs.Ciw.ClientID) > 0 {
 			a.Cs.Cid = a.Cs.Ciw
 		}
+		a.resolveCredentialsConflict()
 	} else if choice == "2" {
 		fmt.Print("Enter Client ID: ")
 		var clientID string
@@ -662,6 +802,46 @@ func (a *AuthContainer) quickSetup() {
 		}
 		a.Cs.Cid.ClientID = clientID
 		a.Cs.Cid.Clientsecret = clientSecret
+
+		fmt.Print("Enter GCP Project ID (Optional, press Enter to skip. Required for log retrieval): ")
+		var projectID string
+		fmt.Scanln(&projectID)
+		projectID = strings.TrimSpace(projectID)
+		a.Cs.Cid.Projectid = projectID
+		a.GgsrunCfg.Projectid = projectID
+	} else if choice == "3" && hasGcloud {
+		pterm.Info.Println("Detecting credentials from gcloud CLI...")
+		
+		// Get Project ID
+		pCmd := exec.Command("gcloud", "config", "get-value", "project")
+		pOut, err := pCmd.Output()
+		if err != nil {
+			pterm.Error.Printf("Failed to retrieve project ID from gcloud: %v\n", err)
+			utl.Exit(1)
+		}
+		projectID := strings.TrimSpace(string(pOut))
+		if projectID == "" {
+			pterm.Error.Println("No active project configured in gcloud CLI.")
+			utl.Exit(1)
+		}
+
+		// Get Access Token
+		tCmd := exec.Command("gcloud", "auth", "print-access-token")
+		tOut, err := tCmd.Output()
+		if err != nil {
+			pterm.Error.Printf("Failed to retrieve access token from gcloud: %v\n", err)
+			utl.Exit(1)
+		}
+		accessToken := strings.TrimSpace(string(tOut))
+
+		a.GgsrunCfg.Projectid = projectID
+		a.GgsrunCfg.Accesstoken = accessToken
+		a.GgsrunCfg.UseGcloudAuth = true
+		a.GgsrunCfg.Expiresin = time.Now().Unix() + 3540 // 59 minutes
+
+		// Create dummy client secret to bypass following checks
+		a.Cs.Cid.ClientID = "gcloud-cli-client"
+		a.Cs.Cid.Clientsecret = "gcloud-cli-secret"
 	} else {
 		pterm.Error.Println("Invalid choice.")
 		utl.Exit(1)
@@ -669,18 +849,27 @@ func (a *AuthContainer) quickSetup() {
 
 	fmt.Println("==================================================")
 	pterm.Info.Println("Step 3: Setup Google Apps Script Parameters")
+	targetCfgPath := a.resolveConfigFile()
+	absTargetCfg, _ := filepath.Abs(targetCfgPath)
+	pterm.Info.Printf("(Saving parameters directly to: %s)\n", absTargetCfg)
+	fmt.Println("==================================================")
 	
 	// Script ID Setup
 	var scriptIDPrompt string
 	if a.GgsrunCfg.Scriptid != "" {
-		scriptIDPrompt = fmt.Sprintf("Enter your target Google Apps Script Script ID\n(Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.Scriptid)
+		scriptIDPrompt = fmt.Sprintf("Enter your target Google Apps Script Script ID\n(Press Enter to skip, you can register this later) [Current: '%s']: ", a.GgsrunCfg.Scriptid)
 	} else {
 		scriptIDPrompt = "Enter your target Google Apps Script Script ID\n(Press Enter to skip, you can register this later): "
 	}
-	fmt.Print(scriptIDPrompt)
 	var scriptID string
-	fmt.Scanln(&scriptID)
-	scriptID = strings.TrimSpace(scriptID)
+	if a.InitVal.autoConfirm {
+		scriptID = ""
+		pterm.Info.Println("Script ID Setup [Auto-confirmed]")
+	} else {
+		fmt.Print(scriptIDPrompt)
+		fmt.Scanln(&scriptID)
+		scriptID = strings.TrimSpace(scriptID)
+	}
 	if scriptID != "" {
 		a.GgsrunCfg.Scriptid = scriptID
 		pterm.Success.Printf("Registered Script ID: %s\n", scriptID)
@@ -691,14 +880,19 @@ func (a *AuthContainer) quickSetup() {
 	// Web Apps URL Setup
 	var webAppsPrompt string
 	if a.GgsrunCfg.WebappsUrl != "" {
-		webAppsPrompt = fmt.Sprintf("Enter your Google Apps Script Web Apps URL\n(Press Enter to keep current '%s', or type a new one to change): ", a.GgsrunCfg.WebappsUrl)
+		webAppsPrompt = fmt.Sprintf("Enter your Google Apps Script Web Apps URL\n(Press Enter to skip, you can register this later) [Current: '%s']: ", a.GgsrunCfg.WebappsUrl)
 	} else {
 		webAppsPrompt = "Enter your Google Apps Script Web Apps URL\n(Press Enter to skip, you can register this later): "
 	}
-	fmt.Print(webAppsPrompt)
 	var webappsURL string
-	fmt.Scanln(&webappsURL)
-	webappsURL = strings.TrimSpace(webappsURL)
+	if a.InitVal.autoConfirm {
+		webappsURL = ""
+		pterm.Info.Println("Web Apps URL Setup [Auto-confirmed]")
+	} else {
+		fmt.Print(webAppsPrompt)
+		fmt.Scanln(&webappsURL)
+		webappsURL = strings.TrimSpace(webappsURL)
+	}
 	if webappsURL != "" {
 		a.GgsrunCfg.WebappsUrl = webappsURL
 		pterm.Success.Printf("Registered Web Apps URL: %s\n", webappsURL)
@@ -707,18 +901,123 @@ func (a *AuthContainer) quickSetup() {
 	}
 
 	fmt.Println("==================================================")
-	pterm.Info.Println("Step 4: Launch Consent Authorization")
-	fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
-	fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
-	fmt.Print("Proceed to launch browser to authorize ggsrun? [Y/n]: ")
-	var confirm string
-	fmt.Scanln(&confirm)
-	confirm = strings.ToLower(strings.TrimSpace(confirm))
-	if confirm != "" && confirm != "y" {
-		pterm.Info.Println("Setup aborted.")
-		utl.Exit(0)
+	if a.GgsrunCfg.UseGcloudAuth {
+		pterm.Info.Println("Step 4: Save Configuration")
+		pterm.Success.Printf("Auto-detected GCP Project ID: %s\n", a.GgsrunCfg.Projectid)
+		a.makecfgfile()
+	} else {
+		pterm.Info.Println("Step 4: Launch Consent Authorization")
+		fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
+		fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
+		fmt.Print("Proceed to launch browser to authorize ggsrun? [Y/n]: ")
+		var confirm string
+		if a.InitVal.autoConfirm {
+			confirm = "y"
+			pterm.Info.Println("Proceed to launch browser to authorize ggsrun? [Y/n] [Auto-confirmed]")
+		} else {
+			fmt.Scanln(&confirm)
+			confirm = strings.ToLower(strings.TrimSpace(confirm))
+		}
+		if confirm != "" && confirm != "y" {
+			pterm.Info.Println("Setup aborted.")
+			utl.Exit(0)
+		}
+
+		a.getNewAccesstoken().makecfgfile()
+	}
+	pterm.Success.Println("Simplified Quick Setup completed successfully!")
+}
+
+// isGcloudAvailable : Checks if gcloud CLI is installed and has an active account.
+func isGcloudAvailable() bool {
+	_, err := exec.LookPath("gcloud")
+	if err != nil {
+		return false
+	}
+	cmd := exec.Command("gcloud", "config", "get-value", "account")
+	out, err := cmd.Output()
+	return err == nil && len(strings.TrimSpace(string(out))) > 0
+}
+
+// resolveCredentialsConflict compares client_secret.json and existing ggsrun.cfg.
+// It prompts the user if there are mismatches and updates a.GgsrunCfg.
+func (a *AuthContainer) resolveCredentialsConflict() {
+	// 1. Resolve Client ID
+	newClientID := a.Cs.Cid.ClientID
+	existingClientID := a.GgsrunCfg.Clientid
+	if existingClientID != "" && newClientID != "" && existingClientID != newClientID {
+		pterm.Warning.Println("Mismatch detected for OAuth Client ID:")
+		pterm.Println(fmt.Sprintf("  [1] From client_secret.json: %s", newClientID))
+		pterm.Println(fmt.Sprintf("  [2] From existing ggsrun.cfg:  %s", existingClientID))
+		var choice string
+		if a.InitVal.autoConfirm {
+			choice = "1"
+			pterm.Info.Println("Which Client ID would you like to use? [1-2] (Default: 1) [Auto-confirmed]: 1")
+		} else {
+			fmt.Print("Which Client ID would you like to use? [1-2] (Default: 1): ")
+			fmt.Scanln(&choice)
+		}
+		if strings.TrimSpace(choice) == "2" {
+			a.Cs.Cid.ClientID = existingClientID
+			a.Cs.Cid.Clientsecret = a.GgsrunCfg.Clientsecret
+			pterm.Info.Println("Using Client ID from existing ggsrun.cfg.")
+		} else {
+			a.GgsrunCfg.Clientid = newClientID
+			a.GgsrunCfg.Clientsecret = a.Cs.Cid.Clientsecret
+			pterm.Info.Println("Using Client ID from client_secret.json.")
+		}
+	} else if newClientID != "" {
+		if existingClientID == newClientID {
+			if a.InitVal.autoConfirm {
+				pterm.Info.Printf("OAuth Client ID is identical ('%s'). Keep using it? [Y/n] [Auto-confirmed]\n", newClientID)
+			} else {
+				fmt.Printf("OAuth Client ID is identical ('%s'). Keep using it? [Y/n]: ", newClientID)
+				var ans string
+				fmt.Scanln(&ans)
+				if strings.ToLower(strings.TrimSpace(ans)) == "n" {
+					pterm.Warning.Println("Please update your credentials file or enter manually.")
+				}
+			}
+		}
+		a.GgsrunCfg.Clientid = a.Cs.Cid.ClientID
+		a.GgsrunCfg.Clientsecret = a.Cs.Cid.Clientsecret
 	}
 
-	a.getNewAccesstoken().makecfgfile()
-	pterm.Success.Println("Simplified Quick Setup completed successfully!")
+	// 2. Resolve GCP Project ID
+	newProjectID := a.Cs.Cid.Projectid
+	existingProjectID := a.GgsrunCfg.Projectid
+	if existingProjectID != "" && newProjectID != "" && existingProjectID != newProjectID {
+		pterm.Warning.Println("Mismatch detected for GCP Project ID:")
+		pterm.Println(fmt.Sprintf("  [1] From client_secret.json: %s", newProjectID))
+		pterm.Println(fmt.Sprintf("  [2] From existing ggsrun.cfg:  %s", existingProjectID))
+		var choice string
+		if a.InitVal.autoConfirm {
+			choice = "1"
+			pterm.Info.Println("Which Project ID would you like to use? [1-2] (Default: 1) [Auto-confirmed]: 1")
+		} else {
+			fmt.Print("Which Project ID would you like to use? [1-2] (Default: 1): ")
+			fmt.Scanln(&choice)
+		}
+		if strings.TrimSpace(choice) == "2" {
+			a.GgsrunCfg.Projectid = existingProjectID
+			pterm.Info.Println("Using GCP Project ID from existing ggsrun.cfg.")
+		} else {
+			a.GgsrunCfg.Projectid = newProjectID
+			pterm.Info.Println("Using GCP Project ID from client_secret.json.")
+		}
+	} else if newProjectID != "" {
+		if existingProjectID == newProjectID {
+			if a.InitVal.autoConfirm {
+				pterm.Info.Printf("GCP Project ID is identical ('%s'). Keep using it? [Y/n] [Auto-confirmed]\n", newProjectID)
+			} else {
+				fmt.Printf("GCP Project ID is identical ('%s'). Keep using it? [Y/n]: ", newProjectID)
+				var ans string
+				fmt.Scanln(&ans)
+				if strings.ToLower(strings.TrimSpace(ans)) == "n" {
+					pterm.Warning.Println("Proceeding with caution. Project ID can be modified in ggsrun.cfg.")
+				}
+			}
+		}
+		a.GgsrunCfg.Projectid = newProjectID
+	}
 }

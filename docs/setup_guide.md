@@ -66,7 +66,7 @@ This guide provides a comprehensive, step-by-step walkthrough to configure your 
 ---
 
 ### Option A: Simplified Quick Setup (Recommended)
-This method automates Google Cloud API configuration using tailored **GCP Quick Flows**, saving you many manual configuration steps.
+This method automates Google Cloud API configuration using tailored **GCP Quick Flows**, saving you many manual configuration steps. Alternatively, if you have the `gcloud` CLI installed and authenticated, `ggsrun` can automatically import your active credentials.
 
 1. **Open your terminal** and navigate to your workspace folder where `ggsrun` is located:
    - **Windows Command Prompt**: `cd %USERPROFILE%\Desktop\ggsrun-workspace`
@@ -76,7 +76,7 @@ This method automates Google Cloud API configuration using tailored **GCP Quick 
    - **macOS/Linux**: `./ggsrun setup`
 3. **Follow Browser Instructions**:
    - `ggsrun` will ask to open your browser to a tailored GCP Quick Flow link. Choose **Y** (or press Enter) to proceed.
-   - This link automatically configures your Google Cloud project and enables all six required APIs instantly: **Google Drive API**, **Google Apps Script API**, **Google Sheets API**, **Gmail API**, **Google Slides API**, and **Google Docs API**.
+   - This link automatically configures your Google Cloud project and enables all seven required APIs instantly: **Google Drive API**, **Google Apps Script API**, **Google Sheets API**, **Gmail API**, **Google Slides API**, **Google Docs API**, and **Cloud Logging API**.
    - Once enablement completes, the GCP Console will redirect you straight to the **Create Credentials** page.
 4. **Create Credentials**:
    - On the GCP Console, choose **+ CREATE CREDENTIALS** at the top > **OAuth client ID**.
@@ -85,9 +85,15 @@ This method automates Google Cloud API configuration using tailored **GCP Quick 
      *(Note: It is NOT required to rename this file to "client_secret.json" for setup mode. You can leave it as its default downloaded name or save it to any path, such as `{your path}/{credential file name}.json`)*
 5. **Register Credentials inside ggsrun**:
    - In your terminal, `ggsrun` will ask you how to load credentials.
-   - Choose **[1]** and paste the path to your downloaded JSON file, OR choose **[2]** and paste the Client ID and Client Secret manually.
+   - If the `gcloud` CLI is detected on your system, you will see a third option:
+     - **`[1] Provide path to downloaded client secret JSON file (Recommended)`**
+     - **`[2] Enter Client ID and Client Secret manually`**
+     - **`[3] Use active credentials from gcloud CLI (Auto-detected)`**
+   - Choose **[3]** to automatically load your active GCP Project ID and access token. This option configures `ggsrun` to dynamically refresh tokens via the `gcloud` CLI, eliminating the need to download `client_secret.json` or manage `refresh_token`s.
+   - If you choose **[1]**, paste the path to your downloaded JSON file.
+   - If you choose **[2]**, paste the Client ID, Client Secret, and the GCP Project ID (optional, but required for log retrieval) manually.
 6. **Launch Authorization**:
-   - `ggsrun` will ask to launch the browser for authorization. Press **Y** to proceed.
+   - (If you chose Option 1 or 2) `ggsrun` will ask to launch the browser for authorization. Press **Y** to proceed.
    - Log in with your Google account. You may see a safety warning screen stating *"Google hasn't verified this app"*. Click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
    - Click **Allow** to grant permission.
    - Your local environment is now fully authorized and securely saved to `ggsrun.cfg`!
@@ -263,6 +269,55 @@ If utilizing GAS execution (`exe1` / `exe2`), verify the target project is curre
 
 ### 3. Headless Server Authentication
 If `ggsrun auth` detects a headless Linux environment (where it cannot spawn a local browser loopback), it elegantly degrades into manual mode. It prints the URL; copy it into an external browser, authorize, and paste the code block back into standard input.
+
+---
+
+## 8. Advanced Configurations: Profiles and Unattended Auto-Setup (New in v5.3.11)
+
+### 8.1 Profiles (`--profile`)
+By default, `ggsrun` saves its settings to `ggsrun.cfg`. However, if you are managing multiple Google Apps Script projects, or working across different environments (such as `development` and `production`), you can use **Profiles** to keep your configurations separate.
+
+To create or use a specific profile, simply append the `--profile {name}` flag to any command.
+
+#### Example: Setting up a "dev" and a "prod" environment
+1. **Set up the development environment**:
+   ```bash
+   $ ggsrun --profile dev setup
+   ```
+   This will guide you through the setup and save all tokens and parameters to a file named `ggsrun_dev.cfg` instead of `ggsrun.cfg`.
+
+2. **Set up the production environment**:
+   ```bash
+   $ ggsrun --profile prod setup
+   ```
+   This saves everything to `ggsrun_prod.cfg`.
+
+3. **Running scripts under a specific profile**:
+   When you want to execute a script in development:
+   ```bash
+   $ ggsrun --profile dev exe1 -s "my_script.js" -f "myFunction"
+   ```
+   To execute in production:
+   ```bash
+   $ ggsrun --profile prod exe1 -s "my_script.js" -f "myFunction"
+   ```
+
+---
+
+### 8.2 Unattended Auto-Setup (`--yes` / `-y`)
+If you want to automate the authorization and setup process (for example, in a CI/CD pipeline, setup scripts, or if you simply do not want to press Enter multiple times), you can use the `--yes` (or `-y`) flag.
+
+When running `ggsrun setup --yes` or `ggsrun auth --yes`, `ggsrun` will:
+- **Auto-confirm directories**: Automatically save the config file to the default or resolved path.
+- **Auto-detect credentials**: If multiple `client_secret.json` files are found, it will automatically select the most relevant one.
+- **Auto-merge conflicts**: If there are mismatching Client IDs or Project IDs between your files, it will automatically resolve them using the newest values.
+- **Auto-skip parameters**: If you already have a Script ID or Web Apps URL registered, it will automatically keep them without asking.
+
+#### Example: One-click setup using an active gcloud CLI session
+If you have `gcloud` authenticated on your machine, you can fully set up `ggsrun` in a single command with zero prompts:
+```bash
+$ ggsrun setup --yes
+```
 
 ---
 

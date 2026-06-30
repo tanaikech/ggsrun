@@ -131,6 +131,59 @@ GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s manual-tests/test_sandbox.js -f main 
 
 ---
 
+## 3.5. Google Apps Script Console Logs Retrieval (Opt-in)
+
+Verify that Google Apps Script execution logs (`Logger.log` and `console.log`) are fetched only when requested, and that both parallel logs are fully captured.
+
+### Test Case A: Default Execution (No Logs)
+Verifies that execution runs instantly without querying Cloud Logging.
+
+**Run Command:**
+```bash
+GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s temp/test1.js -f main
+```
+
+**Expected Result:**
+* Execution completes extremely fast (1–2 seconds).
+* The output contains the execution report but the `# Google Apps Script Console Logs` section is **not** present.
+
+---
+
+### Test Case B: Log Retrieval Enabled (Opt-in)
+Verifies that log retrieval fetches both `console.log` and `Logger.log` successfully by querying Cloud Logging with clock-drift immunity.
+
+**Run Command:**
+```bash
+GGSRUN_CFG_PATH=~/myTools ./ggsrun exe1 -s temp/test1.js -f main --log
+```
+*(Note: You can also use `-l`)*
+
+**Expected Result:**
+* The command executes, and you will see the status update `Retrieving execution logs from Cloud Logging (attempt 1/10)...`.
+* The final output includes **both** console and logger outputs:
+  ```
+  # Google Apps Script Console Logs
+
+  [DEBUG] 2026-06-30T06:18:50.459936Z - ok for console.log
+  [INFO] 2026-06-30T06:18:50.461174Z - ok for Logger.log
+  ```
+* All logs are captured even if your local system clock is out of sync.
+
+---
+
+### Test Case C: MCP Log Retrieval (Opt-in)
+Verifies that the MCP server respects the `log` parameter.
+
+**Run Command:**
+```bash
+echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "exe1", "arguments": {"scriptfile": "temp/test1.js", "confirm": true, "function": "main", "log": true}}, "id": 1}' | GGSRUN_CFG_PATH=~/myTools ./ggsrun mcp
+```
+
+**Expected Result:**
+* The JSON response contains the `log` array containing both `ok for console.log` and `ok for Logger.log` objects.
+
+---
+
 ## 4. Drive & File Management Operations
 
 Verify high-speed file operations and Drive queries.

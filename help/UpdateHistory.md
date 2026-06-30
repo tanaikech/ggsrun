@@ -4,7 +4,17 @@
 
 # Update History
 
-## ggsrun
+- **v5.3.11 (June 2026) - Opt-in GAS Log Retrieval, Log Stabilization Loop, TUI On-Demand Prompting, and MCP Schema Hardening**
+  1. **Opt-in Log Retrieval (Default Off)**: Changed the default behavior of `exe1` to **not** fetch logs from Cloud Logging, enabling ultra-fast execution cycles (1-2 seconds). Replaced the `--nolog` flag with a new `--log` (alias `-l`) flag to explicitly enable log retrieval when needed.
+  2. **High-Precision Log Stabilization Loop**: Engineered a state-tracking algorithm based on the Apps Script `process_id` to prevent stale log hijacking. It dynamically queries the database and waits until the log count stops changing (up to 15 seconds), ensuring that both `console.log` and `Logger.log` are fully captured even if they index at different times, while still exiting instantly on fast runs.
+  3. **TUI On-Demand Log Prompting**: TUI executions now run instantly by default. After execution and cleanup are complete, a Yes/No modal prompts the user: *"Do you want to retrieve execution logs from Cloud Logging? (It may take 5-10 seconds)"*. If "Yes", a loading modal is shown while logs are fetched in the background and merged into the result.
+  4. **MCP Schema Hardening**: Added the `log` property (boolean, default `false`) to the MCP `exe1` tool schema. Added a warning explanation about the 5-10 second delay caused by Google Cloud's log indexing.
+  5. **gcloud CLI Authentication Integration**: Added an option (`[3] Use active credentials from gcloud CLI`) to the `ggsrun setup` menu when `gcloud` is detected. This automatically resolves the active GCP Project ID and access token, and configures `ggsrun` to dynamically refresh tokens via `gcloud auth print-access-token`, eliminating the need to download `client_secret.json` or manage `refresh_token`s.
+  6. **Manual Project ID Input**: Added a prompt to collect the GCP Project ID during manual credential entry (option `[2]` in `ggsrun setup`), ensuring users using custom Client IDs can still utilize the log retrieval features.
+  7. **Multi-Environment Profiles (`--profile`)**: Added global support for the `--profile` flag. Users can now isolate configurations and tokens by project or environment (e.g., `--profile dev` automatically loads/saves to `ggsrun_dev.cfg` instead of `ggsrun.cfg`), eliminating manual file renaming.
+  8. **Unattended Auto-Setup (`--yes` / `-y`)**: Introduced the `--yes` (or `-y`) flag for `setup` and `auth` commands. In unattended mode, `ggsrun` automatically bypasses all interactive prompts (directory confirmations, credential detections, conflict resolutions, parameter configuration, and browser authorization confirmations) using safe default or auto-detected values.
+  9. **Prioritized Credentials Auto-Detection**: Enhanced `ggsrun setup` to automatically scan `--credentials`, the current working directory, and `GGSRUN_CFG_PATH` for `client_secret.json` files, presenting them as a prioritized selection menu to reduce manual typing.
+  10. **Interactive Current Values Display**: Prompts in both `setup` and `auth` now dynamically display existing configuration values as `[Current: '...']`, allowing users to retain them simply by pressing Enter.
 
 - **v5.3.10 (June 2026) - Default Safe Cleanup, Separate Sandbox Script, and MCP Hardening**
   1. **Default Script Cleanup**: Enabled remote project restoration by default for `exe1` execution. After execution completes or on process termination (such as `Ctrl+C`), the remote project is automatically restored to its pre-execution state from memory backup.

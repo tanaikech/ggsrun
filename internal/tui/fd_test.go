@@ -840,9 +840,9 @@ func TestTUI_GASProjectExplorer(t *testing.T) {
 
 	// Mock TuiRunExe1 call
 	var execGasCalled bool
-	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
+	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, time.Time, string, error) {
 		execGasCalled = true
-		return `{"result": "Success!"}`, nil
+		return `{"result": "Success!"}`, time.Now(), "test-pid", nil
 	}
 
 	// Confirm execution by executing input field DoneFunc directly
@@ -1880,7 +1880,7 @@ func TestTUI_GASIntegration(t *testing.T) {
 		cliCtx := cli.NewContext(appObj, set, nil)
 
 		auth := app.GetAuthenticatedAuthContainer(cliCtx)
-		resp, err := app.TuiRunExe1(cliCtx, auth)
+		resp, _, _, err := app.TuiRunExe1(cliCtx, auth)
 		if err != nil {
 			t.Fatalf("TuiRunExe1 failed: %v\nResponse: %s", err, resp)
 		}
@@ -1903,10 +1903,12 @@ func TestTUI_GASIntegration(t *testing.T) {
 		var gasErr error
 
 		oldTuiRunExe1Fn := tuiRunExe1Fn
-		tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
-			gasResult, gasErr = app.TuiRunExe1(ctx, a)
+		tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, time.Time, string, error) {
+			var startTime time.Time
+			var lastProcessID string
+			gasResult, startTime, lastProcessID, gasErr = app.TuiRunExe1(ctx, a)
 			execGasCalled = true
-			return gasResult, gasErr
+			return gasResult, startTime, lastProcessID, gasErr
 		}
 		defer func() {
 			tuiRunExe1Fn = oldTuiRunExe1Fn
@@ -1986,10 +1988,12 @@ func TestTUI_GASIntegration(t *testing.T) {
 		var gasErr error
 
 		oldTuiRunExe1Fn := tuiRunExe1Fn
-		tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
-			gasResult, gasErr = app.TuiRunExe1(ctx, a)
+		tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, time.Time, string, error) {
+			var startTime time.Time
+			var lastProcessID string
+			gasResult, startTime, lastProcessID, gasErr = app.TuiRunExe1(ctx, a)
 			execGasCalled = true
-			return gasResult, gasErr
+			return gasResult, startTime, lastProcessID, gasErr
 		}
 		defer func() {
 			tuiRunExe1Fn = oldTuiRunExe1Fn
@@ -2203,11 +2207,11 @@ func TestTUI_LocalDirectoryExecution(t *testing.T) {
 	var execGasCalled bool
 	var scriptFileUsed string
 	var undeleteScriptVal string
-	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, error) {
+	tuiRunExe1Fn = func(ctx *cli.Context, a *app.AuthContainer) (string, time.Time, string, error) {
 		execGasCalled = true
 		scriptFileUsed = ctx.String("scriptfile")
 		undeleteScriptVal = fmt.Sprintf("%v", ctx.Bool("undeleteScript"))
-		return `{"result": "Success Exe1!"}`, nil
+		return `{"result": "Success Exe1!"}`, time.Now(), "test-pid", nil
 	}
 
 	// Confirm execution

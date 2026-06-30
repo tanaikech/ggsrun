@@ -160,7 +160,7 @@ func runMCP(c *cli.Context) error {
 					},
 					{
 						"name":        "exe1",
-						"description": "Upload/synchronize a local Google Apps Script file, a local directory, or raw script string to a remote Google Apps Script project, and execute a specified entry function with optional arguments in a single step. Returns the response payload as JSON.\n\nNote: You can find the active Script ID and configuration status by running the `ggsrun status` command in the host terminal.\n\nCRITICAL TOOL SELECTION RULE FOR LLM AGENTS:\nUse this tool (and NOT `updateproject`) if the user wants to upload and execute a script or directory in a single operation. Do NOT call `updateproject` followed by another tool if the user wants execution; `exe1` handles both uploading and execution. `updateproject` is only for updating/overwriting project files without executing any functions.\n\nCRITICAL OUTPUT RULE FOR LLM AGENTS:\nWhen writing Google Apps Script to be executed via this tool, if you need to retrieve or inspect the execution results within the tool response, you MUST return the value using a `return` statement in your entry function. While `Logger.log()` and `console.log()` are still fully supported and useful for recording logs to the Apps Script execution console for later review, their output is NOT returned in this tool's API response.",
+						"description": "Upload/synchronize a local Google Apps Script file, a local directory, or raw script string to a remote Google Apps Script project, and execute a specified entry function with optional arguments in a single step. Returns the response payload as JSON.\n\nNote: You can find the active Script ID and configuration status by running the `ggsrun status` command in the host terminal.\n\nCRITICAL TOOL SELECTION RULE FOR LLM AGENTS:\nUse this tool (and NOT `updateproject`) if the user wants to upload and execute a script or directory in a single operation. Do NOT call `updateproject` followed by another tool if the user wants execution; `exe1` handles both uploading and execution. `updateproject` is only for updating/overwriting project files without executing any functions.\n\nCRITICAL OUTPUT RULE FOR LLM AGENTS:\nWhen writing Google Apps Script to be executed via this tool, if you need to retrieve or inspect the execution results within the tool response, you MUST return the value using a `return` statement in your entry function. While `Logger.log()` and `console.log()` are still fully supported and useful for recording logs to the Apps Script execution console, their output is NOT returned in this tool's API response by default. To retrieve these logs, you must explicitly set the `log` parameter to `true` (which will add a 5-10 second delay).",
 						"inputSchema": map[string]interface{}{
 							"type": "object",
 							"properties": map[string]interface{}{
@@ -207,6 +207,10 @@ func runMCP(c *cli.Context) error {
 								"confirm": map[string]interface{}{
 									"type":        "boolean",
 									"description": "Must be set to true to explicitly approve execution after reviewing the security analysis report.",
+								},
+								"log": map[string]interface{}{
+									"type":        "boolean",
+									"description": "Set to true to retrieve execution logs (Logger.log and console.log) from Cloud Logging. Note: Enabling this will add a 5-10 second delay to wait for Google Cloud's log indexing. Default is false.",
 								},
 							},
 							"required": []string{"function"},
@@ -338,6 +342,12 @@ func runMCP(c *cli.Context) error {
 				valStr := fmt.Sprintf("%v", v)
 				if valStr == "" {
 					continue
+				}
+				// Resolve path arguments to absolute paths to guarantee correct file resolution in the subprocess
+				if k == "scriptfile" || k == "filename" || k == "destination" {
+					if absPath, errAbs := filepath.Abs(valStr); errAbs == nil {
+						valStr = absPath
+					}
 				}
 				cmdArgs = append(cmdArgs, "--"+k, valStr)
 			}

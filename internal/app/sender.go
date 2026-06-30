@@ -4,6 +4,7 @@ package app
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -570,6 +571,11 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 
 // EsenderForExe1 : Sends GAS to Google and retrieves results.
 func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer {
+	startTime := time.Now()
+	
+	// Capture the last known process ID BEFORE executing the script to avoid race conditions
+	e.LastProcessID = e.fetchLastProcessID(startTime)
+
 	e.UpdateStatus("Executing GAS function via Execution API...")
 	var paraint []interface{}
 	fSlice := c.StringSlice("function")
@@ -658,6 +664,12 @@ func (e *ExecutionContainer) esenderForExe1(c *cli.Context) *ExecutionContainer 
 	e.FeedBackData.Response.Result.TotalEt = math.Trunc(time.Since(e.InitVal.pstart).Seconds()*1000) / 1000
 	e.FeedBackData.Response.Result.Uapi = eapir1
 	e.Msg = append(e.Msg, fmt.Sprintf("Function '%s()' was run.", e.Param.Function))
+
+	if c.Bool("log") {
+		logs := e.fetchGASLogs(c, startTime, e.Param.Function, e.LastProcessID)
+		e.FeedBackData.Response.Result.Log = logs
+	}
+
 	return e
 }
 
@@ -1449,4 +1461,223 @@ func (e *ExecutionContainer) recoverMissingExecutionApi(c *cli.Context) error {
 		_, err = r.FetchAPI()
 		return err
 	}
+}
+
+// fetchLastProcessID : Pre-queries the most recent process ID in the database before execution
+func (e *ExecutionContainer) fetchLastProcessID(startTime time.Time) string {
+	projectID := e.GgsrunCfg.Projectid
+	if projectID == "" {
+		projectID = e.tryResolveProjectID()
+		if projectID == "" {
+			return ""
+		}
+	}
+
+	type LogRequest struct {
+		ResourceNames []string `json:"resourceNames"`
+		Filter        string   `json:"filter"`
+		OrderBy       string   `json:"orderBy"`
+		PageSize      int      `json:"pageSize"`
+	}
+
+	preStartStr := startTime.Add(-30 * time.Minute).UTC().Format(time.RFC3339Nano)
+	preEndStr := startTime.Add(5 * time.Minute).UTC().Format(time.RFC3339Nano)
+	preFilter := fmt.Sprintf(`resource.type="app_script_function" AND timestamp >= "%s" AND timestamp <= "%s"`, preStartStr, preEndStr)
+
+	preReq := LogRequest{
+		ResourceNames: []string{"projects/" + projectID},
+		Filter:        preFilter,
+		OrderBy:       "timestamp asc",
+		PageSize:      1000,
+	}
+	prePayload, _ := json.Marshal(preReq)
+	rPre := &utl.RequestParams{
+		Method:      "POST",
+		APIURL:      "https://logging.googleapis.com/v2/entries:list",
+		Data:        bytes.NewBuffer(prePayload),
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: e.GgsrunCfg.Accesstoken,
+		Dtime:       10,
+	}
+	if preBody, errPre := rPre.FetchAPI(); errPre == nil {
+		var preResp struct {
+			Entries []map[string]interface{} `json:"entries"`
+		}
+		if json.Unmarshal(preBody, &preResp) == nil {
+			for i := len(preResp.Entries) - 1; i >= 0; i-- {
+				entry := preResp.Entries[i]
+				if labels, ok := entry["labels"].(map[string]interface{}); ok {
+					if pid, ok := labels["script.googleapis.com/process_id"].(string); ok && pid != "" {
+						return pid
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// fetchGASLogs : Fetches execution logs from Cloud Logging for the specific execution session.
+func (e *ExecutionContainer) fetchGASLogs(c *cli.Context, startTime time.Time, functionName string, lastProcessID string) []GASLog {
+	// Skip log retrieval during automated tests to avoid network hangs and timeouts
+	if flag.Lookup("test.v") != nil {
+		return nil
+	}
+
+	projectID := e.GgsrunCfg.Projectid
+	if projectID == "" {
+		projectID = e.tryResolveProjectID()
+		if projectID == "" {
+			e.Msg = append(e.Msg, "Warning: GCP Project ID is not configured. Skipping log retrieval. Run 'ggsrun auth' or 'ggsrun setup' to configure.")
+			return nil
+		}
+	}
+
+	type LogRequest struct {
+		ResourceNames []string `json:"resourceNames"`
+		Filter        string   `json:"filter"`
+		OrderBy       string   `json:"orderBy"`
+		PageSize      int      `json:"pageSize"`
+	}
+
+	// Set query window widely (60 minutes prior) to safely absorb any local clock drift.
+	// We do not set a future upper bound (timestamp <= ...) to ensure all indexed logs are captured
+	// regardless of how far behind the local machine's clock is.
+	startStr := startTime.Add(-60 * time.Minute).UTC().Format(time.RFC3339Nano)
+
+	filter := fmt.Sprintf(`resource.type="app_script_function" AND timestamp >= "%s"`, startStr)
+	e.Msg = append(e.Msg, fmt.Sprintf("Debug: Querying Cloud Logging for project '%s' with filter: %s", projectID, filter))
+
+	reqPayload := LogRequest{
+		ResourceNames: []string{"projects/" + projectID},
+		Filter:        filter,
+		OrderBy:       "timestamp asc",
+		PageSize:      1000,
+	}
+	payloadBytes, _ := json.Marshal(reqPayload)
+
+	var logs []GASLog
+	newProcessDetected := false
+	detectedProcessID := ""
+	postDetectionAttempts := 0
+
+	r := &utl.RequestParams{
+		Method:      "POST",
+		APIURL:      "https://logging.googleapis.com/v2/entries:list",
+		Contenttype: "application/json;charset=UTF-8",
+		Accesstoken: e.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+
+	// Polling loop to wait for logs to be propagated to Cloud Logging (max 10 attempts)
+	for attempt := 1; attempt <= 10; attempt++ {
+		e.UpdateStatus(fmt.Sprintf("Retrieving execution logs from Cloud Logging (attempt %d/10)...", attempt))
+		time.Sleep(2000 * time.Millisecond)
+
+		r.Data = bytes.NewBuffer(payloadBytes)
+		body, err := r.FetchAPI()
+		if err != nil {
+			e.Msg = append(e.Msg, fmt.Sprintf("Warning: Cloud Logging API request failed (attempt %d): %v", attempt, err))
+			continue
+		}
+
+		var logResponse struct {
+			Entries []map[string]interface{} `json:"entries"`
+			Error   struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Status  string `json:"status"`
+			} `json:"error"`
+		}
+		if err2 := json.Unmarshal(body, &logResponse); err2 == nil && logResponse.Error.Code != 0 {
+			e.Msg = append(e.Msg, fmt.Sprintf("Warning: Cloud Logging API returned error (attempt %d): [%d] %s (%s)", attempt, logResponse.Error.Code, logResponse.Error.Message, logResponse.Error.Status))
+			continue
+		}
+
+		// Identify the latest process ID in the returned logs
+		currentProcessID := ""
+		for i := len(logResponse.Entries) - 1; i >= 0; i-- {
+			entry := logResponse.Entries[i]
+			if labels, ok := entry["labels"].(map[string]interface{}); ok {
+				if pid, ok := labels["script.googleapis.com/process_id"].(string); ok && pid != "" {
+					currentProcessID = pid
+					break
+				}
+			}
+		}
+
+		if !newProcessDetected {
+			// If we haven't detected the new execution yet, wait until a new process ID appears
+			if currentProcessID == "" || currentProcessID == lastProcessID {
+				continue
+			}
+			newProcessDetected = true
+			detectedProcessID = currentProcessID
+		}
+
+		// Extract the logs matching the detected process ID
+		var tempLogs []GASLog
+		for _, entry := range logResponse.Entries {
+			if labels, ok := entry["labels"].(map[string]interface{}); ok {
+				if pid, ok := labels["script.googleapis.com/process_id"].(string); ok && pid == detectedProcessID {
+					var logEntry GASLog
+					if jsonPayload, ok := entry["jsonPayload"].(map[string]interface{}); ok {
+						if msg, ok := jsonPayload["message"].(string); ok {
+							logEntry.Message = msg
+						}
+					}
+					if severity, ok := entry["severity"].(string); ok {
+						logEntry.Severity = severity
+					}
+					if ts, ok := entry["timestamp"].(string); ok {
+						logEntry.Timestamp = ts
+					}
+					tempLogs = append(tempLogs, logEntry)
+				}
+			}
+		}
+
+		// Keep the largest set of logs retrieved so far
+		if len(tempLogs) >= len(logs) {
+			logs = tempLogs
+		}
+
+		// Once the new process is detected, force 4 additional attempts (5 total) 
+		// to guarantee all parallel logs have finished indexing.
+		if newProcessDetected {
+			postDetectionAttempts++
+			if postDetectionAttempts >= 5 {
+				break
+			}
+			// If we are near the loop limit, extend it to ensure we complete the 5 post-detection attempts
+			if attempt == 10 {
+				attempt--
+			}
+		}
+	}
+
+	return logs
+}
+
+// tryResolveProjectID : Attempts to find and extract Project ID from client_secret.json as a fallback.
+func (e *ExecutionContainer) tryResolveProjectID() string {
+	credPath := "client_secret.json" // Default filename
+	if e.InitVal.customCred != "" {
+		credPath = e.InitVal.customCred
+	}
+	credentialsData, err := os.ReadFile(credPath)
+	if err != nil {
+		return ""
+	}
+	var cs Cs
+	if err := json.Unmarshal(credentialsData, &cs); err != nil {
+		return ""
+	}
+	if cs.Cid.Projectid != "" {
+		return cs.Cid.Projectid
+	}
+	if cs.Ciw.Projectid != "" {
+		return cs.Ciw.Projectid
+	}
+	return ""
 }

@@ -25,6 +25,10 @@ func getCommonFlags() []cli.Flag {
 			Name:  "config, conf",
 			Usage: "Path to the directory containing ggsrun.cfg. Overrides all other path priorities.",
 		},
+		&cli.StringFlag{
+			Name:  "profile",
+			Usage: "Specify a configuration profile name (e.g., 'dev' matches 'ggsrun_dev.cfg').",
+		},
 	}
 }
 
@@ -36,7 +40,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.10"
+	app.Version = "5.3.11"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -92,6 +96,10 @@ func Run() {
 				&cli.StringFlag{
 					Name:  "sandbox",
 					Usage: "Path to a configuration JSON file to control API and URL sandboxing. Default (empty) applies a strict sandbox (BLOCK ALL). Set to 'bypass' or 'none' to disable sandboxing.",
+				},
+				&cli.BoolFlag{
+					Name:  "log, l",
+					Usage: "Retrieve execution logs from Cloud Logging (adds 5-10s delay).",
 				},
 			}, getCommonFlags()...),
 		},
@@ -553,6 +561,10 @@ func Run() {
 					Usage: "Port binding for temporary OAuth loopback web server.",
 					Value: 8080,
 				},
+				&cli.BoolFlag{
+					Name:  "yes, y",
+					Usage: "Auto-confirm all prompts using default/detected values.",
+				},
 			}, getCommonFlags()...),
 		},
 		{
@@ -565,6 +577,10 @@ func Run() {
 					Name:  "port, p",
 					Usage: "Port binding for temporary OAuth loopback web server.",
 					Value: 8080,
+				},
+				&cli.BoolFlag{
+					Name:  "yes, y",
+					Usage: "Auto-confirm all prompts using default/detected values.",
 				},
 			}, getCommonFlags()...),
 		},
