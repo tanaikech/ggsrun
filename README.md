@@ -104,8 +104,16 @@ Run the help display command to verify the binary executes and lists available o
 $ ggsrun --help
 ```
 
-### 2. Run Diagnostics
-Once you have gone through the quick setup process (**[detailed step-by-step in the Onboarding Guide](docs/setup_guide.md)**), verify API connectivity and loopback token health by running:
+### 2. Setup & Authentication
+Before running any diagnostics or script execution commands, you must configure your Google Cloud credentials and authorize the local application. 
+
+Please follow the detailed, step-by-step instructions in the **[Setup & Onboarding Guide](docs/setup_guide.md)** to:
+1. Obtain and load your GCP OAuth `client_secret.json` credentials.
+2. Link your Google Cloud project to your Google Apps Script project.
+3. Automatically deploy and secure the execution gateway.
+
+### 3. Run Diagnostics
+Once you have completed the onboarding process, verify API connectivity and loopback token health by running:
 ```bash
 $ ggsrun status
 ```

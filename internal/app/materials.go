@@ -66,6 +66,7 @@ type InitVal struct {
 	profile               string // Config profile name
 	autoConfirm           bool   // Auto-confirm flag (--yes)
 	LastProcessID         string
+	customScopes          string
 }
 
 // UpdateStatus safely updates the TUI spinner text if active.
@@ -334,6 +335,7 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	a.InitVal.envConfig = os.Getenv(cfgpathenv)
 	a.InitVal.profile = c.String("profile")
 	a.InitVal.autoConfirm = c.Bool("yes")
+	a.InitVal.customScopes = c.String("scopes")
 
 	if c.Command.Name == "exe1" || c.Command.Name == "e1" || len(c.StringSlice("function")) > 0 {
 		fSlice := c.StringSlice("function")

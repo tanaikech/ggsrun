@@ -4,6 +4,12 @@
 
 # Update History
 
+- **v5.3.12 (July 2026) - Scopes Disclosure, Custom Scope Merging, GCP Dashboard Auto-Open, and gcloud CLI Authentication Deprecation**
+  1. **Default Scopes Disclosure**: Prior to initiating the authorization loop in `ggsrun auth` and `ggsrun setup`, the 14 default requested OAuth scopes are listed on-screen for user clarity.
+  2. **Custom Scopes Merging & Validation**: Added the `--scopes` CLI flag to both `auth` and `setup` commands, enabling users to request additional OAuth scopes. Includes validation that filters out non-HTTPS scope formats and deduplicates against the default scopes list.
+  3. **GCP Project Link Helper**: Resolved credential loading automatically retrieves the Project ID and displays a detailed guide explaining why and how to link the GCP project to Google Apps Script. Offers to open the dynamic Project Dashboard URL (`https://console.cloud.google.com/home/dashboard?project={project_id}`) in the browser to easily copy the numeric "Project Number".
+  4. **gcloud CLI Authentication Deprecation**: Deprecated and fully removed the gcloud active credentials option (`choice [3]`) in `quickSetup` and runtime token retrieval. This eliminates potential Workspace restricted scope blocks and provides a uniform, stable OAuth2 client environment.
+
 - **v5.3.11 (June 2026) - Opt-in GAS Log Retrieval, Log Stabilization Loop, TUI On-Demand Prompting, and MCP Schema Hardening**
   1. **Opt-in Log Retrieval (Default Off)**: Changed the default behavior of `exe1` to **not** fetch logs from Cloud Logging, enabling ultra-fast execution cycles (1-2 seconds). Replaced the `--nolog` flag with a new `--log` (alias `-l`) flag to explicitly enable log retrieval when needed.
   2. **High-Precision Log Stabilization Loop**: Engineered a state-tracking algorithm based on the Apps Script `process_id` to prevent stale log hijacking. It dynamically queries the database and waits until the log count stops changing (up to 15 seconds), ensuring that both `console.log` and `Logger.log` are fully captured even if they index at different times, while still exiting instantly on fast runs.

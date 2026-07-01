@@ -31,6 +31,22 @@ This guide provides a comprehensive, step-by-step walkthrough to configure your 
 
 ---
 
+## Setup Architecture Overview
+
+The following workflow diagram illustrates the relationship between your local machine (`ggsrun`), Google Cloud Platform (GCP), and Google Apps Script (GAS) during setup.
+
+```mermaid
+graph TD
+    A[1. GCP Console] -->|Create Desktop Credentials| B[Download client_secret.json]
+    B -->|ggsrun setup / auth| C[Configured ggsrun.cfg]
+    A -->|Retrieve Project Number| D[GAS Editor Settings]
+    D -->|Change Project Link| E[Linked GAS & GCP Project]
+    E -->|Deploy as API Executable| F[Obtain Script ID]
+    F -->|Register in ggsrun| C
+```
+
+---
+
 ## Step 1: Install ggsrun on Your Computer
 
 `ggsrun` is a lightweight application that runs through your terminal (Command Prompt or PowerShell on Windows, or Terminal on macOS/Linux). You do not need to install complex development environments; you can simply download a ready-to-use version.
@@ -66,7 +82,7 @@ This guide provides a comprehensive, step-by-step walkthrough to configure your 
 ---
 
 ### Option A: Simplified Quick Setup (Recommended)
-This method automates Google Cloud API configuration using tailored **GCP Quick Flows**, saving you many manual configuration steps. Alternatively, if you have the `gcloud` CLI installed and authenticated, `ggsrun` can automatically import your active credentials.
+This method automates Google Cloud API configuration using tailored **GCP Quick Flows**, saving you many manual configuration steps.
 
 1. **Open your terminal** and navigate to your workspace folder where `ggsrun` is located:
    - **Windows Command Prompt**: `cd %USERPROFILE%\Desktop\ggsrun-workspace`
@@ -85,19 +101,20 @@ This method automates Google Cloud API configuration using tailored **GCP Quick 
      *(Note: It is NOT required to rename this file to "client_secret.json" for setup mode. You can leave it as its default downloaded name or save it to any path, such as `{your path}/{credential file name}.json`)*
 5. **Register Credentials inside ggsrun**:
    - In your terminal, `ggsrun` will ask you how to load credentials.
-   - If the `gcloud` CLI is detected on your system, you will see a third option:
      - **`[1] Provide path to downloaded client secret JSON file (Recommended)`**
      - **`[2] Enter Client ID and Client Secret manually`**
-     - **`[3] Use active credentials from gcloud CLI (Auto-detected)`**
-   - Choose **[3]** to automatically load your active GCP Project ID and access token. This option configures `ggsrun` to dynamically refresh tokens via the `gcloud` CLI, eliminating the need to download `client_secret.json` or manage `refresh_token`s.
    - If you choose **[1]**, paste the path to your downloaded JSON file.
    - If you choose **[2]**, paste the Client ID, Client Secret, and the GCP Project ID (optional, but required for log retrieval) manually.
-6. **Launch Authorization**:
-   - (If you chose Option 1 or 2) `ggsrun` will ask to launch the browser for authorization. Press **Y** to proceed.
+6. **Automatic Project Number Link Guide**:
+   - As soon as your credentials load, `ggsrun` will explain the necessity of linking your GCP Project to GAS.
+   - It will prompt you to open the GCP Project Dashboard in your browser (`https://console.cloud.google.com/home/dashboard?project={project_id}`).
+   - Press **Y** to open it, copy your **Project Number** from the screen, and prepare to paste it into the Google Apps Script project settings (see Step 3 below).
+7. **Launch Authorization**:
+   - `ggsrun` will ask to launch the browser for authorization. Press **Y** to proceed.
    - Log in with your Google account. You may see a safety warning screen stating *"Google hasn't verified this app"*. Click **Advanced** and then click **Go to ggsrun Client (unsafe)** to proceed.
    - Click **Allow** to grant permission.
    - Your local environment is now fully authorized and securely saved to `ggsrun.cfg`!
-7. **Configure Default Values (Optional)**:
+8. **Configure Default Values (Optional)**:
    - Finally, `ggsrun` will prompt you to enter your **Google Apps Script Project Script ID** and your **Web Apps URL** (optional). Entering these now saves them in `ggsrun.cfg`, allowing you to run execution commands later without passing the `-i` or `-u` options every time!
 
 ---
@@ -122,12 +139,19 @@ If you already have a configured Google Cloud Project or prefer to manage everyt
 
 ## Step 3: Link Your Google Cloud Project to Google Apps Script (Mandatory for both Methods)
 
-No matter which setup option you used above, you must link your Apps Script project with your newly configured Google Cloud environment.
+No matter which setup option you used above, you must link your Apps Script project with your newly configured Google Cloud environment. 
+
+> [!IMPORTANT]
+> **Project ID vs Project Number**:
+> - **Project ID**: Alphanumeric string (e.g. `my-ggsrun-project-123`) used for configuration JSONs.
+> - **Project Number**: Numeric-only string (e.g. `123456789012`). **This Number is what Google Apps Script requires for the GCP link.**
 
 ### 3.1 Get Your Project Number
+If you followed **Option A (Simplified Quick Setup)**, `ggsrun` automatically offered to open your GCP Project Dashboard (`https://console.cloud.google.com/home/dashboard?project={project_id}`). 
+Otherwise:
 1. Return to your [Google Cloud Console](https://console.cloud.google.com/).
 2. Click on the **Dashboard** or **Welcome** page of your project.
-3. Look for the **Project Info** card. Copy the **Project number** (this is a long string of numbers, e.g., `123456789012`). Do not confuse this with the alphanumeric *Project ID*.
+3. Look for the **Project Info** card. Copy the **Project number** (e.g., `123456789012`).
 
 ### 3.2 Link the Project in Your GAS Editor
 1. Go to the [Google Apps Script Dashboard](https://script.google.com/) and open the specific script project you wish to run, or create a **New Project**.
@@ -313,10 +337,10 @@ When running `ggsrun setup --yes` or `ggsrun auth --yes`, `ggsrun` will:
 - **Auto-merge conflicts**: If there are mismatching Client IDs or Project IDs between your files, it will automatically resolve them using the newest values.
 - **Auto-skip parameters**: If you already have a Script ID or Web Apps URL registered, it will automatically keep them without asking.
 
-#### Example: One-click setup using an active gcloud CLI session
-If you have `gcloud` authenticated on your machine, you can fully set up `ggsrun` in a single command with zero prompts:
+#### Example: Non-interactive setup using a custom credentials file
+If you want to automate the setup process with a pre-downloaded credentials file, you can run setup in non-interactive mode:
 ```bash
-$ ggsrun setup --yes
+$ ggsrun setup --yes --credentials /path/to/client_secret.json
 ```
 
 ---

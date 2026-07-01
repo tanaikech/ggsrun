@@ -92,7 +92,7 @@ func (a *AuthContainer) tryLoadAuth(c *cli.Context) {
 // ReAuth : Overhauled interactive auth configuration command for v5.2.0
 func (a *AuthContainer) reAuth() {
 	// Enforce normalized 14 scopes for new authorization including Cloud Logging
-	a.GgsrunCfg.Scopes = []string{
+	defaultScopes := []string{
 		"https://www.googleapis.com/auth/drive",
 		"https://www.googleapis.com/auth/drive.file",
 		"https://www.googleapis.com/auth/drive.scripts",
@@ -107,6 +107,33 @@ func (a *AuthContainer) reAuth() {
 		"https://mail.google.com/",
 		"https://www.googleapis.com/auth/script.webapp.deploy",
 		"https://www.googleapis.com/auth/logging.read",
+	}
+	a.GgsrunCfg.Scopes = defaultScopes
+
+	fmt.Println("==================================================")
+	fmt.Println("Default OAuth Scopes to be requested:")
+	for _, s := range defaultScopes {
+		fmt.Printf("  - %s\n", s)
+	}
+	fmt.Println("==================================================")
+
+	var input string
+	if a.InitVal.customScopes != "" {
+		input = a.InitVal.customScopes
+	} else if !a.InitVal.autoConfirm {
+		fmt.Print("\nDo you want to add additional custom OAuth scopes?\n(Provide comma or space-separated HTTPS URLs, or press Enter to skip): ")
+		fmt.Scanln(&input)
+		input = strings.TrimSpace(input)
+	}
+
+	if input != "" {
+		merged, err := checkAndMergeScopes(defaultScopes, input)
+		if err != nil {
+			pterm.Error.Printf("Scope validation failed: %v\n", err)
+			utl.Exit(1)
+		}
+		a.GgsrunCfg.Scopes = merged
+		pterm.Success.Printf("Successfully registered %d additional scope(s).\n", len(merged)-len(defaultScopes))
 	}
 
 	cfgPath := a.resolveConfigFile()
@@ -250,6 +277,7 @@ func (a *AuthContainer) reAuth() {
 		a.Cs.Cid = a.Cs.Ciw
 	}
 	a.resolveCredentialsConflict()
+	a.openGCPDashboardForProjectNumber()
 
 	fmt.Println("\nOAuth 2.0 Credentials:")
 	fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
@@ -607,7 +635,7 @@ func getWslBrowserCmd(codeurl string) *exec.Cmd {
 // quickSetup : Interactive, user-friendly setup flow utilizing GCP Quick Flows
 func (a *AuthContainer) quickSetup() {
 	// Target Scopes Definition
-	a.GgsrunCfg.Scopes = []string{
+	defaultScopes := []string{
 		"https://www.googleapis.com/auth/drive",
 		"https://www.googleapis.com/auth/drive.file",
 		"https://www.googleapis.com/auth/drive.scripts",
@@ -622,6 +650,33 @@ func (a *AuthContainer) quickSetup() {
 		"https://mail.google.com/",
 		"https://www.googleapis.com/auth/script.webapp.deploy",
 		"https://www.googleapis.com/auth/logging.read",
+	}
+	a.GgsrunCfg.Scopes = defaultScopes
+
+	fmt.Println("==================================================")
+	fmt.Println("Default OAuth Scopes to be requested:")
+	for _, s := range defaultScopes {
+		fmt.Printf("  - %s\n", s)
+	}
+	fmt.Println("==================================================")
+
+	var input string
+	if a.InitVal.customScopes != "" {
+		input = a.InitVal.customScopes
+	} else if !a.InitVal.autoConfirm {
+		fmt.Print("\nDo you want to add additional custom OAuth scopes?\n(Provide comma or space-separated HTTPS URLs, or press Enter to skip): ")
+		fmt.Scanln(&input)
+		input = strings.TrimSpace(input)
+	}
+
+	if input != "" {
+		merged, err := checkAndMergeScopes(defaultScopes, input)
+		if err != nil {
+			pterm.Error.Printf("Scope validation failed: %v\n", err)
+			utl.Exit(1)
+		}
+		a.GgsrunCfg.Scopes = merged
+		pterm.Success.Printf("Successfully registered %d additional scope(s).\n", len(merged)-len(defaultScopes))
 	}
 
 	cfgPath := a.resolveConfigFile()
@@ -688,13 +743,7 @@ func (a *AuthContainer) quickSetup() {
 	pterm.Info.Println("Once you have created the 'Desktop app' credentials, choose an option:")
 	fmt.Println("  [1] Provide path to downloaded client secret JSON file (Recommended)")
 	fmt.Println("  [2] Enter Client ID and Client Secret manually")
-	hasGcloud := isGcloudAvailable()
-	if hasGcloud {
-		fmt.Println("  [3] Use active credentials from gcloud CLI (Auto-detected)")
-		fmt.Print("Enter choice [1-3] (Default: 1): ")
-	} else {
-		fmt.Print("Enter choice [1-2] (Default: 1): ")
-	}
+	fmt.Print("Enter choice [1-2] (Default: 1): ")
 	var choice string
 	fmt.Scanln(&choice)
 	choice = strings.TrimSpace(choice)
@@ -785,6 +834,7 @@ func (a *AuthContainer) quickSetup() {
 			a.Cs.Cid = a.Cs.Ciw
 		}
 		a.resolveCredentialsConflict()
+		a.openGCPDashboardForProjectNumber()
 	} else if choice == "2" {
 		fmt.Print("Enter Client ID: ")
 		var clientID string
@@ -809,39 +859,7 @@ func (a *AuthContainer) quickSetup() {
 		projectID = strings.TrimSpace(projectID)
 		a.Cs.Cid.Projectid = projectID
 		a.GgsrunCfg.Projectid = projectID
-	} else if choice == "3" && hasGcloud {
-		pterm.Info.Println("Detecting credentials from gcloud CLI...")
-		
-		// Get Project ID
-		pCmd := exec.Command("gcloud", "config", "get-value", "project")
-		pOut, err := pCmd.Output()
-		if err != nil {
-			pterm.Error.Printf("Failed to retrieve project ID from gcloud: %v\n", err)
-			utl.Exit(1)
-		}
-		projectID := strings.TrimSpace(string(pOut))
-		if projectID == "" {
-			pterm.Error.Println("No active project configured in gcloud CLI.")
-			utl.Exit(1)
-		}
-
-		// Get Access Token
-		tCmd := exec.Command("gcloud", "auth", "print-access-token")
-		tOut, err := tCmd.Output()
-		if err != nil {
-			pterm.Error.Printf("Failed to retrieve access token from gcloud: %v\n", err)
-			utl.Exit(1)
-		}
-		accessToken := strings.TrimSpace(string(tOut))
-
-		a.GgsrunCfg.Projectid = projectID
-		a.GgsrunCfg.Accesstoken = accessToken
-		a.GgsrunCfg.UseGcloudAuth = true
-		a.GgsrunCfg.Expiresin = time.Now().Unix() + 3540 // 59 minutes
-
-		// Create dummy client secret to bypass following checks
-		a.Cs.Cid.ClientID = "gcloud-cli-client"
-		a.Cs.Cid.Clientsecret = "gcloud-cli-secret"
+		a.openGCPDashboardForProjectNumber()
 	} else {
 		pterm.Error.Println("Invalid choice.")
 		utl.Exit(1)
@@ -901,43 +919,136 @@ func (a *AuthContainer) quickSetup() {
 	}
 
 	fmt.Println("==================================================")
-	if a.GgsrunCfg.UseGcloudAuth {
-		pterm.Info.Println("Step 4: Save Configuration")
-		pterm.Success.Printf("Auto-detected GCP Project ID: %s\n", a.GgsrunCfg.Projectid)
-		a.makecfgfile()
+	pterm.Info.Println("Step 4: Launch Consent Authorization")
+	fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
+	fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
+	fmt.Print("Proceed to launch browser to authorize ggsrun? [Y/n]: ")
+	var confirm string
+	if a.InitVal.autoConfirm {
+		confirm = "y"
+		pterm.Info.Println("Proceed to launch browser to authorize ggsrun? [Y/n] [Auto-confirmed]")
 	} else {
-		pterm.Info.Println("Step 4: Launch Consent Authorization")
-		fmt.Printf("  Client ID: %s\n", a.Cs.Cid.ClientID)
-		fmt.Printf("  Client Secret: %s\n", maskClientSecret(a.Cs.Cid.Clientsecret))
-		fmt.Print("Proceed to launch browser to authorize ggsrun? [Y/n]: ")
-		var confirm string
-		if a.InitVal.autoConfirm {
-			confirm = "y"
-			pterm.Info.Println("Proceed to launch browser to authorize ggsrun? [Y/n] [Auto-confirmed]")
-		} else {
-			fmt.Scanln(&confirm)
-			confirm = strings.ToLower(strings.TrimSpace(confirm))
-		}
-		if confirm != "" && confirm != "y" {
-			pterm.Info.Println("Setup aborted.")
-			utl.Exit(0)
-		}
-
-		a.getNewAccesstoken().makecfgfile()
+		fmt.Scanln(&confirm)
+		confirm = strings.ToLower(strings.TrimSpace(confirm))
 	}
+	if confirm != "" && confirm != "y" {
+		pterm.Info.Println("Setup aborted.")
+		utl.Exit(0)
+	}
+
+	a.getNewAccesstoken().makecfgfile()
 	pterm.Success.Println("Simplified Quick Setup completed successfully!")
 }
 
-// isGcloudAvailable : Checks if gcloud CLI is installed and has an active account.
-func isGcloudAvailable() bool {
-	_, err := exec.LookPath("gcloud")
-	if err != nil {
-		return false
+// checkAndMergeScopes merges custom scopes into default scopes after validation.
+func checkAndMergeScopes(defaultScopes []string, input string) ([]string, error) {
+	if strings.TrimSpace(input) == "" {
+		return defaultScopes, nil
 	}
-	cmd := exec.Command("gcloud", "config", "get-value", "account")
-	out, err := cmd.Output()
-	return err == nil && len(strings.TrimSpace(string(out))) > 0
+
+	splitter := func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	}
+	rawTokens := strings.FieldsFunc(input, splitter)
+
+	scopeMap := make(map[string]bool)
+	for _, s := range defaultScopes {
+		scopeMap[s] = true
+	}
+
+	var added []string
+	var invalid []string
+
+	for _, tok := range rawTokens {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+
+		u, err := url.ParseRequestURI(tok)
+		if err != nil || u.Scheme != "https" {
+			invalid = append(invalid, tok)
+			continue
+		}
+
+		if !scopeMap[tok] {
+			scopeMap[tok] = true
+			added = append(added, tok)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return defaultScopes, fmt.Errorf("invalid OAuth scopes (must be HTTPS URLs): %s", strings.Join(invalid, ", "))
+	}
+
+	merged := make([]string, 0, len(scopeMap))
+	merged = append(merged, defaultScopes...)
+	merged = append(merged, added...)
+	return merged, nil
 }
+
+func openBrowser(targetURL string) error {
+	var cmd *exec.Cmd
+	if isWSL() {
+		cmd = getWslBrowserCmd(targetURL)
+	} else {
+		switch runtime.GOOS {
+		case "darwin":
+			cmd = exec.Command("open", targetURL)
+		case "linux":
+			cmd = exec.Command("xdg-open", targetURL)
+		case "windows":
+			cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", targetURL)
+		default:
+			cmd = exec.Command("xdg-open", targetURL)
+		}
+	}
+	if cmd != nil {
+		return cmd.Start()
+	}
+	return fmt.Errorf("unsupported platform")
+}
+
+func (a *AuthContainer) openGCPDashboardForProjectNumber() {
+	projectID := a.GgsrunCfg.Projectid
+	if projectID == "" {
+		return
+	}
+
+	dashboardURL := fmt.Sprintf("https://console.cloud.google.com/home/dashboard?project=%s", projectID)
+
+	fmt.Println("\n================================================================================")
+	pterm.Info.Println("[ACTION REQUIRED] Link GCP Project to Google Apps Script (GAS)")
+	fmt.Println("================================================================================")
+	fmt.Println("To execute GAS remotely via ggsrun, you MUST link this GCP project with your GAS.")
+	fmt.Println("To do this:")
+	fmt.Println("  1. Copy the \"Project Number\" (NOT Project ID) from the GCP Dashboard.")
+	fmt.Println("  2. Go to your GAS Editor -> Project Settings (⚙️) -> Change project.")
+	fmt.Println("  3. Paste the Project Number.")
+	fmt.Println("\nWe will open your GCP Dashboard URL:")
+	fmt.Printf("  %s\n", dashboardURL)
+	fmt.Println("================================================================================")
+
+	if a.InitVal.autoConfirm {
+		pterm.Info.Println("Non-interactive mode: Skipping automatic browser launch.")
+		pterm.Info.Println("Please manually open the URL displayed above to find your Project Number.")
+		return
+	}
+
+	fmt.Print("Proceed to open the GCP Dashboard in your browser? [Y/n]: ")
+	var confirm string
+	fmt.Scanln(&confirm)
+	confirm = strings.ToLower(strings.TrimSpace(confirm))
+	if confirm == "" || confirm == "y" {
+		pterm.Info.Println("Launching browser...")
+		if err := openBrowser(dashboardURL); err != nil {
+			pterm.Warning.Printf("Could not open browser automatically: %v\n", err)
+		}
+	} else {
+		pterm.Info.Println("Skipped automatic browser launch. Please copy the URL manually.")
+	}
+}
+
 
 // resolveCredentialsConflict compares client_secret.json and existing ggsrun.cfg.
 // It prompts the user if there are mismatches and updates a.GgsrunCfg.

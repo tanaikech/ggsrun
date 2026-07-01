@@ -40,7 +40,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.11"
+	app.Version = "5.3.12"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -565,6 +565,10 @@ func Run() {
 					Name:  "yes, y",
 					Usage: "Auto-confirm all prompts using default/detected values.",
 				},
+				&cli.StringFlag{
+					Name:  "scopes",
+					Usage: "Comma-separated additional OAuth scopes to request.",
+				},
 			}, getCommonFlags()...),
 		},
 		{
@@ -581,6 +585,10 @@ func Run() {
 				&cli.BoolFlag{
 					Name:  "yes, y",
 					Usage: "Auto-confirm all prompts using default/detected values.",
+				},
+				&cli.StringFlag{
+					Name:  "scopes",
+					Usage: "Comma-separated additional OAuth scopes to request.",
 				},
 			}, getCommonFlags()...),
 		},
