@@ -4,6 +4,11 @@
 
 # Update History
 
+- **v5.3.13 (July 2026) - Export Progress Bar and Extension Fix**
+  1. **Fix Google Workspace Export Progress Bar**: Ignored the metadata `Size` returned by Google Drive API for Google Workspace files during download/export since it represents internal document size rather than the exported format size. Replaced it with the HTTP response `Content-Length` (or 0 if chunked/unknown).
+  2. **TUI Completion Tracking**: Resolved an issue in TUI progress tracking where files with unknown total sizes had their transferred size reset to 0 upon completion; the system now correctly aligns the final total with the actual transferred byte count.
+  3. **File Extension Deduplication**: Refined the download path logic to prevent duplicate extensions (e.g. `.md.md`) when exporting Google Workspace documents. If the user-specified filename already ends with the target extension (case-insensitive), it is not appended again. If the filename ends with an incorrect/custom extension, the correct extension is appended. If no extension is present, the correct extension is appended.
+
 - **v5.3.12 (July 2026) - Scopes Disclosure, Custom Scope Merging, GCP Dashboard Auto-Open, and gcloud CLI Authentication Deprecation**
   1. **Default Scopes Disclosure**: Prior to initiating the authorization loop in `ggsrun auth` and `ggsrun setup`, the 14 default requested OAuth scopes are listed on-screen for user clarity.
   2. **Custom Scopes Merging & Validation**: Added the `--scopes` CLI flag to both `auth` and `setup` commands, enabling users to request additional OAuth scopes. Includes validation that filters out non-HTTPS scope formats and deduplicates against the default scopes list.

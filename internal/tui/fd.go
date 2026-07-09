@@ -3659,19 +3659,31 @@ func updateAndRenderProgress(msg string) {
 			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Uploaded:"))
 			jp := transferProgress[fn]
 			jp.Status = "Completed"
-			jp.Transferred = jp.Total
+			if jp.Total > 0 {
+				jp.Transferred = jp.Total
+			} else {
+				jp.Total = jp.Transferred
+			}
 			transferProgress[fn] = jp
 		} else if strings.HasPrefix(msg, "Downloaded:") {
 			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Downloaded:"))
 			jp := transferProgress[fn]
 			jp.Status = "Completed"
-			jp.Transferred = jp.Total
+			if jp.Total > 0 {
+				jp.Transferred = jp.Total
+			} else {
+				jp.Total = jp.Transferred
+			}
 			transferProgress[fn] = jp
 		} else if strings.HasPrefix(msg, "Downloaded script project:") {
 			fn := strings.TrimSpace(strings.TrimPrefix(msg, "Downloaded script project:"))
 			jp := transferProgress[fn]
 			jp.Status = "Completed"
-			jp.Transferred = jp.Total
+			if jp.Total > 0 {
+				jp.Transferred = jp.Total
+			} else {
+				jp.Total = jp.Transferred
+			}
 			transferProgress[fn] = jp
 		} else if strings.Contains(msg, "failed") || strings.Contains(msg, "error") || strings.Contains(msg, "Failed") {
 			for fn := range transferProgress {

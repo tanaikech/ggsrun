@@ -131,8 +131,13 @@ func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 		job.ExportURL = "https://script.googleapis.com/v1/projects/" + job.DriveID + "/content"
 		if c.Bool("rawdata") {
 			ext := "json"
-			job.SavePath += "." + ext
-			job.Name += "." + ext
+			targetExt := "." + ext
+			if !strings.EqualFold(filepath.Ext(job.SavePath), targetExt) {
+				job.SavePath += targetExt
+			}
+			if !strings.EqualFold(filepath.Ext(job.Name), targetExt) {
+				job.Name += targetExt
+			}
 		}
 		return true
 	} else if strings.Contains(job.MimeType, "application/vnd.google-apps") {
@@ -178,8 +183,13 @@ func resolveDownloadSavePath(job *downloadJob, c *cli.Context) bool {
 		}
 
 		job.ExportURL = "https://www.googleapis.com/drive/v3/files/" + job.DriveID + "/export?mimeType=" + exportMime
-		job.SavePath += "." + ext
-		job.Name += "." + ext
+		targetExt := "." + ext
+		if !strings.EqualFold(filepath.Ext(job.SavePath), targetExt) {
+			job.SavePath += targetExt
+		}
+		if !strings.EqualFold(filepath.Ext(job.Name), targetExt) {
+			job.Name += targetExt
+		}
 		return true
 	}
 
@@ -282,6 +292,9 @@ func executeDownloadJob(ctx context.Context, job downloadJob, a *AuthContainer, 
 	}
 
 	size := job.Size
+	if strings.HasPrefix(job.MimeType, "application/vnd.google-apps") {
+		size = 0
+	}
 	if size == 0 {
 		size = resp2.ContentLength
 	}
