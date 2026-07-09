@@ -4,6 +4,9 @@
 
 # Update History
 
+- **v5.3.16 (July 2026) - Relative Local Paths Display Option in TUI (FD Mode)**
+  1. **Relative Local Path Display**: Added the `--relpath` / `-rp` boolean flag to the `fd` command. When specified, local paths displayed in the panel header/title, path columns, and file details popup are shown relative to the working directory at TUI startup (instead of default absolute paths). This provides a cleaner path representation, especially useful for demo videos.
+
 - **v5.3.15 (July 2026) - Custom Google Drive Root Folder in TUI (FD Mode)**
   1. **Custom Drive Root Option**: Added the `--remoteroot` / `-rr` CLI flag to the `fd` command, allowing users to specify a folder name or folder ID to act as the initial Google Drive root folder when launching FD mode.
   2. **Folder ID Resolution**: If a folder ID is supplied to `--remoteroot`, `ggsrun` verifies and boots directly into that folder on the Google Drive side.

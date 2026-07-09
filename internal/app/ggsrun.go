@@ -40,7 +40,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.15"
+	app.Version = "5.3.16"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -619,6 +619,10 @@ func Run() {
 				&cli.StringFlag{
 					Name:  "remoteroot, rr",
 					Usage: "Specify the initial Google Drive root folder name or folder ID to start with.",
+				},
+				&cli.BoolFlag{
+					Name:  "relpath, rp",
+					Usage: "Display local paths relative to the startup working directory in TUI.",
 				},
 			}, getCommonFlags()...),
 		},

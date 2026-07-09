@@ -2783,5 +2783,68 @@ func TestTUI_RemoteRootOption_FolderName_MultipleMatches(t *testing.T) {
 	}
 }
 
+func TestTUI_RelativePathOption(t *testing.T) {
+	appObj := cli.NewApp()
+	appObj.Version = "5.3.16"
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.Bool("relpath", true, "")
+	cliCtx := cli.NewContext(appObj, set, nil)
+	_ = set.Parse([]string{"--relpath"})
+
+	simScreen := tcell.NewSimulationScreen("UTF-8")
+	_ = simScreen.Init()
+	defer simScreen.Fini()
+	testScreen = simScreen
+
+	localTable = tview.NewTable()
+	remoteTable = tview.NewTable()
+	pages = tview.NewPages()
+	tuiApp = tview.NewApplication()
+	tuiApp.SetScreen(simScreen)
+
+	isAuthorized = true
+	authContainer = &app.AuthContainer{
+		GgsrunCfg: &app.GgsrunCfg{
+			Accesstoken: "mock",
+		},
+	}
+
+	mockWorkingDir, _ := filepath.Abs(".")
+	listLocalFilesFn = func(dir string) ([]FileEntry, error) {
+		return []FileEntry{
+			{Name: "my_script.gs", Path: filepath.Join(mockWorkingDir, "my_script.gs"), IsDir: false, MimeType: "text/plain"},
+		}, nil
+	}
+	listRemoteFilesFn = func(auth *app.AuthContainer, c *cli.Context, folderID string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- RunTUI(cliCtx)
+	}()
+
+	time.Sleep(150 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		tuiApp.Stop()
+	})
+	<-errChan
+
+	if !isRelPathActive {
+		t.Error("Expected isRelPathActive to be true")
+	}
+	if initialWorkingDir != mockWorkingDir {
+		t.Errorf("Expected initialWorkingDir to be '%s', got '%s'", mockWorkingDir, initialWorkingDir)
+	}
+
+	testPath := filepath.Join(mockWorkingDir, "subfolder", "file.gs")
+	res := getDisplayLocalPath(testPath)
+	expected := filepath.Join("subfolder", "file.gs")
+	if res != expected {
+		t.Errorf("Expected relative path '%s', got '%s'", expected, res)
+	}
+}
+
 
 

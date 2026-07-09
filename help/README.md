@@ -2432,6 +2432,12 @@ $ ggsrun fd --remoteroot "MyProjectsFolder"
 ```
 If multiple folders share that name, `ggsrun` will display an interactive list selector page at startup, allowing you to choose the desired folder.
 
+#### Relative Local Path Display Option
+By default, the local panel title and details popup (`i` key) display absolute paths. You can specify the `--relpath` (alias `-rp`) option to display them relative to the startup working directory:
+```bash
+$ ggsrun fd --relpath
+```
+
 
 #### Keybindings Summary
 - `Tab`: Switch focus between panels.

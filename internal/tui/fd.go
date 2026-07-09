@@ -44,6 +44,9 @@ var (
 	rootSelectNeeded    bool
 	multipleRootMatches []FolderInfo
 
+	isRelPathActive   bool
+	initialWorkingDir string
+
 	selectedLocalPaths = make(map[string]bool)
 	selectedRemoteIDs  = make(map[string]bool)
 
@@ -172,6 +175,8 @@ func RunTUI(c *cli.Context) error {
 	if err != nil {
 		currentLocalDir = "."
 	}
+	isRelPathActive = c.Bool("relpath")
+	initialWorkingDir = currentLocalDir
 
 	var startFolderID string = "root"
 	var startFolderName string = "root"
@@ -890,6 +895,19 @@ func findRemoteFoldersByName(auth *app.AuthContainer, c *cli.Context, name strin
 	return folders, nil
 }
 
+func getDisplayLocalPath(p string) string {
+	if isRelPathActive {
+		rel, err := filepath.Rel(initialWorkingDir, p)
+		if err == nil {
+			if rel == "." {
+				return "."
+			}
+			return rel
+		}
+	}
+	return p
+}
+
 func populateTable(table *tview.Table, files []FileEntry, isLocal bool) {
 	table.Clear()
 
@@ -932,9 +950,15 @@ func populateTable(table *tview.Table, files []FileEntry, isLocal bool) {
 			relPath = "../"
 		} else {
 			if isLocal {
-				parentOfCurrentLocalDir := filepath.Dir(currentLocalDir)
-				if r, err := filepath.Rel(parentOfCurrentLocalDir, item.Path); err == nil {
-					relPath = r
+				if isRelPathActive {
+					if r, err := filepath.Rel(initialWorkingDir, item.Path); err == nil {
+						relPath = r
+					}
+				} else {
+					parentOfCurrentLocalDir := filepath.Dir(currentLocalDir)
+					if r, err := filepath.Rel(parentOfCurrentLocalDir, item.Path); err == nil {
+						relPath = r
+					}
 				}
 			} else {
 				if len(remoteFolderStack) > 0 {
@@ -971,7 +995,7 @@ func refreshPanels() {
 		} else {
 			sortFileEntries(localFiles, localSortKey, localSortOrder)
 			populateTable(localTable, localFiles, true)
-			localTable.SetTitle(" Local File System: " + currentLocalDir + " ")
+			localTable.SetTitle(" Local File System: " + getDisplayLocalPath(currentLocalDir) + " ")
 			localTable.SetBorder(true)
 			localTable.SetTitleColor(tview.Styles.TitleColor)
 			localTable.SetBorderColor(tview.Styles.BorderColor)
@@ -1927,7 +1951,7 @@ func showFileDetails() {
   Created Date  : %s
   Last Modified : %s
   Size          : %s%s
-`, selected.Name, selected.Path, selected.MimeType, selected.Permissions, selected.CreatedTime, selected.ModTime, formatSize(selected.Size, selected.IsDir, selected.MimeType), extra)
+`, selected.Name, getDisplayLocalPath(selected.Path), selected.MimeType, selected.Permissions, selected.CreatedTime, selected.ModTime, formatSize(selected.Size, selected.IsDir, selected.MimeType), extra)
 
 		textView := tview.NewTextView().
 			SetText("Local File Details\n\n" + details).
@@ -3604,7 +3628,7 @@ func onSearch() {
 					localFiles = results
 					sortFileEntries(localFiles, localSortKey, localSortOrder)
 					populateTable(localTable, localFiles, true)
-					localTable.SetTitle(" Search Results for '" + query + "' under " + currentLocalDir + " (Press 'r' to return to normal view) ")
+					localTable.SetTitle(" Search Results for '" + query + "' under " + getDisplayLocalPath(currentLocalDir) + " (Press 'r' to return to normal view) ")
 					localTable.SetTitleColor(tcell.ColorYellow)
 					localTable.SetBorderColor(tcell.ColorYellow)
 				})

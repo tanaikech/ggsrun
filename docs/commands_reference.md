@@ -501,6 +501,7 @@ $ ggsrun fd [flags]
 | Flag | Shorthand | Type | Description |
 | :--- | :--- | :--- | :--- |
 | `--remoteroot` | `-rr` | String | Specifies the initial Google Drive root folder name or folder ID to start the remote panel with. |
+| `--relpath` | `-rp` | Boolean | Display local paths relative to the startup working directory in TUI instead of default absolute paths. |
 
 #### Usage Examples
 * **Launch FD mode directly starting in a specific folder by ID**:

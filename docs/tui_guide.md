@@ -171,6 +171,13 @@ By default, the remote panel starts at the actual root folder of your Google Dri
   - If only one folder shares that name, it boots into it immediately.
   - If multiple folders share that name, `ggsrun` displays an interactive list selector page at startup, allowing you to select the desired folder before rendering the dual-pane view. Pressing `Esc` on this list falls back to the standard Drive root.
 
+### Relative Local Path Display Option
+By default, the local panel title and the file details dialog (`i` key) display absolute paths. For screen recordings or demo video purposes, you can enable relative path display relative to the TUI launch working directory using the `--relpath` (alias `-rp`) flag:
+```bash
+$ ggsrun fd --relpath
+```
+When enabled, all local file path representations displayed in the TUI interface will be simplified to their relative path representations based on the startup working directory.
+
 *Note: The filer loads your credentials dynamically from `ggsrun.cfg`. Ensure you have run `ggsrun setup` first (see the [Setup & Onboarding Guide](setup_guide.md)).*
 
 ---
