@@ -2425,6 +2425,14 @@ To open the interactive TUI filer, run:
 $ ggsrun fd
 ```
 
+#### Specifying a Custom Google Drive Root Folder
+By default, the Google Drive panel starts at the actual root folder. You can specify a custom starting folder name or folder ID using the `--remoteroot` (alias `-rr`) option:
+```bash
+$ ggsrun fd --remoteroot "MyProjectsFolder"
+```
+If multiple folders share that name, `ggsrun` will display an interactive list selector page at startup, allowing you to choose the desired folder.
+
+
 #### Keybindings Summary
 - `Tab`: Switch focus between panels.
 - `Up/Down`: Navigate file lists (supports **Wrap-around** navigation).

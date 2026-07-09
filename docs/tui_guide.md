@@ -157,6 +157,20 @@ To start the Interactive Terminal File Manager, run the following command in you
 $ ggsrun fd
 ```
 
+### Specifying a Custom Google Drive Root Folder
+By default, the remote panel starts at the actual root folder of your Google Drive. You can specify a custom starting folder using the `--remoteroot` (alias `-rr`) option, passing either a **Folder ID** or a **Folder Name**:
+- **By Folder ID**:
+  ```bash
+  $ ggsrun fd --remoteroot "1B6uaFVvLGlQ5eAutKPdGedH3dGhO3CdkM"
+  ```
+  Forces the TUI to boot directly into the folder with the matching ID.
+- **By Folder Name**:
+  ```bash
+  $ ggsrun fd --remoteroot "MyProjectsFolder"
+  ```
+  - If only one folder shares that name, it boots into it immediately.
+  - If multiple folders share that name, `ggsrun` displays an interactive list selector page at startup, allowing you to select the desired folder before rendering the dual-pane view. Pressing `Esc` on this list falls back to the standard Drive root.
+
 *Note: The filer loads your credentials dynamically from `ggsrun.cfg`. Ensure you have run `ggsrun setup` first (see the [Setup & Onboarding Guide](setup_guide.md)).*
 
 ---

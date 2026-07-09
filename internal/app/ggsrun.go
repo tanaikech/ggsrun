@@ -40,7 +40,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.14"
+	app.Version = "5.3.15"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -615,7 +615,12 @@ func Run() {
 				pterm.Error.Println("TUI module not initialized.")
 				return nil
 			},
-			Flags: getCommonFlags(),
+			Flags: append([]cli.Flag{
+				&cli.StringFlag{
+					Name:  "remoteroot, rr",
+					Usage: "Specify the initial Google Drive root folder name or folder ID to start with.",
+				},
+			}, getCommonFlags()...),
 		},
 		{
 			Name:        "mcp",

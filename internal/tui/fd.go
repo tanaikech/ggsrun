@@ -41,6 +41,9 @@ var (
 	mainCtx               *cli.Context
 	testScreen            tcell.Screen
 
+	rootSelectNeeded    bool
+	multipleRootMatches []FolderInfo
+
 	selectedLocalPaths = make(map[string]bool)
 	selectedRemoteIDs  = make(map[string]bool)
 
@@ -63,10 +66,12 @@ var (
 	inSearchModeRemote bool
 
 	// Mockable function variables for unit testing
-	listLocalFilesFn   = listLocalFiles
-	listRemoteFilesFn  = listRemoteFiles
-	openBrowserFn      = openBrowser
-	tuiUploadFn        = app.TuiUpload
+	listLocalFilesFn          = listLocalFiles
+	listRemoteFilesFn         = listRemoteFiles
+	findRemoteFoldersByNameFn = findRemoteFoldersByName
+	getRemoteFolderByIDFn     = getRemoteFolderByID
+	openBrowserFn             = openBrowser
+	tuiUploadFn               = app.TuiUpload
 	tuiDownloadFn      = app.TuiDownload
 	getAuthContainerFn = app.GetAuthenticatedAuthContainer
 	tuiExecuteGasFn    = app.TuiExecuteGas
@@ -168,8 +173,33 @@ func RunTUI(c *cli.Context) error {
 		currentLocalDir = "."
 	}
 
-	currentRemoteFolderID = "root"
-	remoteFolderStack = []FolderInfo{{ID: "root", Name: "root"}}
+	var startFolderID string = "root"
+	var startFolderName string = "root"
+
+	if isAuthorized {
+		remoterootInput := c.String("remoteroot")
+		if remoterootInput != "" {
+			if name, ok := getRemoteFolderByIDFn(authContainer, remoterootInput); ok {
+				startFolderID = remoterootInput
+				startFolderName = name
+			} else {
+				folders, err := findRemoteFoldersByNameFn(authContainer, c, remoterootInput)
+				if err == nil && len(folders) == 1 {
+					startFolderID = folders[0].ID
+					startFolderName = folders[0].Name
+				} else if err == nil && len(folders) > 1 {
+					multipleRootMatches = folders
+					rootSelectNeeded = true
+				} else {
+					startFolderID = "root"
+					startFolderName = "root"
+				}
+			}
+		}
+	}
+
+	currentRemoteFolderID = startFolderID
+	remoteFolderStack = []FolderInfo{{ID: startFolderID, Name: startFolderName}}
 
 	selectedLocalPaths = make(map[string]bool)
 	selectedRemoteIDs = make(map[string]bool)
@@ -212,7 +242,67 @@ func RunTUI(c *cli.Context) error {
 	}
 	flex.AddItem(statusBar, 1, 0, false)
 
-	pages.AddPage("main", flex, true, true)
+	pages.AddPage("main", flex, true, !rootSelectNeeded)
+
+	if rootSelectNeeded {
+		list := tview.NewList()
+		list.SetBorder(true).
+			SetTitle(" Multiple matching folders found. Select the Drive root folder: ").
+			SetTitleColor(tcell.ColorYellow)
+
+		for _, f := range multipleRootMatches {
+			list.AddItem(fmt.Sprintf("Name: %s", f.Name), fmt.Sprintf("ID: %s", f.ID), 0, nil)
+		}
+
+		list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			if event.Key() == tcell.KeyEsc {
+				currentRemoteFolderID = "root"
+				remoteFolderStack = []FolderInfo{{ID: "root", Name: "root"}}
+				rootSelectNeeded = false
+
+				pages.RemovePage("root_folder_select")
+				pages.ShowPage("main")
+				tuiApp.SetFocus(localTable)
+
+				// Refresh remote panel
+				var errRefresh error
+				remoteFiles, errRefresh = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
+				if errRefresh != nil {
+					showError("Failed to list remote files: " + errRefresh.Error())
+				} else {
+					sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
+					populateTable(remoteTable, remoteFiles, false)
+					updateStatus()
+				}
+				return nil
+			}
+			return event
+		})
+
+		list.SetSelectedFunc(func(itemIndex int, mainText string, secondaryText string, shortcut rune) {
+			selectedFolder := multipleRootMatches[itemIndex]
+			currentRemoteFolderID = selectedFolder.ID
+			remoteFolderStack = []FolderInfo{{ID: selectedFolder.ID, Name: selectedFolder.Name}}
+			rootSelectNeeded = false
+
+			pages.RemovePage("root_folder_select")
+			pages.ShowPage("main")
+			tuiApp.SetFocus(localTable)
+
+			// Refresh remote panel
+			var errRefresh error
+			remoteFiles, errRefresh = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
+			if errRefresh != nil {
+				showError("Failed to list remote files: " + errRefresh.Error())
+			} else {
+				sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
+				populateTable(remoteTable, remoteFiles, false)
+				updateStatus()
+			}
+		})
+
+		pages.AddPage("root_folder_select", list, true, true)
+	}
 
 	localTable.SetSelectionChangedFunc(func(row, column int) {
 		updateStatus()
@@ -762,6 +852,44 @@ func simplifyMimeType(mime string, isDir bool) string {
 	}
 }
 
+func getRemoteFolderByID(auth *app.AuthContainer, id string) (string, bool) {
+	rMeta := &utl.RequestParams{
+		Method:      "GET",
+		APIURL:      "https://www.googleapis.com/drive/v3/files/" + id + "?fields=id,mimeType,name,trashed",
+		Accesstoken: auth.GgsrunCfg.Accesstoken,
+		Dtime:       30,
+	}
+	metaBody, err := requestParamsFetchFn(rMeta)
+	if err != nil {
+		return "", false
+	}
+	var meta struct {
+		ID       string `json:"id"`
+		MimeType string `json:"mimeType"`
+		Name     string `json:"name"`
+		Trashed  bool   `json:"trashed"`
+	}
+	err = json.Unmarshal(metaBody, &meta)
+	if err != nil || meta.Trashed || meta.MimeType != "application/vnd.google-apps.folder" {
+		return "", false
+	}
+	return meta.Name, true
+}
+
+func findRemoteFoldersByName(auth *app.AuthContainer, c *cli.Context, name string) ([]FolderInfo, error) {
+	p := auth.DefDownloadContainerExported(c)
+	escapedName := strings.Replace(name, "'", "\\'", -1)
+	q := fmt.Sprintf("name = '%s' and mimeType = 'application/vnd.google-apps.folder' and trashed = false", escapedName)
+	fields := "files(id,name)"
+
+	fl := p.GetListLoop(q, fields)
+	var folders []FolderInfo
+	for _, f := range fl.Files {
+		folders = append(folders, FolderInfo{ID: f.ID, Name: f.Name})
+	}
+	return folders, nil
+}
+
 func populateTable(table *tview.Table, files []FileEntry, isLocal bool) {
 	table.Clear()
 
@@ -852,26 +980,32 @@ func refreshPanels() {
 
 	if isAuthorized {
 		if !inSearchModeRemote {
-			remoteFiles, err = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
-			if err != nil {
-				showError("Failed to list remote files: " + err.Error())
-			} else {
-				sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
-				populateTable(remoteTable, remoteFiles, false)
-				remotePath := "/"
-				if len(remoteFolderStack) > 1 {
-					var names []string
-					for _, f := range remoteFolderStack {
-						if f.Name != "root" {
-							names = append(names, f.Name)
-						}
-					}
-					remotePath = "/" + strings.Join(names, "/")
-				}
-				remoteTable.SetTitle(" Google Drive: " + remotePath + " ")
+			if rootSelectNeeded {
+				remoteTable.Clear()
+				remoteTable.SetTitle(" Google Drive: (Selecting remote root...) ")
 				remoteTable.SetBorder(true)
-				remoteTable.SetTitleColor(tview.Styles.TitleColor)
-				remoteTable.SetBorderColor(tview.Styles.BorderColor)
+			} else {
+				remoteFiles, err = listRemoteFilesFn(authContainer, mainCtx, currentRemoteFolderID)
+				if err != nil {
+					showError("Failed to list remote files: " + err.Error())
+				} else {
+					sortFileEntries(remoteFiles, remoteSortKey, remoteSortOrder)
+					populateTable(remoteTable, remoteFiles, false)
+					remotePath := "/"
+					if len(remoteFolderStack) > 1 {
+						var names []string
+						for _, f := range remoteFolderStack {
+							if f.Name != "root" {
+								names = append(names, f.Name)
+							}
+						}
+						remotePath = "/" + strings.Join(names, "/")
+					}
+					remoteTable.SetTitle(" Google Drive: " + remotePath + " ")
+					remoteTable.SetBorder(true)
+					remoteTable.SetTitleColor(tview.Styles.TitleColor)
+					remoteTable.SetBorderColor(tview.Styles.BorderColor)
+				}
 			}
 		}
 	} else {

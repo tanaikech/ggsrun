@@ -2549,5 +2549,239 @@ func TestTUI_DirectoryTreePreviewAndProgress(t *testing.T) {
 	}
 }
 
+func TestTUI_RemoteRootOption_FolderID(t *testing.T) {
+	origGetByID := getRemoteFolderByIDFn
+	origFindByName := findRemoteFoldersByNameFn
+	defer func() {
+		getRemoteFolderByIDFn = origGetByID
+		findRemoteFoldersByNameFn = origFindByName
+	}()
+
+	// Mock folder ID check to succeed
+	getRemoteFolderByIDFn = func(auth *app.AuthContainer, id string) (string, bool) {
+		if id == "my-special-id" {
+			return "MySpecialFolder", true
+		}
+		return "", false
+	}
+
+	appObj := cli.NewApp()
+	appObj.Version = "5.3.15"
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("remoteroot", "my-special-id", "")
+	cliCtx := cli.NewContext(appObj, set, nil)
+	_ = set.Parse([]string{"--remoteroot", "my-special-id"})
+
+	simScreen := tcell.NewSimulationScreen("UTF-8")
+	_ = simScreen.Init()
+	defer simScreen.Fini()
+	testScreen = simScreen
+
+	localTable = tview.NewTable()
+	remoteTable = tview.NewTable()
+	pages = tview.NewPages()
+	tuiApp = tview.NewApplication()
+	tuiApp.SetScreen(simScreen)
+
+	isAuthorized = true
+	authContainer = &app.AuthContainer{
+		GgsrunCfg: &app.GgsrunCfg{
+			Accesstoken: "mock",
+		},
+	}
+
+	listLocalFilesFn = func(dir string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+	listRemoteFilesFn = func(auth *app.AuthContainer, c *cli.Context, folderID string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- RunTUI(cliCtx)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		tuiApp.Stop()
+	})
+	<-errChan
+
+	if currentRemoteFolderID != "my-special-id" {
+		t.Errorf("Expected currentRemoteFolderID to be 'my-special-id', got '%s'", currentRemoteFolderID)
+	}
+	if len(remoteFolderStack) != 1 || remoteFolderStack[0].ID != "my-special-id" || remoteFolderStack[0].Name != "MySpecialFolder" {
+		t.Errorf("Expected remoteFolderStack to be configured, got '%v'", remoteFolderStack)
+	}
+}
+
+func TestTUI_RemoteRootOption_FolderName_SingleMatch(t *testing.T) {
+	origGetByID := getRemoteFolderByIDFn
+	origFindByName := findRemoteFoldersByNameFn
+	defer func() {
+		getRemoteFolderByIDFn = origGetByID
+		findRemoteFoldersByNameFn = origFindByName
+	}()
+
+	// Mock ID check to fail
+	getRemoteFolderByIDFn = func(auth *app.AuthContainer, id string) (string, bool) {
+		return "", false
+	}
+	// Mock Name search to return single folder match
+	findRemoteFoldersByNameFn = func(auth *app.AuthContainer, c *cli.Context, name string) ([]FolderInfo, error) {
+		if name == "MySpecialFolder" {
+			return []FolderInfo{{ID: "resolved-id-123", Name: "MySpecialFolder"}}, nil
+		}
+		return []FolderInfo{}, nil
+	}
+
+	appObj := cli.NewApp()
+	appObj.Version = "5.3.15"
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("remoteroot", "MySpecialFolder", "")
+	cliCtx := cli.NewContext(appObj, set, nil)
+	_ = set.Parse([]string{"--remoteroot", "MySpecialFolder"})
+
+	simScreen := tcell.NewSimulationScreen("UTF-8")
+	_ = simScreen.Init()
+	defer simScreen.Fini()
+	testScreen = simScreen
+
+	localTable = tview.NewTable()
+	remoteTable = tview.NewTable()
+	pages = tview.NewPages()
+	tuiApp = tview.NewApplication()
+	tuiApp.SetScreen(simScreen)
+
+	isAuthorized = true
+	authContainer = &app.AuthContainer{
+		GgsrunCfg: &app.GgsrunCfg{
+			Accesstoken: "mock",
+		},
+	}
+
+	listLocalFilesFn = func(dir string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+	listRemoteFilesFn = func(auth *app.AuthContainer, c *cli.Context, folderID string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- RunTUI(cliCtx)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		tuiApp.Stop()
+	})
+	<-errChan
+
+	if currentRemoteFolderID != "resolved-id-123" {
+		t.Errorf("Expected currentRemoteFolderID to be 'resolved-id-123', got '%s'", currentRemoteFolderID)
+	}
+}
+
+func TestTUI_RemoteRootOption_FolderName_MultipleMatches(t *testing.T) {
+	origGetByID := getRemoteFolderByIDFn
+	origFindByName := findRemoteFoldersByNameFn
+	defer func() {
+		getRemoteFolderByIDFn = origGetByID
+		findRemoteFoldersByNameFn = origFindByName
+	}()
+
+	// Mock ID check to fail
+	getRemoteFolderByIDFn = func(auth *app.AuthContainer, id string) (string, bool) {
+		return "", false
+	}
+	// Mock Name search to return multiple matches
+	findRemoteFoldersByNameFn = func(auth *app.AuthContainer, c *cli.Context, name string) ([]FolderInfo, error) {
+		if name == "DuplicateFolder" {
+			return []FolderInfo{
+				{ID: "id-1", Name: "DuplicateFolder"},
+				{ID: "id-2", Name: "DuplicateFolder"},
+			}, nil
+		}
+		return []FolderInfo{}, nil
+	}
+
+	appObj := cli.NewApp()
+	appObj.Version = "5.3.15"
+	set := flag.NewFlagSet("test", flag.ContinueOnError)
+	set.String("remoteroot", "DuplicateFolder", "")
+	cliCtx := cli.NewContext(appObj, set, nil)
+	_ = set.Parse([]string{"--remoteroot", "DuplicateFolder"})
+
+	simScreen := tcell.NewSimulationScreen("UTF-8")
+	_ = simScreen.Init()
+	defer simScreen.Fini()
+	testScreen = simScreen
+
+	localTable = tview.NewTable()
+	remoteTable = tview.NewTable()
+	pages = tview.NewPages()
+	tuiApp = tview.NewApplication()
+	tuiApp.SetScreen(simScreen)
+
+	isAuthorized = true
+	authContainer = &app.AuthContainer{
+		GgsrunCfg: &app.GgsrunCfg{
+			Accesstoken: "mock",
+		},
+	}
+
+	listLocalFilesFn = func(dir string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+	listRemoteFilesFn = func(auth *app.AuthContainer, c *cli.Context, folderID string) ([]FileEntry, error) {
+		return []FileEntry{}, nil
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- RunTUI(cliCtx)
+	}()
+
+	time.Sleep(150 * time.Millisecond)
+
+	// Verify that root_folder_select page is visible
+	var hasSelectPage bool
+	tuiApp.QueueUpdate(func() {
+		hasSelectPage = pages.HasPage("root_folder_select")
+	})
+	if !hasSelectPage {
+		t.Error("Expected root_folder_select page to be visible for multiple remote root matches")
+	}
+
+	// Trigger list selection (first folder "id-1")
+	var selectList *tview.List
+	tuiApp.QueueUpdate(func() {
+		_, p := pages.GetFrontPage()
+		selectList = findFileList(p)
+	})
+	time.Sleep(50 * time.Millisecond)
+
+	if selectList != nil {
+		tuiApp.QueueUpdate(func() {
+			selectList.InputHandler()(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModNone), func(p tview.Primitive) {})
+		})
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	tuiApp.QueueUpdate(func() {
+		tuiApp.Stop()
+	})
+	<-errChan
+
+	// Verify it resolved to the selected folder
+	if currentRemoteFolderID != "id-1" {
+		t.Errorf("Expected currentRemoteFolderID to be resolved to 'id-1', got '%s'", currentRemoteFolderID)
+	}
+}
+
 
 

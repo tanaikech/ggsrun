@@ -494,8 +494,23 @@ $ ggsrun filelist --limit 10
 * **Key capabilities**: Centered 70% responsive dialogs, Clipboard synchronization, Function key mapping, yellow highlights, directory previews, and individual real-time transfer progress bars.
 
 ```bash
-$ ggsrun fd
+$ ggsrun fd [flags]
 ```
+
+#### Command-specific Flags
+| Flag | Shorthand | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `--remoteroot` | `-rr` | String | Specifies the initial Google Drive root folder name or folder ID to start the remote panel with. |
+
+#### Usage Examples
+* **Launch FD mode directly starting in a specific folder by ID**:
+  ```bash
+  $ ggsrun fd --remoteroot "1B6uaFVvLGlQ5eAutKPdGedH3dGhO3CdkM"
+  ```
+* **Launch FD mode starting in a folder by name (prompts if multiple exist)**:
+  ```bash
+  $ ggsrun fd --remoteroot "MyProjectsFolder"
+  ```
 
 > [!IMPORTANT]
 > **Keybindings, Navigation & Development Insights:**

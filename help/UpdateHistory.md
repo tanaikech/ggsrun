@@ -4,6 +4,13 @@
 
 # Update History
 
+- **v5.3.15 (July 2026) - Custom Google Drive Root Folder in TUI (FD Mode)**
+  1. **Custom Drive Root Option**: Added the `--remoteroot` / `-rr` CLI flag to the `fd` command, allowing users to specify a folder name or folder ID to act as the initial Google Drive root folder when launching FD mode.
+  2. **Folder ID Resolution**: If a folder ID is supplied to `--remoteroot`, `ggsrun` verifies and boots directly into that folder on the Google Drive side.
+  3. **Folder Name Resolution & Interactive Selection**: If a folder name is supplied to `--remoteroot`:
+     - If exactly one folder matches the name, it boots into that folder directly.
+     - If multiple folders share that name, `ggsrun` displays an interactive list selector page at startup, letting the user choose the desired root folder from the matches. Pressing `Esc` on the list falls back gracefully to the standard Drive root folder.
+
 - **v5.3.14 (July 2026) - Directory Upload Routing, GAS Validation, TUI Select Modals, and MCP Clarification**
   1. **Directory Upload Routing & Validation (CLI)**: Made directory upload (`ggsrun upload -f ./folder`) recursively upload files to Google Drive as normal folders/files by default. Added the `--gas` / `-g` option to upload folders as a standalone Google Apps Script (GAS) project.
   2. **GAS Project Directory Validation**: If `--gas` / `-g` is used, the directory is walked and validated recursively. If any files have unsupported extensions (i.e. not `.gs`, `.js`, `.html`, `.htm`, or `appsscript.json`), the upload is aborted immediately, and the problematic files are displayed to prevent compilation errors (HTTP 400).
