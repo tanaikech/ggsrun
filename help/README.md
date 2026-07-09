@@ -1245,6 +1245,15 @@ $ ggsrun u -pn [project name] -f script1.gs,script2.gs,index.html -tz [timezone]
 
 These files are uploaded and converted to a project with the project name. When you open the created project, you can see these files in the project. <u>The order of files is the same to the order when was uploaded.</u>
 
+### Folder Upload Routing for GAS Projects
+From **v5.3.14**, uploading a directory recursively behaves as follows:
+- **Default (Without `-g` / `--gas`)**: Uploads the folder recursively to Google Drive as normal folders/files (concurrency transfers).
+- **GAS Project Upload (With `-g` / `--gas`)**: Uploads the entire folder as a single standalone Google Apps Script project.
+  ```bash
+  $ ggsrun u -f "/path/to/folder" -g -pn "MyGASProject" -tz [timezone]
+  ```
+  When `-g` is specified, `ggsrun` walks the directory recursively first. If any files have unsupported extensions (i.e. anything other than `.gs`, `.js`, `.html`, `.htm`, or the `appsscript.json` manifest), it halts execution immediately, lists the invalid files, and aborts the upload to prevent Google API compile errors (HTTP 400).
+
 Also you can upload script files as the container-bound script of new Spreadsheet.
 
 ```bash
@@ -1288,6 +1297,7 @@ OPTIONS:
    --chunksize value, --chunk value   You can also set the maximum chunk size for the resumable upload. This unit is MB. (default: 100)
     --convertto value, -c value        Convert files automatically to Google Workspace formats. Supported: 'doc', 'sheet', 'slide'. If not specified, file extensions are automatically mapped (e.g., docx/rtf/html/txt/md/pdf/png/jpeg/bmp/gif -> Google Docs; xlsx/xls/csv/tsv -> Google Sheets; pptx/ppt/odp -> Google Slides; mp4/ogg/mov/webm -> Google Video). If conversion fails, the file is skipped with a warning.
    --noconvert, --nc                  If you don't want to convert file to Google Apps format.
+   --gas, -g                          Upload a local folder as a single standalone Google Apps Script project.
    --jsonparser, -j                   Display results by JSON parser
 ```
 

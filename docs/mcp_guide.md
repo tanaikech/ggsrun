@@ -72,8 +72,8 @@ The server exposes five core tools to connected LLM agents:
    * *Arguments*: `fileid` (Comma-separated IDs), `workers` (Parallel threads), `extension` (Export format), `conflict_mode` (`skip`, `overwrite`, `rename`, `update`).
    * *Purpose*: Downloads files/folders concurrently.
 3. **`upload`**:
-   * *Arguments*: `filename` (Local path), `parentid` (Drive folder ID), `convertto` (`sheet`, `doc`, `slide`), `conflict_mode`, `projectname`.
-   * *Purpose*: Uploads files and folders with auto-conversion.
+   * *Arguments*: `filename` (Local path), `parentid` (Drive folder ID), `convertto` (`sheet`, `doc`, `slide`), `conflict_mode`, `projectname`, `gas` (Boolean).
+   * *Purpose*: Uploads files and folders with optional auto-conversion. For folder uploads, setting `gas: true` uploads the folder as a single standalone GAS project (which triggers recursive file verification), while `gas: false` uploads it recursively as a normal folder on Google Drive. If `gas` is omitted when uploading a directory, the tool returns a text response asking for clarification.
 4. **`exe1`**:
    * *Arguments*: `scriptfile` (Local path), `stringscript` (Inline script), `function` (Target function name/arguments), `sandbox` (Path to sandbox config).
    * *Purpose*: Synchronizes and statefully runs Apps Script functions under optional sandboxing.

@@ -358,6 +358,7 @@ ggsrun w -ss "const main = (_) => ggsrunif.Beacon();" -j
 | `--projecttype`| | String | Used with `-pid` to upload scripts as Container-Bound scripts. |
 | `--parentprojectid`| `-pid` | String | Parent ID of Google Document to bind the script to. |
 | `--chunksize` | | Integer | Resumable Upload chunk size in Megabytes (Default: 100). |
+| `--gas` | `-g` | Boolean | Upload a local folder as a single standalone Google Apps Script project. |
 
 #### Transfer Recipes
 * **Upload multiple files sequentially or concurrently**:
@@ -367,6 +368,10 @@ ggsrun w -ss "const main = (_) => ggsrunif.Beacon();" -j
 * **Upload a local directory recursively, duplicating the tree on Drive**:
   ```bash
   $ ggsrun upload -f "/path/to/folder" -p "FOLDER_ID" -w 5
+  ```
+* **Upload a local directory as a standalone GAS project (validates that all files are valid GAS files)**:
+  ```bash
+  $ ggsrun upload -f "/path/to/folder" -g --projectname "MyGASProject"
   ```
 * **Upload a local script and provision as a standalone GAS Project**:
   ```bash
@@ -399,6 +404,12 @@ ggsrun w -ss "const main = (_) => ggsrunif.Beacon();" -j
 
 > [!NOTE]
 > Recursive folder uploads natively support batch conversion. When specifying `-c` (or `--convertto`), every eligible file within the uploaded folder tree is evaluated and converted to the target Workspace format concurrently. Files that cannot be converted will log a conversion error warning and skip, leaving other files in the queue unaffected.
+
+> [!IMPORTANT]
+> **Directory Upload Routing & GAS Project Conversion**:
+> By default, uploading a local folder recursively duplicates the directory tree and uploads all files as normal documents on Google Drive.
+> If you want to convert the entire local folder into a single standalone Google Apps Script (GAS) project, you must explicitly pass the `--gas` (or `-g`) flag.
+> When `--gas` is specified, `ggsrun` walks the directory recursively first to ensure it only contains valid GAS files (`.gs`, `.js`, `.html`, `.htm`, or `appsscript.json`). If any unsupported files (e.g. `.png`, `.md`, `.txt` containing plain text, etc.) are detected, the command lists the invalid files and aborts the upload immediately.
 
 ---
 

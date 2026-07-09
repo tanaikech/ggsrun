@@ -208,6 +208,12 @@ When search results are returned, the active panel's borders, titles, and item c
 ### Web View Link Integration (`i` details)
 When highlighting a file on Google Drive and pressing `i`, the metadata viewer includes the `webViewLink`. You can double-click or copy this URL to open the asset directly inside a web browser, or preview spreadsheet columns on your host system.
 
+### Folder Upload Selection
+When uploading a local directory in the TUI (by pressing `F1` on a directory), `ggsrun` will display an interactive modal prompting you to choose how to process the folder:
+1. **Upload as a normal directory (recursively)**: Duplicates the folder structure and uploads all files inside.
+2. **Upload as a single standalone Google Apps Script project**: Compiles eligible script/HTML files into one Apps Script project.
+   - *Note*: If you select the Apps Script option, the TUI will recursively scan the folder first. If it contains invalid files (like `.png`, `.md`, etc.), it will display an error modal and cancel the transfer.
+
 ### Directory Tree Preview
 Before folder transfers begin, `ggsrun` prints an elegant, ASCII-rendered directory tree structure of the source directory, letting you preview what you are about to copy or upload:
 

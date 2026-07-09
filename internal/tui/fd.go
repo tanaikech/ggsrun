@@ -125,11 +125,12 @@ type FileEntry struct {
 }
 
 type TransferJob struct {
-	SourcePath string
-	SourceName string
-	TargetMime string
-	IsDir      bool
-	MimeType   string
+	SourcePath  string
+	SourceName  string
+	TargetMime  string
+	IsDir       bool
+	MimeType    string
+	UploadAsGAS bool
 }
 
 func init() {
@@ -1572,6 +1573,27 @@ func onExecuteLocalScript() {
 		return
 	}
 
+	// Validate directories first
+	for _, job := range jobs {
+		if job.IsDir {
+			if _, errStat := os.Stat(job.SourcePath); errStat == nil {
+				invalidFiles, err := utl.ValidateGasDir(job.SourcePath)
+				if err != nil {
+					showError("Error scanning directory: " + err.Error())
+					return
+				}
+				if len(invalidFiles) > 0 {
+					msg := "The directory '" + job.SourceName + "' cannot be executed as a GAS project because it contains unsupported files:\n"
+					for _, f := range invalidFiles {
+						msg += " - " + filepath.Base(f) + "\n"
+					}
+					showError(msg)
+					return
+				}
+			}
+		}
+	}
+
 	if len(jobs) == 1 {
 		job := jobs[0]
 		if job.IsDir {
@@ -1959,7 +1981,67 @@ func startTransferSequence(jobs []TransferJob, isUpload bool, isMove bool) {
 		}
 
 		job := jobs[index]
-		if job.IsDir {
+		if job.IsDir && isUpload {
+			prevFocus := tuiApp.GetFocus()
+			list := tview.NewList().
+				AddItem("Upload as a normal directory (recursively)", "Recreates directory tree and uploads files normally", '1', nil).
+				AddItem("Upload as a single standalone Google Apps Script project", "Uploads code/HTML files as one GAS project", '2', nil)
+
+			list.SetBorder(true).SetTitle(" Select Folder Upload Method: " + job.SourceName + " ").SetTitleColor(tcell.ColorYellow)
+
+			flex := tview.NewFlex().SetDirection(tview.FlexRow)
+			flex.AddItem(tview.NewBox(), 0, 1, false)
+
+			inner := tview.NewFlex().SetDirection(tview.FlexColumn)
+			inner.AddItem(tview.NewBox(), 0, 15, false)
+			inner.AddItem(list, 0, 70, true)
+			inner.AddItem(tview.NewBox(), 0, 15, false)
+
+			flex.AddItem(inner, 10, 0, true)
+			flex.AddItem(tview.NewBox(), 0, 1, false)
+
+			list.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyEsc {
+					pages.RemovePage("folder_upload_prompt")
+					tuiApp.SetFocus(prevFocus)
+					return nil
+				}
+				return event
+			})
+
+			list.SetSelectedFunc(func(itemIndex int, mainText string, secondaryText string, shortcut rune) {
+				pages.RemovePage("folder_upload_prompt")
+				tuiApp.SetFocus(prevFocus)
+
+				if itemIndex == 1 {
+					if _, errStat := os.Stat(job.SourcePath); errStat == nil {
+						invalidFiles, err := utl.ValidateGasDir(job.SourcePath)
+						if err != nil {
+							showError("Error scanning directory: " + err.Error())
+							return
+						}
+						if len(invalidFiles) > 0 {
+							msg := "The folder cannot be uploaded as a GAS project because it contains unsupported files:\n"
+							for _, f := range invalidFiles {
+								msg += " - " + filepath.Base(f) + "\n"
+							}
+							showError(msg)
+							return
+						}
+					}
+					job.UploadAsGAS = true
+				} else {
+					job.UploadAsGAS = false
+				}
+
+				finalJobs = append(finalJobs, job)
+				collectNext(index + 1)
+			})
+
+			pages.AddPage("folder_upload_prompt", flex, true, true)
+			tuiApp.SetFocus(list)
+			return
+		} else if job.IsDir {
 			finalJobs = append(finalJobs, job)
 			collectNext(index + 1)
 			return
@@ -2131,6 +2213,9 @@ func runBatchTransfer(jobs []TransferJob, isUpload bool, isMove bool) {
 						"parentfolderid": currentRemoteFolderID,
 						"projecttype":    "standalone",
 						"jsonparser":     "true",
+					}
+					if j.UploadAsGAS {
+						flags["gas"] = "true"
 					}
 					if j.TargetMime != "" {
 						flags["convertto"] = j.TargetMime

@@ -1123,6 +1123,38 @@ func ChkExtention(ex string) bool {
 	}
 }
 
+// IsGasProjectFile checks if a file is valid for a Google Apps Script project.
+func IsGasProjectFile(path string) bool {
+	base := filepath.Base(path)
+	if strings.EqualFold(base, "appsscript.json") {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".gs", ".js", ".html", ".htm":
+		return true
+	}
+	return false
+}
+
+// ValidateGasDir checks if all files in the directory are valid GAS files.
+// Returns a list of invalid file paths.
+func ValidateGasDir(dir string) ([]string, error) {
+	var invalidFiles []string
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			if !IsGasProjectFile(path) {
+				invalidFiles = append(invalidFiles, path)
+			}
+		}
+		return nil
+	})
+	return invalidFiles, err
+}
+
 // ExtToType : Convert extension to scripttype for project.
 func ExtToType(ex string, uppercase bool) string {
 	var scripttype string

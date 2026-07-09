@@ -4,6 +4,13 @@
 
 # Update History
 
+- **v5.3.14 (July 2026) - Directory Upload Routing, GAS Validation, TUI Select Modals, and MCP Clarification**
+  1. **Directory Upload Routing & Validation (CLI)**: Made directory upload (`ggsrun upload -f ./folder`) recursively upload files to Google Drive as normal folders/files by default. Added the `--gas` / `-g` option to upload folders as a standalone Google Apps Script (GAS) project.
+  2. **GAS Project Directory Validation**: If `--gas` / `-g` is used, the directory is walked and validated recursively. If any files have unsupported extensions (i.e. not `.gs`, `.js`, `.html`, `.htm`, or `appsscript.json`), the upload is aborted immediately, and the problematic files are displayed to prevent compilation errors (HTTP 400).
+  3. **TUI (FD Mode) Interactive Directory Upload & Execution**: Selectable folder uploads now prompt the user to choose between recursive folder upload and GAS project upload. GAS project uploads and script executions on directories check files first; if invalid files exist, an error modal shows the problematic files and cancels the operation.
+  4. **MCP Mode Directory Upload Clarification**: When uploading a folder in MCP mode and the `gas` option is omitted, the tool responds with a text request asking the user to clarify whether they want to upload it recursively as a normal folder or as a single GAS project.
+  5. **Apps Script API Header Fixes**: Set `Content-Type: application/json` headers for JSON request payloads in Apps Script API calls (project creation, updates, versions) to resolve HTTP 400 Bad Request issues.
+
 - **v5.3.13 (July 2026) - Export Progress Bar and Extension Fix**
   1. **Fix Google Workspace Export Progress Bar**: Ignored the metadata `Size` returned by Google Drive API for Google Workspace files during download/export since it represents internal document size rather than the exported format size. Replaced it with the HTTP response `Content-Length` (or 0 if chunked/unknown).
   2. **TUI Completion Tracking**: Resolved an issue in TUI progress tracking where files with unknown total sizes had their transferred size reset to 0 upon completion; the system now correctly aligns the final total with the actual transferred byte count.

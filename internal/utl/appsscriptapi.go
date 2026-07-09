@@ -160,6 +160,7 @@ func (p *FileInf) boundScriptCreator(metadata []byte) *AppsScriptApiInf {
 		Method:      "POST",
 		APIURL:      appsscriptapi + "?" + tokenparams.Encode(),
 		Data:        bytes.NewBuffer(metadata),
+		Contenttype: "application/json",
 		Accesstoken: p.Accesstoken,
 		Dtime:       30,
 	}
@@ -199,6 +200,7 @@ func (p *FileInf) ProjectUpdateByAppsScriptApi(pr *ProjectForAppsScriptApi) *App
 		Method:      "PUT",
 		APIURL:      u.String() + "?" + tokenparams.Encode(),
 		Data:        bytes.NewBuffer(pre),
+		Contenttype: "application/json",
 		Accesstoken: p.Accesstoken,
 		Dtime:       30,
 	}
@@ -362,6 +364,7 @@ func (p *FileInf) createProjectVersion(description string) {
 		Method:      "POST",
 		APIURL:      u.String(),
 		Data:        bytes.NewBuffer(payl),
+		Contenttype: "application/json",
 		Accesstoken: p.Accesstoken,
 		Dtime:       30,
 	}
@@ -384,14 +387,21 @@ func DispScopeError1() {
 	pterm.Warning.Println("##########")
 }
 
-// DispScopeError2 : Display about new scope of 'https://www.googleapis.com/auth/script.projects'.
 func DispScopeError2(body []byte) {
 	var u map[string]interface{}
 	json.Unmarshal(body, &u)
 	if errorObj, ok := u["error"].(map[string]interface{}); ok {
-		if em, ok := errorObj["message"].(string); ok && em == "Request had insufficient authentication scopes." {
-			DispScopeError1()
+		if em, ok := errorObj["message"].(string); ok {
+			if em == "Request had insufficient authentication scopes." {
+				DispScopeError1()
+				return
+			}
+			pterm.Error.Printf("API Error: %s\n", em)
+			return
 		}
+	}
+	if len(body) > 0 {
+		pterm.Error.Printf("Raw API Response: %s\n", string(body))
 	}
 }
 

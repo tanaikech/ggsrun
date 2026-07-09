@@ -150,6 +150,10 @@ func runMCP(c *cli.Context) error {
 									"type":        "boolean",
 									"description": "If true, bypasses automatic Google Apps format conversion and uploads files in their raw binary format (e.g., uploading .xlsx as a raw binary Excel file instead of a Google Sheet). Default is false.",
 								},
+								"gas": map[string]interface{}{
+									"type":        "boolean",
+									"description": "If true, uploads a local folder as a single standalone Google Apps Script project. If false, uploads recursively as a normal folder on Google Drive. If omitted and uploading a directory, the tool will respond asking for clarification.",
+								},
 								"projectname": map[string]interface{}{
 									"type":        "string",
 									"description": "Optional Apps Script project name when uploading local script files to create a new remote project.",
@@ -273,6 +277,40 @@ func runMCP(c *cli.Context) error {
 			argsMap, _ := params["arguments"].(map[string]interface{})
 			if argsMap == nil {
 				argsMap = make(map[string]interface{})
+			}
+
+			if name == "upload" {
+				filenameStr, _ := argsMap["filename"].(string)
+				hasDir := false
+				for _, fname := range regexp.MustCompile(`\s*,\s*`).Split(filenameStr, -1) {
+					fname = strings.TrimSpace(fname)
+					if fname == "" {
+						continue
+					}
+					absPath := fname
+					if abs, errAbs := filepath.Abs(fname); errAbs == nil {
+						absPath = abs
+					}
+					if fi, err := os.Stat(absPath); err == nil && fi.IsDir() {
+						hasDir = true
+						break
+					}
+				}
+
+				if hasDir {
+					if _, hasGas := argsMap["gas"]; !hasGas {
+						responseText := "Clarification needed: You are uploading a folder. Would you like to upload it recursively as a normal folder on Google Drive, or as a single standalone Google Apps Script (GAS) project? Please repeat the command specifying either \"gas\": true or \"gas\": false."
+						sendMCPResponse(id, map[string]interface{}{
+							"content": []map[string]interface{}{
+								{
+									"type": "text",
+									"text": responseText,
+								},
+							},
+						})
+						continue
+					}
+				}
 			}
 
 			if name == "exe1" {

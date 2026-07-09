@@ -40,7 +40,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.13"
+	app.Version = "5.3.14"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -332,6 +332,10 @@ func Run() {
 				&cli.StringFlag{
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
+				},
+				&cli.BoolFlag{
+					Name:  "gas, g",
+					Usage: "Upload a local folder as a single standalone Google Apps Script project.",
 				},
 			}, getCommonFlags()...),
 		},

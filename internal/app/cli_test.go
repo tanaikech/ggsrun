@@ -403,7 +403,7 @@ func TestIntegrationFlows(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("Upload_GASProject_%d", idx+1), func(t *testing.T) {
 			projName := fmt.Sprintf("GgsrunTest_GASProj_%d_%d", idx+1, time.Now().Unix())
-			out, err := runGgsrun("upload", "-f", gsPath, "--pn", projName, "--pt", "standalone", "-j")
+			out, err := runGgsrun("upload", "-f", gsPath, "--pn", projName, "--pt", "standalone", "-g", "-j")
 			if err != nil {
 				t.Fatalf("upload gas project failed: %v\nOutput: %s", err, out)
 			}

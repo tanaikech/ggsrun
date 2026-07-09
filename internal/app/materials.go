@@ -471,33 +471,52 @@ func (a *AuthContainer) defUploadContainer(c *cli.Context) *utl.FileInf {
 	if filenameInput != "" {
 		trimmed := strings.TrimSpace(filenameInput)
 		if fileInfo, err := os.Stat(trimmed); err == nil && fileInfo.IsDir() {
-			isDir = true
-			dirRoot = trimmed
-			// Scan directory recursively
-			err = filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
+			if c.Bool("gas") {
+				// Validate all files in the directory recursively first
+				invalidFiles, errVal := utl.ValidateGasDir(trimmed)
+				if errVal != nil {
+					pterm.Error.Printf("Error scanning directory %s: %v\n", trimmed, errVal)
+					os.Exit(1)
 				}
-				if !info.IsDir() {
-					ext := filepath.Ext(path)
-					if utl.ChkExtention(ext) {
-						upFiles = append(upFiles, path)
+				if len(invalidFiles) > 0 {
+					pterm.Error.Println("Error: The folder cannot be uploaded as a GAS project because it contains unsupported files:")
+					for _, f := range invalidFiles {
+						pterm.Error.Printf(" - %s\n", f)
 					}
+					os.Exit(1)
 				}
-				return nil
-			})
-			if err != nil {
-				pterm.Warning.Printf("Error scanning directory %s: %v\n", trimmed, err)
-			}
 
-			// Project Name Override / Derivation
-			if c.String("projectname") == "" {
-				absPath, err := filepath.Abs(trimmed)
-				projectName := filepath.Base(trimmed)
-				if err == nil {
-					projectName = filepath.Base(absPath)
+				isDir = true
+				dirRoot = trimmed
+				// Scan directory recursively to populate upFiles
+				err = filepath.Walk(trimmed, func(path string, info os.FileInfo, err error) error {
+					if err != nil {
+						return err
+					}
+					if !info.IsDir() {
+						ext := filepath.Ext(path)
+						if utl.ChkExtention(ext) {
+							upFiles = append(upFiles, path)
+						}
+					}
+					return nil
+				})
+				if err != nil {
+					pterm.Warning.Printf("Error scanning directory %s: %v\n", trimmed, err)
 				}
-				c.Set("projectname", projectName)
+
+				// Project Name Override / Derivation
+				if c.String("projectname") == "" {
+					absPath, err := filepath.Abs(trimmed)
+					projectName := filepath.Base(trimmed)
+					if err == nil {
+						projectName = filepath.Base(absPath)
+					}
+					c.Set("projectname", projectName)
+				}
+			} else {
+				// Treat as normal folder upload using concurrentUpload
+				upFiles = regexp.MustCompile(`\s*,\s*`).Split(filenameInput, -1)
 			}
 		} else {
 			upFiles = regexp.MustCompile(`\s*,\s*`).Split(filenameInput, -1)
