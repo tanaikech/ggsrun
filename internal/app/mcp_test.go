@@ -57,7 +57,7 @@ func TestMCPServerToolsList(t *testing.T) {
 
 	// Set up CLI context
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.4"
+	appObj.Version = "5.3.17"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -156,7 +156,7 @@ func TestMCPServerToolsCall(t *testing.T) {
 
 	// Set up CLI context
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.4"
+	appObj.Version = "5.3.17"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
@@ -257,7 +257,7 @@ func TestMCPServerExe1SecurityGuardrail(t *testing.T) {
 	}()
 
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.4"
+	appObj.Version = "5.3.17"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 

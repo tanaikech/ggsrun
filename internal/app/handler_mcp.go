@@ -30,12 +30,23 @@ func sendMCPResponse(id interface{}, result interface{}) {
 	fmt.Println(string(b))
 }
 
+// sendMCPErrorResponse securely serializes and transmits JSON-RPC error responses strictly over stdout.
+func sendMCPErrorResponse(id interface{}, code int, message string) {
+	res := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      id,
+		"error": map[string]interface{}{
+			"code":    code,
+			"message": message,
+		},
+	}
+	b, _ := json.Marshal(res)
+	fmt.Println(string(b))
+}
+
 // runMCP : MCP Node over stdio
 func runMCP(c *cli.Context) error {
-	pterm.DefaultHeader.WithBackgroundStyle(pterm.NewStyle(pterm.BgMagenta)).Println("🤖 ggsrun MCP Server initialized")
-	pterm.Info.Println("System: Go 1.26.4 concurrency engine engaged.")
-	pterm.Info.Println("Status: Listening on stdin/stdout for MCP JSON-RPC messages...")
-	pterm.Warning.Println("NOTE: This server acts as a pure I/O backend for LLM clients.\nNo LLM API keys are required or used by this process.")
+	pterm.SetDefaultOutput(os.Stderr)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	buf := make([]byte, 0, 1024*1024)
@@ -53,6 +64,10 @@ func runMCP(c *cli.Context) error {
 
 		switch method {
 		case "initialize":
+			ver := "5.3.17"
+			if c != nil && c.App != nil && c.App.Version != "" {
+				ver = c.App.Version
+			}
 			sendMCPResponse(id, map[string]interface{}{
 				"protocolVersion": "2024-11-05",
 				"capabilities": map[string]interface{}{
@@ -60,12 +75,25 @@ func runMCP(c *cli.Context) error {
 				},
 				"serverInfo": map[string]interface{}{
 					"name":    "ggsrun-mcp-server",
-					"version": "5.3.4",
+					"version": ver,
 				},
 			})
 
 		case "notifications/initialized":
-			// Acknowledge
+			// Notifications require no response
+
+		case "ping":
+			sendMCPResponse(id, map[string]interface{}{})
+
+		case "resources/list":
+			sendMCPResponse(id, map[string]interface{}{
+				"resources": []map[string]interface{}{},
+			})
+
+		case "prompts/list":
+			sendMCPResponse(id, map[string]interface{}{
+				"prompts": []map[string]interface{}{},
+			})
 
 		case "tools/list":
 			sendMCPResponse(id, map[string]interface{}{
@@ -185,19 +213,8 @@ func runMCP(c *cli.Context) error {
 									"description": "Path to a configuration JSON file to control API and URL sandboxing. POLICY FOR LLM AGENTS: You MUST use sandboxing by default by passing 'sandbox_config.json'. CRITICAL SECURITY RULES FOR LLM AGENTS:\n1. You must NEVER create, write, or modify the sandbox configuration JSON file (e.g., 'sandbox_config.json') under any circumstances. It is a security policy managed exclusively by the human operator.\n2. You must NEVER create or use a different or temporary configuration file (e.g., 'temp_config.json') to bypass the sandbox.\n3. If the script execution is blocked by the sandbox (resulting in a 'Sandbox Runtime Blocked' or 'security violation' error), you MUST immediately report the failure to the user and wait for their instructions. Do NOT attempt to modify the configuration or find a bypass.\n4. You must NEVER run 'chmod' or any other command to modify the file permissions of the sandbox configuration file. You must NEVER attempt to bypass the sandbox by altering file permissions.\n\nThe configuration JSON structure must follow this format:\n\n{\n  \"allowedFileIds\": [\"string\"],     // Whitelisted Drive file IDs\n  \"allowedFolderIds\": [\"string\"],   // Whitelisted Drive folder IDs\n  \"allowedCalendarIds\": [\"string\"], // Whitelisted Calendar IDs (e.g., [\"primary\"])\n  \"allowedEventIds\": [\"string\"],    // Whitelisted Calendar Event IDs\n  \"allowedEmails\": [\"string\"],      // Whitelisted email recipients for Mail/Gmail\n  \"allowedUrls\": [\"string\"],        // Whitelisted URL patterns (supports '*' wildcard)\n  \"blockedUrls\": [\"string\"]         // Blacklisted URL patterns (always blocked)\n}",
 								},
 								"function": map[string]interface{}{
-									"oneOf": []map[string]interface{}{
-										{
-											"type":        "string",
-											"description": "The name of the entry function to execute in the remote script project (e.g., `myFunction`).",
-										},
-										{
-											"type": "array",
-											"items": map[string]interface{}{
-												"type": "string",
-											},
-											"description": "The entry function name followed by arguments (e.g., [\"myFunction\", \"arg1\", \"arg2\"]). First is function name, subsequent are arguments.",
-										},
-									},
+									"type":        "string",
+									"description": "The name of the entry function to execute in the remote script project (e.g., `myFunction`).",
 								},
 								"value": map[string]interface{}{
 									"type":        "string",
@@ -421,11 +438,16 @@ func runMCP(c *cli.Context) error {
 					},
 				},
 			})
+
+		default:
+			if id != nil {
+				sendMCPErrorResponse(id, -32601, fmt.Sprintf("Method '%s' not found", method))
+			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		pterm.Error.Printf("MCP Transport breakdown: %v\n", err)
+		pterm.Error.WithWriter(os.Stderr).Printf("MCP Transport breakdown: %v\n", err)
 	}
 
 	return nil

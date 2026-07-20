@@ -4,6 +4,12 @@
 
 # Update History
 
+- **v5.3.17 (July 2026) - Antigravity CLI Loading Loop Resolution, Full JSON-RPC Protocol Handshake, and MCP Transport Hardening**
+  1. **Resolution for Antigravity CLI Infinite Loading Loop**: Resolved the issue described in [Troubleshooting Infinite Loading Loop in Antigravity CLI v1.1.3](https://tanaikech.github.io/2026/07/16/troubleshooting-infinite-loading-loop-in-antigravity-cli-v1.1.3-and-temporary-workaround/). Fixed the silent hanging issue during MCP server initialization by implementing full JSON-RPC 2.0 protocol handlers for `ping`, `resources/list`, and `prompts/list` methods, as well as a fallback error handler returning standard JSON-RPC `-32601` (`Method not found`) for unrecognized requests with an `id`.
+  2. **Silenced Non-JSON Startup Header**: Completely silenced and removed non-JSON diagnostic startup headers (`🤖 ggsrun MCP Server initialized` and system telemetry) from `stdout`. Standard output (`os.Stdout`) is now strictly reserved for pure MCP JSON-RPC protocol messages.
+  3. **MCP Tool Schema Standardization**: Standardized the `function` parameter schema in the `exe1` tool under `tools/list` to use a top-level `"type": "string"`, eliminating JSON Schema parser incompatibilities across various MCP client frameworks.
+  4. **MCP Server Version Alignment**: Updated `serverInfo.version` in the MCP `initialize` response payload and global app version identifier to `5.3.17`.
+
 - **v5.3.16 (July 2026) - Relative Local Paths Display Option in TUI (FD Mode)**
   1. **Relative Local Path Display**: Added the `--relpath` / `-rp` boolean flag to the `fd` command. When specified, local paths displayed in the panel header/title, path columns, and file details popup are shown relative to the working directory at TUI startup (instead of default absolute paths). This provides a cleaner path representation, especially useful for demo videos.
 
