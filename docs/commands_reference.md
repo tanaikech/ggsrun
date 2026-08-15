@@ -123,6 +123,16 @@ $ ggsrun <command> [options]
   EOF
   ```
   *Executes arbitrary complex Google Apps Script code directly via stdin without escaping issues, passing structured JSON payloads.*
+* **Pass function arguments directly from a file**:
+  ```bash
+  $ ggsrun exe1 --ss "function process(data){ return Object.keys(data).length; }" -f "process" -v "$(< data.json)"
+  ```
+  *Loads `data.json` directly into the parameter without requiring manual escaping.*
+* **Pass function arguments from external command pipelines**:
+  ```bash
+  $ ggsrun exe1 --ss "function run(e){ return e; }" -f "run" -v "$(curl -s https://api.github.com/users/octocat)"
+  ```
+  *Streams output from `curl` / `jq` directly into the GAS execution endpoint.*
 
 #### Architecture Workflow (Stateful Execution with Sandboxing & Auto-Cleanup)
 

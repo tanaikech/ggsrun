@@ -151,6 +151,27 @@ function test(e) {
 EOF
 ```
 
+### 3. Passing Function Arguments from a File:
+You can pass large JSON datasets or parameter files into your function using shell file substitution `$(< filename)` or `"$(cat filename)"`:
+```bash
+# Pass data.json directly to the function's parameter
+$ ggsrun exe1 --ss "function process(data){ return Object.keys(data).length; }" -f "process" -v "$(< data.json)"
+
+# Combine with Heredoc script execution and file arguments:
+$ cat << 'EOF' | ggsrun exe1 -f "analyze" -v "$(< payload.json)"
+function analyze(e) {
+  return "Received " + e.items.length + " records from file.";
+}
+EOF
+```
+
+### 4. Passing Function Arguments from External Command Pipelines:
+Pass outputs from tools like `curl`, `jq`, or custom scripts dynamically into Google Apps Script:
+```bash
+# Fetch live API payload and pass to GAS execution
+$ ggsrun exe1 --ss "function run(e){ return e; }" -f "run" -v "$(curl -s https://api.github.com/users/octocat)"
+```
+
 *For more detailed execution recipes, sandboxing configurations, and lifecycle guides, visit the **[Command Reference Manual](docs/commands_reference.md)**.*
 
 ---
