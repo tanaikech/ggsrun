@@ -120,6 +120,41 @@ $ ggsrun status
 
 ---
 
+## ⚡ Quick Start: Dynamic & Complex Script Execution
+
+With **v5.3.18**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
+
+### 1. Execute Inline or Multi-line Script Directly (`--ss`):
+```bash
+$ ggsrun exe1 --ss "function test(e){
+  return 'ok ' + e.key;
+}" -f "test" -v '{"key":"value1"}'
+```
+
+### 2. Execute Complex Multi-line Scripts via Piped Standard Input / Heredoc:
+Piping script payloads via standard input completely bypasses shell quotation and variable expansion limitations, supporting arbitrary comments, regular expressions, and template literals:
+```bash
+$ cat << 'EOF' | ggsrun exe1 -f "test" -v '{"key":"value1"}'
+function test(e) {
+  // Complex regular expressions, comments, and string escapes
+  const re = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/gi;
+  /* Multi-line comment:
+     Special characters: $ \ ' " ` \n \t
+  */
+  const msg = `Processed Key: ${e.key}`;
+  return {
+    status: "success",
+    result: msg,
+    regexMatch: re.test("https://google.com")
+  };
+}
+EOF
+```
+
+*For more detailed execution recipes, sandboxing configurations, and lifecycle guides, visit the **[Command Reference Manual](docs/commands_reference.md)**.*
+
+---
+
 ## 🤖 Antigravity CLI Integration (Plugin Installation)
 
 You can easily integrate `ggsrun` into the **Antigravity CLI** (`agy`) as a plugin. Installing this plugin automatically registers the `ggsrun` MCP server and installs the dedicated Apps Script development Agent Skill (`skills/gas-execution/SKILL.md`).

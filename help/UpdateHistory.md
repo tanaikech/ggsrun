@@ -4,6 +4,12 @@
 
 # Update History
 
+- **v5.3.18 (August 2026) - Multiline Script and Complex Payload Execution Support**
+  1. **Complex Multiline Script Support**: Expanded and solidified support for executing multi-line Google Apps Script code directly via standard input pipes (Heredoc) and inline string arguments (`--ss` / `-ss`).
+  2. **Zero-Escaping Issues with Heredoc**: Documented and verified that piped standard input (`cat << 'EOF' | ggsrun exe1 ...`) safely handles complex regular expressions, nested single/double quotes, template literals, comments (`//`, `/* */`), and Unicode/emojis without shell escaping corruption.
+  3. **JSON Object Parameter Handling**: Ensured complex JSON strings passed to `-v` (e.g. `{"key":"value"}`) are reliably parsed and passed as native structured parameters to Google Apps Script functions.
+  4. **Test Suite & Version Alignment**: Added comprehensive unit tests (`script_multiline_test.go`) validating JSON round-trip serialization and updated global application / MCP version to `5.3.18`.
+
 - **v5.3.17 (July 2026) - Antigravity CLI Loading Loop Resolution, Full JSON-RPC Protocol Handshake, and MCP Transport Hardening**
   1. **Resolution for Antigravity CLI Infinite Loading Loop**: Resolved the issue described in [Troubleshooting Infinite Loading Loop in Antigravity CLI v1.1.3](https://tanaikech.github.io/2026/07/16/troubleshooting-infinite-loading-loop-in-antigravity-cli-v1.1.3-and-temporary-workaround/). Fixed the silent hanging issue during MCP server initialization by implementing full JSON-RPC 2.0 protocol handlers for `ping`, `resources/list`, and `prompts/list` methods, as well as a fallback error handler returning standard JSON-RPC `-32601` (`Method not found`) for unrecognized requests with an `id`.
   2. **Silenced Non-JSON Startup Header**: Completely silenced and removed non-JSON diagnostic startup headers (`🤖 ggsrun MCP Server initialized` and system telemetry) from `stdout`. Standard output (`os.Stdout`) is now strictly reserved for pure MCP JSON-RPC protocol messages.

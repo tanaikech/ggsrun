@@ -101,6 +101,28 @@ $ ggsrun <command> [options]
   $ ggsrun exe1 -ss "function main() { return 'Hello!'; }" -f "main" -j
   ```
   *Retrieves `script_id` from local `ggsrun.cfg` as fallback, uploads inline string, executes `main()`, and yields clean JSON.*
+* **Execute multiline script directly with JSON arguments**:
+  ```bash
+  $ ggsrun exe1 --ss "function test(e){
+    return 'ok ' + e.key;
+  }" -f "test" -v '{"key":"value1"}'
+  ```
+  *Passes a multiline JavaScript function and a structured JSON parameter to return `"ok value1"`.*
+* **Execute complex multiline script via piped standard input (Heredoc)**:
+  ```bash
+  $ cat << 'EOF' | ggsrun exe1 -f "test" -v '{"key":"value1"}'
+  function test(e) {
+    // Single-line comment & regex with quotes/slashes
+    const re = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/gi;
+    /* Multi-line comment
+       with special characters: $ \ ' " `
+    */
+    const template = `Processed: ${e.key}`;
+    return template;
+  }
+  EOF
+  ```
+  *Executes arbitrary complex Google Apps Script code directly via stdin without escaping issues, passing structured JSON payloads.*
 
 #### Architecture Workflow (Stateful Execution with Sandboxing & Auto-Cleanup)
 
