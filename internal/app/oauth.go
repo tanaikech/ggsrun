@@ -26,6 +26,11 @@ import (
 // Goauth :
 func (a *AuthContainer) goauth() *AuthContainer {
 	a.UpdateStatus("Authenticating...")
+	if a.InitVal.isDirectToken && a.InitVal.directAccessToken != "" {
+		a.GgsrunCfg.Accesstoken = a.InitVal.directAccessToken
+		a.Msg = append(a.Msg, "Direct Access Token was used.")
+		return a
+	}
 	if a.useServiceAccount != "" {
 		if err := a.getAtFromSa(); err != nil {
 			a.FailStatus("Authentication Failed")
@@ -56,6 +61,10 @@ func (a *AuthContainer) goauth() *AuthContainer {
 // tryLoadAuth : Attempt to load authentication configuration securely without crashing.
 // Used primarily for webapps which can function both anonymously and securely authenticated.
 func (a *AuthContainer) tryLoadAuth(c *cli.Context) {
+	if a.InitVal.isDirectToken && a.InitVal.directAccessToken != "" {
+		a.GgsrunCfg.Accesstoken = a.InitVal.directAccessToken
+		return
+	}
 	cfgPath := a.resolveConfigFile()
 	if !c.Bool("jsonparser") {
 		absCfgPath, _ := filepath.Abs(cfgPath)

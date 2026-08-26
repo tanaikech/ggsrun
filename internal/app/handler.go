@@ -191,6 +191,13 @@ func checkStatus(c *cli.Context) error {
 		fmt.Println()
 	}
 
+	if a.InitVal.isDirectToken {
+		pterm.Success.Println("Active Authentication: Direct Access Token (--accesstoken / --at)")
+		pterm.Info.Printf("Access Token Length: %d characters.\n", len(a.GgsrunCfg.Accesstoken))
+		pterm.Info.Printf("Token Preview: %s\n\n", maskString(a.GgsrunCfg.Accesstoken))
+		return nil
+	}
+
 	pterm.Success.Println("Status: Authentication successful!")
 	pterm.Info.Printf("Access Token valid. Length: %d characters.\n", len(a.GgsrunCfg.Accesstoken))
 	pterm.Info.Printf("Expiration time: %v\n", time.Unix(a.GgsrunCfg.Expiresin, 0).Format(time.RFC3339))

@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"ggsrun/internal/utl"
+
+	"github.com/urfave/cli"
 )
 
 func init() {
@@ -450,3 +452,64 @@ func TestIntegrationFlows(t *testing.T) {
 		}
 	}
 }
+
+// TestDirectAccessTokenFlags tests that --accesstoken, --at, and -at flags
+// are correctly bound and prioritize the given token over config files.
+func TestDirectAccessTokenFlags(t *testing.T) {
+	testToken := "mock_access_token_for_unit_test"
+
+	t.Run("Flag_LongName", func(t *testing.T) {
+		app := cli.NewApp()
+		app.Flags = getCliCommonFlags()
+		app.Action = func(c *cli.Context) error {
+			a := defAuthContainer(c)
+			if !a.InitVal.isDirectToken {
+				t.Errorf("Expected isDirectToken to be true")
+			}
+			if a.InitVal.directAccessToken != testToken {
+				t.Errorf("Expected %s, got %s", testToken, a.InitVal.directAccessToken)
+			}
+			return nil
+		}
+		if err := app.Run([]string{"ggsrun", "--accesstoken", testToken}); err != nil {
+			t.Fatalf("Failed to run app: %v", err)
+		}
+	})
+
+	t.Run("Flag_ShortAlias_DoubleDash", func(t *testing.T) {
+		app := cli.NewApp()
+		app.Flags = getCliCommonFlags()
+		app.Action = func(c *cli.Context) error {
+			a := defAuthContainer(c)
+			if !a.InitVal.isDirectToken {
+				t.Errorf("Expected isDirectToken to be true")
+			}
+			if a.InitVal.directAccessToken != testToken {
+				t.Errorf("Expected %s, got %s", testToken, a.InitVal.directAccessToken)
+			}
+			return nil
+		}
+		if err := app.Run([]string{"ggsrun", "--at", testToken}); err != nil {
+			t.Fatalf("Failed to run app: %v", err)
+		}
+	})
+
+	t.Run("Flag_ShortAlias_SingleDash", func(t *testing.T) {
+		app := cli.NewApp()
+		app.Flags = getCliCommonFlags()
+		app.Action = func(c *cli.Context) error {
+			a := defAuthContainer(c)
+			if !a.InitVal.isDirectToken {
+				t.Errorf("Expected isDirectToken to be true")
+			}
+			if a.InitVal.directAccessToken != testToken {
+				t.Errorf("Expected %s, got %s", testToken, a.InitVal.directAccessToken)
+			}
+			return nil
+		}
+		if err := app.Run([]string{"ggsrun", "-at", testToken}); err != nil {
+			t.Fatalf("Failed to run app: %v", err)
+		}
+	})
+}
+

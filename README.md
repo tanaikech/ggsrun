@@ -48,7 +48,7 @@ To make onboarding, development, and advanced operations as seamless as possible
 7. **Multi-Format Container Synced Uploads**: Upload script files and instantly provision standalone scripts OR container-bound scripts.
 8. **Permissions Orchestration**: Inspect, list, and manage file and folder sharing permissions across your entire Drive.
 9. **Advanced Metadata Search**: Query your Google Drive utilizing Google Drive API v3 query syntax and local filename Regular Expressions (Regex).
-10. **Flexible Authentication**: Natively supports both robust browser loopback OAuth2 and secure Service Accounts.
+10. **Flexible Authentication**: Natively supports robust browser loopback OAuth2, secure Service Accounts, and direct Access Token injection (`--accesstoken` / `--at`) for automated testing and CI/CD pipelines.
 11. **Security Sandboxing**: Officially integrates with the **Antigravity CLI** via an embedded in-memory security sandbox wrapper (`--sandbox`) to guard Workspace resources.
 12. **Self-Healing Project Recovery**: Restore the remote GAS project to a clean initial state at any time with a single command (`ggsrun recover`).
 
@@ -122,7 +122,7 @@ $ ggsrun status
 
 ## ⚡ Quick Start: Dynamic & Complex Script Execution
 
-With **v5.3.18**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
+With **v5.3.19**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
 
 ### 1. Execute Inline or Multi-line Script Directly (`--ss`):
 ```bash
@@ -170,6 +170,16 @@ Pass outputs from tools like `curl`, `jq`, or custom scripts dynamically into Go
 ```bash
 # Fetch live API payload and pass to GAS execution
 $ ggsrun exe1 --ss "function run(e){ return e; }" -f "run" -v "$(curl -s https://api.github.com/users/octocat)"
+```
+
+### 5. Direct Access Token Execution (CI/CD & Automated Testing):
+Directly pass an OAuth2 access token via `--accesstoken` or `--at` (or `-at`). This completely bypasses `ggsrun.cfg`, refresh tokens, and credentials files, making it ideal for CI/CD environments and ephemeral pipelines:
+```bash
+# Execute GAS script using a temporary access token without any local configuration files
+$ ggsrun exe1 -i "SCRIPT_ID" -ss "function main() { return 'success'; }" -f "main" --at "ACCESS_TOKEN" -j
+
+# Execute Drive search with direct access token
+$ ggsrun searchfiles -q "name contains 'Project'" --at "ACCESS_TOKEN" -j
 ```
 
 *For more detailed execution recipes, sandboxing configurations, and lifecycle guides, visit the **[Command Reference Manual](docs/commands_reference.md)**.*

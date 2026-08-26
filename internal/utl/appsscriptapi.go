@@ -389,14 +389,22 @@ func DispScopeError1() {
 
 func DispScopeError2(body []byte) {
 	var u map[string]interface{}
-	json.Unmarshal(body, &u)
-	if errorObj, ok := u["error"].(map[string]interface{}); ok {
-		if em, ok := errorObj["message"].(string); ok {
-			if em == "Request had insufficient authentication scopes." {
-				DispScopeError1()
+	if err := json.Unmarshal(body, &u); err == nil {
+		if errorObj, ok := u["error"].(map[string]interface{}); ok {
+			if em, ok := errorObj["message"].(string); ok {
+				pterm.Error.Printf("API Error: %s\n", em)
+			}
+			if details, ok := errorObj["details"].([]interface{}); ok && len(details) > 0 {
+				var formatted bytes.Buffer
+				if json.Indent(&formatted, body, "", "  ") == nil {
+					pterm.Error.Printf("Error Details:\n%s\n", formatted.String())
+					return
+				}
+			}
+			if em, ok := errorObj["message"].(string); ok && em == "Request had insufficient authentication scopes." {
+				pterm.Warning.Println("Hint: The provided token or credentials lack the required scope (e.g. 'https://www.googleapis.com/auth/script.projects' or 'https://www.googleapis.com/auth/drive').")
 				return
 			}
-			pterm.Error.Printf("API Error: %s\n", em)
 			return
 		}
 	}

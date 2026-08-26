@@ -111,8 +111,27 @@ func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
 				}
 			}
 		}
-	} else {
+	} else if !a.InitVal.isDirectToken {
 		return a.readClientSecret()
+	} else {
+		if c.Command.Name == "exe1" || c.Command.Name == "exe2" {
+			if len(c.String("scriptid")) == 0 {
+				a.FailStatus("Validation Error")
+				pterm.Error.Println("No script id. Please supply option '-i [Script ID]'.")
+				utl.Exit(1)
+			}
+			a.GgsrunCfg.Scriptid = c.String("scriptid")
+			if c.Command.Name == "exe1" || c.Command.Name == "e1" || len(c.StringSlice("function")) > 0 {
+				fSlice := c.StringSlice("function")
+				if len(fSlice) > 0 && fSlice[0] != "" {
+					a.Param.Function = fSlice[0]
+				}
+			} else {
+				if len(c.String("function")) > 0 {
+					a.Param.Function = c.String("function")
+				}
+			}
+		}
 	}
 	return a
 }

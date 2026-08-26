@@ -39,6 +39,7 @@ $ ggsrun <command> [options]
 
 | Global Flag | Alias | Type | Description |
 | :--- | :--- | :--- | :--- |
+| `--accesstoken <token>` | `--at`, `-at` | String | Directly specify an OAuth2 access token to execute commands without requiring `ggsrun.cfg` or refresh tokens. |
 | `--credentials <path>` | `--cred` | String | Absolute path to a custom Google Cloud credentials JSON file. |
 | `--config <dir>` | `--conf` | String | Custom folder containing `ggsrun.cfg` (overrides default search priorities). |
 | `--profile <name>` | | String | Specify a configuration profile name (e.g., `--profile dev` loads/saves `ggsrun_dev.cfg`). |

@@ -32,6 +32,15 @@ func getCommonFlags() []cli.Flag {
 	}
 }
 
+func getCliCommonFlags() []cli.Flag {
+	return append([]cli.Flag{
+		&cli.StringFlag{
+			Name:  "accesstoken, at",
+			Usage: "Directly specify an OAuth2 access token to execute commands without using ggsrun.cfg or refresh tokens.",
+		},
+	}, getCommonFlags()...)
+}
+
 // main : main function
 func Run() {
 	app := cli.NewApp()
@@ -40,7 +49,7 @@ func Run() {
 		{Name: "Tanaike [ https://github.com/tanaikech/ggsrun ] ", Email: "tanaike@hotmail.com"},
 	}
 	app.UsageText = "This is a CLI application for managing Google Drive and Google Apps Script (GAS). Powered by modern Go concurrency."
-	app.Version = "5.3.18"
+	app.Version = "5.3.19"
 	app.Commands = []cli.Command{
 		{
 			Name:        "exe1",
@@ -101,7 +110,7 @@ func Run() {
 					Name:  "log, l",
 					Usage: "Retrieve execution logs from Cloud Logging (adds 5-10s delay).",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "exe2",
@@ -150,7 +159,7 @@ func Run() {
 					Name:  "jsonparser, j",
 					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "webapps",
@@ -195,7 +204,7 @@ func Run() {
 					Name:  "jsonparser, j",
 					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "download",
@@ -265,7 +274,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "upload",
@@ -337,7 +346,7 @@ func Run() {
 					Name:  "gas, g",
 					Usage: "Upload a local folder as a single standalone Google Apps Script project.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "updateproject",
@@ -378,7 +387,7 @@ func Run() {
 					Name:  "conflict",
 					Usage: "Conflict resolution strategy when duplicate script name exists: 'overwrite' or 'add'.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "revisionfiles",
@@ -419,7 +428,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "filelist",
@@ -452,7 +461,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "searchfiles",
@@ -481,7 +490,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "permissions",
@@ -530,7 +539,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "driveinformation",
@@ -552,7 +561,7 @@ func Run() {
 					Name:  "serviceaccount, sa",
 					Usage: "Path to a service account credentials.json file.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 		{
 			Name:        "auth",
@@ -602,7 +611,7 @@ func Run() {
 			Usage:       "Checks authentication status and API connectivity.",
 			Description: "Quick health diagnostic tool for tokens and environment resolution.",
 			Action:      checkStatus,
-			Flags:       getCommonFlags(),
+			Flags:       getCliCommonFlags(),
 		},
 		{
 			Name:        "fd",
@@ -649,7 +658,7 @@ func Run() {
 					Name:  "jsonparser, j",
 					Usage: "Bypass TUI and display outputs strictly as pure JSON.",
 				},
-			}, getCommonFlags()...),
+			}, getCliCommonFlags()...),
 		},
 	}
 	app.CommandNotFound = commandNotFound

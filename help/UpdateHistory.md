@@ -4,6 +4,10 @@
 
 # Update History
 
+- **v5.3.19 (August 2026) - Direct Access Token Injection for CLI Mode**
+  1. **Direct Access Token Injection (`--accesstoken` / `--at` / `-at`)**: Added a universal CLI flag enabling users, automated test suites, and CI/CD pipelines to directly pass an OAuth2 access token. When supplied, `ggsrun` bypasses all local configuration files (`ggsrun.cfg`), client secrets, and refresh token loops, prioritizing the supplied token unconditionally without altering local configuration. (Strictly scoped to command-line execution modes; excluded from TUI/FD and MCP modes).
+  2. **Raw API Error Diagnostics**: Engineered strict raw error propagation for direct token execution. When a provided access token lacks required Google API scopes or is invalid, `ggsrun` formats and prints the exact raw Google API error payload without misleading generic configuration prompts, ensuring clean, predictable error termination.
+
 - **v5.3.18 (August 2026) - Multiline Script and Complex Payload Execution Support**
   1. **Complex Multiline Script Support**: Expanded and solidified support for executing multi-line Google Apps Script code directly via standard input pipes (Heredoc) and inline string arguments (`--ss` / `-ss`).
   2. **Zero-Escaping Issues with Heredoc**: Documented and verified that piped standard input (`cat << 'EOF' | ggsrun exe1 ...`) safely handles complex regular expressions, nested single/double quotes, template literals, comments (`//`, `/* */`), and Unicode/emojis without shell escaping corruption.

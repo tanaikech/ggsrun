@@ -44,7 +44,7 @@ echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-1
 **Expected Result:**
 * The server outputs a single, clean JSON-RPC response on `stdout` without non-JSON-RPC startup logs, matching the standard structure:
   ```json
-  {"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"ggsrun-mcp-server","version":"5.3.18"}}}
+  {"id":1,"jsonrpc":"2.0","result":{"capabilities":{"tools":{}},"protocolVersion":"2024-11-05","serverInfo":{"name":"ggsrun-mcp-server","version":"5.3.19"}}}
   ```
 
 ### Test Case B: List Available Tools

@@ -541,6 +541,20 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 	if err != nil {
 		e.FailStatus("API Execution Failed")
 		json.Unmarshal(body, &e.FeedBackData)
+		if e.InitVal.isDirectToken {
+			pterm.Error.Println("Google API Execution Failed with direct access token.")
+			if len(body) > 0 {
+				var formatted bytes.Buffer
+				if json.Indent(&formatted, body, "", "  ") == nil {
+					fmt.Fprintf(os.Stderr, "\n[Raw API Error Response]:\n%s\n\n", formatted.String())
+				} else {
+					fmt.Fprintf(os.Stderr, "\n[Raw API Error Response]:\n%s\n\n", string(body))
+				}
+			} else {
+				pterm.Error.Printf("Error: %v\n", err)
+			}
+			utl.Exit(1)
+		}
 		if e.FeedBackData.Error.Status == "UNAUTHENTICATED" {
 			if len(e.chkAtoken().Error) > 0 {
 				pterm.Error.Printf("Invalid Access token. Please retrieve it again using command '%s auth'.\nCurrent access token is '%s'.\n", appname, e.GgsrunCfg.Accesstoken)
@@ -552,6 +566,12 @@ func (e *ExecutionContainer) executionError(body []byte, err error) {
 		if e.FeedBackData.Error.Message == "PERMISSION_DENIED" &&
 			e.FeedBackData.Error.Code == 403 {
 			pterm.Error.Println("Please check Execution API at Developer console.\nIf Execution API is unable, please enable it. Or please check 'client_secret.json'. It might be that that is not for the project with Execution API.")
+			if len(body) > 0 {
+				var formatted bytes.Buffer
+				if json.Indent(&formatted, body, "", "  ") == nil {
+					fmt.Fprintf(os.Stderr, "\n[Raw API Error Response]:\n%s\n\n", formatted.String())
+				}
+			}
 			utl.Exit(1)
 		}
 		if e.FeedBackData.Error.Message == "Requested entity was not found." &&

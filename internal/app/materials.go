@@ -67,6 +67,8 @@ type InitVal struct {
 	autoConfirm           bool   // Auto-confirm flag (--yes)
 	LastProcessID         string
 	customScopes          string
+	directAccessToken     string // Directly supplied access token via --accesstoken / --at
+	isDirectToken         bool   // True if direct access token mode is active
 }
 
 // UpdateStatus safely updates the TUI spinner text if active.
@@ -336,6 +338,12 @@ func defAuthContainer(c *cli.Context) *AuthContainer {
 	a.InitVal.profile = c.String("profile")
 	a.InitVal.autoConfirm = c.Bool("yes")
 	a.InitVal.customScopes = c.String("scopes")
+
+	tokenInput := c.String("accesstoken")
+	if tokenInput != "" {
+		a.InitVal.directAccessToken = strings.TrimSpace(tokenInput)
+		a.InitVal.isDirectToken = true
+	}
 
 	if c.Command.Name == "exe1" || c.Command.Name == "e1" || len(c.StringSlice("function")) > 0 {
 		fSlice := c.StringSlice("function")
