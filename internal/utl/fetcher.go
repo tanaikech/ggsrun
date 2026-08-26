@@ -28,6 +28,7 @@ type RequestParams struct {
 // Global HTTP Client optimized for multiplexed and concurrent I/O
 var globalHTTPClient = &http.Client{
 	Transport: &http.Transport{
+		Proxy:               http.ProxyFromEnvironment,
 		MaxIdleConns:        100,
 		MaxIdleConnsPerHost: 100,
 		IdleConnTimeout:     90 * time.Second,

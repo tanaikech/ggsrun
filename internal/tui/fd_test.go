@@ -2785,7 +2785,7 @@ func TestTUI_RemoteRootOption_FolderName_MultipleMatches(t *testing.T) {
 
 func TestTUI_RelativePathOption(t *testing.T) {
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.19"
+	appObj.Version = "5.3.20"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	set.Bool("relpath", true, "")
 	cliCtx := cli.NewContext(appObj, set, nil)

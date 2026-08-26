@@ -51,6 +51,7 @@ To make onboarding, development, and advanced operations as seamless as possible
 10. **Flexible Authentication**: Natively supports robust browser loopback OAuth2, secure Service Accounts, and direct Access Token injection (`--accesstoken` / `--at`) for automated testing and CI/CD pipelines.
 11. **Security Sandboxing**: Officially integrates with the **Antigravity CLI** via an embedded in-memory security sandbox wrapper (`--sandbox`) to guard Workspace resources.
 12. **Self-Healing Project Recovery**: Restore the remote GAS project to a clean initial state at any time with a single command (`ggsrun recover`).
+13. **Enterprise & Sandbox Proxy Ready**: Natively honors environment variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`) for robust connectivity within Gemini Managed Agents sandboxes and enterprise corporate networks.
 
 ---
 
@@ -122,7 +123,7 @@ $ ggsrun status
 
 ## ⚡ Quick Start: Dynamic & Complex Script Execution
 
-With **v5.3.19**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
+With **v5.3.20**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
 
 ### 1. Execute Inline or Multi-line Script Directly (`--ss`):
 ```bash

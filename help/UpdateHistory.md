@@ -4,6 +4,9 @@
 
 # Update History
 
+- **v5.3.20 (August 2026) - Environment Variable Proxy Support & Network Resiliency**
+  1. **HTTP/HTTPS Proxy from Environment (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`)**: Added explicit `Proxy: http.ProxyFromEnvironment` to all custom `http.Transport` instances across `internal/utl/fetcher.go` and `internal/app/sender.go`. This enables full, automated proxy negotiation in Gemini Managed Agents sandboxes, enterprise intranets, and restricted corporate networks, preventing DNS resolution timeouts and network connection rejections.
+
 - **v5.3.19 (August 2026) - Direct Access Token Injection for CLI Mode**
   1. **Direct Access Token Injection (`--accesstoken` / `--at` / `-at`)**: Added a universal CLI flag enabling users, automated test suites, and CI/CD pipelines to directly pass an OAuth2 access token. When supplied, `ggsrun` bypasses all local configuration files (`ggsrun.cfg`), client secrets, and refresh token loops, prioritizing the supplied token unconditionally without altering local configuration. (Strictly scoped to command-line execution modes; excluded from TUI/FD and MCP modes).
   2. **Raw API Error Diagnostics**: Engineered strict raw error propagation for direct token execution. When a provided access token lacks required Google API scopes or is invalid, `ggsrun` formats and prints the exact raw Google API error payload without misleading generic configuration prompts, ensuring clean, predictable error termination.

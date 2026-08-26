@@ -57,7 +57,7 @@ func TestMCPServerToolsList(t *testing.T) {
 
 	// Set up CLI context
 	appObj := cli.NewApp()
-	appObj.Version = "5.3.19"
+	appObj.Version = "5.3.20"
 	set := flag.NewFlagSet("test", flag.ContinueOnError)
 	cliCtx := cli.NewContext(appObj, set, nil)
 
