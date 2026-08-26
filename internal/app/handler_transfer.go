@@ -73,10 +73,16 @@ func dispTransferResult(c *cli.Context, f interface{}, cfgPath string) {
 	if c.Bool("jsonparser") {
 		b, err := json.Marshal(f)
 		if err == nil {
-			absPath, _ := filepath.Abs(cfgPath)
+			configInfo := ""
+			if c.String("accesstoken") != "" {
+				configInfo = "Direct Access Token (--accesstoken / --at)"
+			} else {
+				absPath, _ := filepath.Abs(cfgPath)
+				configInfo = absPath
+			}
 			var m map[string]interface{}
 			if err2 := json.Unmarshal(b, &m); err2 == nil {
-				m["config_path"] = absPath
+				m["config_path"] = configInfo
 				dispRes, _ := json.MarshalIndent(m, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))
 				return
@@ -85,7 +91,7 @@ func dispTransferResult(c *cli.Context, f interface{}, cfgPath string) {
 			if err2 := json.Unmarshal(b, &arr); err2 == nil {
 				wrapped := map[string]interface{}{
 					"result":      arr,
-					"config_path": absPath,
+					"config_path": configInfo,
 				}
 				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))
@@ -95,7 +101,7 @@ func dispTransferResult(c *cli.Context, f interface{}, cfgPath string) {
 			if err2 := json.Unmarshal(b, &val); err2 == nil {
 				wrapped := map[string]interface{}{
 					"result":      val,
-					"config_path": absPath,
+					"config_path": configInfo,
 				}
 				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))

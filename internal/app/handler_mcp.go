@@ -64,7 +64,7 @@ func runMCP(c *cli.Context) error {
 
 		switch method {
 		case "initialize":
-			ver := "5.3.20"
+			ver := "5.3.21"
 			if c != nil && c.App != nil && c.App.Version != "" {
 				ver = c.App.Version
 			}

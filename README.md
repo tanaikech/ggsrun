@@ -123,7 +123,7 @@ $ ggsrun status
 
 ## ⚡ Quick Start: Dynamic & Complex Script Execution
 
-With **v5.3.20**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
+With **v5.3.21**, `ggsrun` seamlessly executes inline or complex multi-line Google Apps Script code directly from your terminal or scripts without escaping issues:
 
 ### 1. Execute Inline or Multi-line Script Directly (`--ss`):
 ```bash

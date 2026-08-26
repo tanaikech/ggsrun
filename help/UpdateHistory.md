@@ -4,6 +4,9 @@
 
 # Update History
 
+- **v5.3.21 (August 2026) - Direct Access Token Telemetry & Info Header Fix**
+  1. **Direct Access Token Telemetry Alignment**: Resolved an issue where standard terminal execution outputs displayed `[INFO] Using config file: ...` even when direct access tokens were supplied via `--accesstoken` / `--at`. `ggsrun` now accurately reports `[INFO] Using direct access token from CLI (--accesstoken / --at)` and appropriately reflects direct token authentication across all execution and transfer telemetry outputs.
+
 - **v5.3.20 (August 2026) - Environment Variable Proxy Support & Network Resiliency**
   1. **HTTP/HTTPS Proxy from Environment (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`)**: Added explicit `Proxy: http.ProxyFromEnvironment` to all custom `http.Transport` instances across `internal/utl/fetcher.go` and `internal/app/sender.go`. This enables full, automated proxy negotiation in Gemini Managed Agents sandboxes, enterprise intranets, and restricted corporate networks, preventing DNS resolution timeouts and network connection rejections.
 

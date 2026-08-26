@@ -76,8 +76,12 @@ func (a *AuthContainer) ggsrunIni(c *cli.Context) *AuthContainer {
 	a.UpdateStatus("Reading configuration...")
 	cfgPath := a.resolveConfigFile()
 	if !c.Bool("jsonparser") {
-		absCfgPath, _ := filepath.Abs(cfgPath)
-		fmt.Fprintf(os.Stdout, "[INFO] Using config file: %s\n", absCfgPath)
+		if a.InitVal.isDirectToken {
+			fmt.Fprintf(os.Stdout, "[INFO] Using direct access token from CLI (--accesstoken / --at)\n")
+		} else {
+			absCfgPath, _ := filepath.Abs(cfgPath)
+			fmt.Fprintf(os.Stdout, "[INFO] Using config file: %s\n", absCfgPath)
+		}
 	}
 	if cfgdata, err := os.ReadFile(cfgPath); err == nil {
 		err = json.Unmarshal(cfgdata, &a.GgsrunCfg)

@@ -434,10 +434,16 @@ func (e *ExecutionContainer) dispResult(c *cli.Context) {
 		// 2. Inject config path if target is a JSON object
 		b, err := json.Marshal(target)
 		if err == nil {
-			absPath, _ := filepath.Abs(e.resolveConfigFile())
+			configInfo := ""
+			if e.InitVal.isDirectToken {
+				configInfo = "Direct Access Token (--accesstoken / --at)"
+			} else {
+				absPath, _ := filepath.Abs(e.resolveConfigFile())
+				configInfo = absPath
+			}
 			var m map[string]interface{}
 			if err2 := json.Unmarshal(b, &m); err2 == nil {
-				m["config_path"] = absPath
+				m["config_path"] = configInfo
 				dispRes, _ := json.MarshalIndent(m, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))
 				return
@@ -446,7 +452,7 @@ func (e *ExecutionContainer) dispResult(c *cli.Context) {
 			if err2 := json.Unmarshal(b, &arr); err2 == nil {
 				wrapped := map[string]interface{}{
 					"result":      arr,
-					"config_path": absPath,
+					"config_path": configInfo,
 				}
 				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))
@@ -456,7 +462,7 @@ func (e *ExecutionContainer) dispResult(c *cli.Context) {
 			if err2 := json.Unmarshal(b, &val); err2 == nil {
 				wrapped := map[string]interface{}{
 					"result":      val,
-					"config_path": absPath,
+					"config_path": configInfo,
 				}
 				dispRes, _ := json.MarshalIndent(wrapped, "", "  ")
 				fmt.Printf("%s\n", string(dispRes))

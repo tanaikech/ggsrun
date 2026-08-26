@@ -63,6 +63,9 @@ func (a *AuthContainer) goauth() *AuthContainer {
 func (a *AuthContainer) tryLoadAuth(c *cli.Context) {
 	if a.InitVal.isDirectToken && a.InitVal.directAccessToken != "" {
 		a.GgsrunCfg.Accesstoken = a.InitVal.directAccessToken
+		if !c.Bool("jsonparser") {
+			fmt.Fprintf(os.Stdout, "[INFO] Using direct access token from CLI (--accesstoken / --at)\n")
+		}
 		return
 	}
 	cfgPath := a.resolveConfigFile()
